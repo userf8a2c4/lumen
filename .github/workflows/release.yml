@@ -33,18 +33,17 @@ jobs:
 
       - name: Find .exe file
         id: find_exe
-        shell: powershell
+        shell: bash
         run: |
-          $exe = Get-ChildItem -Path "dist" -Name "*.exe" -Include "*Setup*" | Select-Object -First 1
-          if ($exe) {
-            echo "exe_file=$exe" >> $env:GITHUB_OUTPUT
-            echo "exe_path=dist/$exe" >> $env:GITHUB_OUTPUT
-            echo "✓ Found: $exe"
-          } else {
-            echo "❌ No .exe found in dist"
-            Get-ChildItem -Path "dist" -Recurse | Select-Object Name
+          EXE_FILE=$(find dist -maxdepth 1 -name "*.exe" -type f | head -1)
+          if [ -n "$EXE_FILE" ]; then
+            echo "exe_path=$EXE_FILE" >> $GITHUB_OUTPUT
+            echo "Found: $EXE_FILE"
+          else
+            echo "No .exe found in dist/"
+            ls -R dist/
             exit 1
-          }
+          fi
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
