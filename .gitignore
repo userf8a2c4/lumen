@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+*.db
+.api-key
+.env
+*.log
+thumbs.db
+.DS_Store

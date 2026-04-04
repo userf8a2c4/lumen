@@ -1,0 +1,23 @@
+appId: com.lumen.app
+productName: LUMEN
+directories:
+  output: release
+files:
+  - src/main/**/*
+  - dist/renderer/**/*
+  - package.json
+asar: true
+asarUnpack:
+  - "node_modules/sql.js/dist/sql-wasm.wasm"
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: LUMEN
+publish:
+  provider: github
+  owner: userf8a2c4
+  repo: lumen
