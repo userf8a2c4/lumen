@@ -80,9 +80,9 @@ function checkForUpdates() {
   });
 }
 
-// ─── Download update using PowerShell ───────────────────
-// PowerShell handles redirects, TLS, large files natively.
-// No manual redirect following, no pipe/stream bugs.
+// ─── Download update using curl.exe ─────────────────────
+// curl.exe is built into Windows 10/11 and handles redirects,
+// TLS, and large files reliably without stalling.
 
 function downloadUpdate() {
   if (!latestRelease || !latestRelease.downloadUrl) {
@@ -97,50 +97,22 @@ function downloadUpdate() {
   try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
 
   return new Promise((resolve, reject) => {
-    // PowerShell command to download with progress tracking via file size polling
-    const psCommand = [
-      `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;`,
-      `$ProgressPreference = 'SilentlyContinue';`,
-      `Invoke-WebRequest -Uri '${latestRelease.downloadUrl}' -OutFile '${filePath}' -UseBasicParsing;`,
-      `Write-Output 'DONE'`,
-    ].join(' ');
+    // curl.exe: -L follow redirects, -o output file, --connect-timeout 30s
+    const curl = spawn('curl.exe', [
+      '-L',
+      '-o', filePath,
+      '--connect-timeout', '30',
+      '--max-time', '600',
+      '--retry', '3',
+      '--retry-delay', '5',
+      latestRelease.downloadUrl,
+    ], { windowsHide: true });
 
-    const ps = execFile('powershell.exe', ['-NoProfile', '-Command', psCommand], {
-      windowsHide: true,
-      timeout: 600000, // 10 minute timeout
-    }, (error, stdout) => {
-      if (error) {
-        sendToRenderer('update-error', `Error de descarga: ${error.message}`);
-        try { fs.unlinkSync(filePath); } catch {}
-        reject(error);
-        return;
-      }
-
-      if (stdout.trim().includes('DONE') && fs.existsSync(filePath)) {
-        const fileSize = fs.statSync(filePath).size;
-        if (fileSize < 1000000) { // Less than 1MB = probably failed
-          sendToRenderer('update-error', 'Archivo descargado parece corrupto.');
-          try { fs.unlinkSync(filePath); } catch {}
-          reject(new Error('Downloaded file too small'));
-          return;
-        }
-
-        downloadedFilePath = filePath;
-        sendToRenderer('download-progress', { percent: 100, transferred: fileSize, total: fileSize });
-        sendToRenderer('update-downloaded', { version: latestRelease.version });
-        resolve(filePath);
-      } else {
-        sendToRenderer('update-error', 'La descarga no se completo.');
-        reject(new Error('Download did not complete'));
-      }
-    });
-
-    // Poll file size for progress updates while PowerShell downloads
-    let progressInterval = setInterval(() => {
+    // Poll file size every second for progress
+    const progressInterval = setInterval(() => {
       try {
         if (fs.existsSync(filePath)) {
           const currentSize = fs.statSync(filePath).size;
-          // Estimate total size (~165MB based on typical build)
           const estimatedTotal = 170 * 1024 * 1024;
           const percent = Math.min(99, Math.round((currentSize / estimatedTotal) * 100));
           sendToRenderer('download-progress', {
@@ -152,8 +124,41 @@ function downloadUpdate() {
       } catch {}
     }, 1000);
 
-    ps.on('exit', () => {
+    curl.on('close', (code) => {
       clearInterval(progressInterval);
+
+      if (code !== 0) {
+        sendToRenderer('update-error', `Descarga fallo (codigo ${code}).`);
+        try { fs.unlinkSync(filePath); } catch {}
+        reject(new Error(`curl exit code ${code}`));
+        return;
+      }
+
+      if (!fs.existsSync(filePath)) {
+        sendToRenderer('update-error', 'Archivo no encontrado tras descarga.');
+        reject(new Error('File not found after download'));
+        return;
+      }
+
+      const fileSize = fs.statSync(filePath).size;
+      if (fileSize < 1000000) {
+        sendToRenderer('update-error', 'Archivo descargado parece corrupto.');
+        try { fs.unlinkSync(filePath); } catch {}
+        reject(new Error('Downloaded file too small'));
+        return;
+      }
+
+      downloadedFilePath = filePath;
+      sendToRenderer('download-progress', { percent: 100, transferred: fileSize, total: fileSize });
+      sendToRenderer('update-downloaded', { version: latestRelease.version });
+      resolve(filePath);
+    });
+
+    curl.on('error', (err) => {
+      clearInterval(progressInterval);
+      sendToRenderer('update-error', `Error de descarga: ${err.message}`);
+      try { fs.unlinkSync(filePath); } catch {}
+      reject(err);
     });
   });
 }
