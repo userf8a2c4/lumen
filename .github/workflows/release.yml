@@ -34,5 +34,11 @@ jobs:
       - name: Upload Release Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: powershell
         run: |
-          gh release upload ${{ github.ref_name }} dist/*.exe --clobber
+          # Find and upload all .exe files
+          $exeFiles = Get-ChildItem -Path . -Include "*.exe" -Recurse -ErrorAction SilentlyContinue
+          foreach ($file in $exeFiles) {
+            Write-Output "Found: $($file.FullName)"
+            & gh release upload ${{ github.ref_name }} $file.FullName --clobber
+          }
