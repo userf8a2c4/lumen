@@ -10,6 +10,7 @@ const REPO_NAME = 'lumen';
 let mainWindow = null;
 let latestRelease = null;
 let downloadedFilePath = null;
+let isDownloading = false; // Guard against concurrent downloads
 
 // ─── Init ───────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ function checkForUpdates() {
                 version: latestVersion,
                 downloadUrl: exeAsset?.browser_download_url || null,
                 fileName: exeAsset?.name || 'LUMEN-Setup.exe',
+                fileSize: exeAsset?.size || 0, // Actual size from GitHub API
                 releaseNotes: release.body || '',
                 releaseDate: release.published_at,
               };
@@ -81,8 +83,6 @@ function checkForUpdates() {
 }
 
 // ─── Download update using curl.exe ─────────────────────
-// curl.exe is built into Windows 10/11 and handles redirects,
-// TLS, and large files reliably without stalling.
 
 function downloadUpdate() {
   if (!latestRelease || !latestRelease.downloadUrl) {
@@ -90,14 +90,28 @@ function downloadUpdate() {
     return Promise.reject(new Error('No download URL'));
   }
 
+  // Prevent concurrent downloads
+  if (isDownloading) {
+    return Promise.reject(new Error('Download already in progress'));
+  }
+  isDownloading = true;
+
   const tempDir = app.getPath('temp');
   const filePath = path.join(tempDir, latestRelease.fileName);
 
   // Delete old file if exists
   try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
 
+  // Use actual file size from GitHub API, fallback to estimate
+  const totalSize = latestRelease.fileSize || (170 * 1024 * 1024);
+
   return new Promise((resolve, reject) => {
-    // curl.exe: -L follow redirects, -o output file, --connect-timeout 30s
+    const finish = (err) => {
+      isDownloading = false;
+      if (err) reject(err);
+    };
+
+    // curl.exe: -L follow redirects, -o output file
     const curl = spawn('curl.exe', [
       '-L',
       '-o', filePath,
@@ -108,18 +122,21 @@ function downloadUpdate() {
       latestRelease.downloadUrl,
     ], { windowsHide: true });
 
-    // Poll file size every second for progress
+    // Poll file size every second for smooth progress
+    let lastPercent = 0;
     const progressInterval = setInterval(() => {
       try {
         if (fs.existsSync(filePath)) {
           const currentSize = fs.statSync(filePath).size;
-          const estimatedTotal = 170 * 1024 * 1024;
-          const percent = Math.min(99, Math.round((currentSize / estimatedTotal) * 100));
-          sendToRenderer('download-progress', {
-            percent,
-            transferred: currentSize,
-            total: estimatedTotal,
-          });
+          const percent = Math.min(99, Math.round((currentSize / totalSize) * 100));
+          if (percent > lastPercent) {
+            lastPercent = percent;
+            sendToRenderer('download-progress', {
+              percent,
+              transferred: currentSize,
+              total: totalSize,
+            });
+          }
         }
       } catch {}
     }, 1000);
@@ -130,13 +147,13 @@ function downloadUpdate() {
       if (code !== 0) {
         sendToRenderer('update-error', `Descarga fallo (codigo ${code}).`);
         try { fs.unlinkSync(filePath); } catch {}
-        reject(new Error(`curl exit code ${code}`));
+        finish(new Error(`curl exit code ${code}`));
         return;
       }
 
       if (!fs.existsSync(filePath)) {
         sendToRenderer('update-error', 'Archivo no encontrado tras descarga.');
-        reject(new Error('File not found after download'));
+        finish(new Error('File not found after download'));
         return;
       }
 
@@ -144,11 +161,12 @@ function downloadUpdate() {
       if (fileSize < 1000000) {
         sendToRenderer('update-error', 'Archivo descargado parece corrupto.');
         try { fs.unlinkSync(filePath); } catch {}
-        reject(new Error('Downloaded file too small'));
+        finish(new Error('Downloaded file too small'));
         return;
       }
 
       downloadedFilePath = filePath;
+      isDownloading = false;
       sendToRenderer('download-progress', { percent: 100, transferred: fileSize, total: fileSize });
       sendToRenderer('update-downloaded', { version: latestRelease.version });
       resolve(filePath);
@@ -156,9 +174,14 @@ function downloadUpdate() {
 
     curl.on('error', (err) => {
       clearInterval(progressInterval);
-      sendToRenderer('update-error', `Error de descarga: ${err.message}`);
+      // curl.exe not found — fallback message
+      if (err.code === 'ENOENT') {
+        sendToRenderer('update-error', 'curl.exe no encontrado. Descarga manual desde GitHub.');
+      } else {
+        sendToRenderer('update-error', `Error de descarga: ${err.message}`);
+      }
       try { fs.unlinkSync(filePath); } catch {}
-      reject(err);
+      finish(err);
     });
   });
 }
@@ -179,12 +202,21 @@ function installUpdate() {
     const exePath = app.getPath('exe');
     const installDir = path.dirname(exePath);
 
-    // Batch script: wait for app to close, run installer, cleanup
+    // Batch script that:
+    // 1. Waits for LUMEN.exe to fully exit (polls every 2s, up to 30s)
+    // 2. Runs installer silently in the same directory
+    // 3. Cleans up
+    // NOTE: /D= must be LAST arg and must NOT be quoted (NSIS requirement)
     const batPath = path.join(app.getPath('temp'), 'lumen-update.bat');
     const batContent = [
       '@echo off',
-      'timeout /t 3 /nobreak > nul',
-      `start "" "${filePath}" /S /D="${installDir}"`,
+      ':waitloop',
+      'tasklist /FI "IMAGENAME eq LUMEN.exe" 2>NUL | find /I /N "LUMEN.exe">NUL',
+      'if "%ERRORLEVEL%"=="0" (',
+      '  timeout /t 2 /nobreak > nul',
+      '  goto waitloop',
+      ')',
+      `start /wait "" "${filePath}" /S /D=${installDir}`,
       `del "%~f0"`,
     ].join('\r\n');
 

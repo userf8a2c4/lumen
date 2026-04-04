@@ -52,19 +52,29 @@ contextBridge.exposeInMainWorld('lumen', {
     install: () => ipcRenderer.invoke('updater:install'),
     reportError: (description) => ipcRenderer.invoke('updater:reportError', description),
     onUpdateAvailable: (callback) => {
-      ipcRenderer.on('update-available', (_e, info) => callback(info));
+      const handler = (_e, info) => callback(info);
+      ipcRenderer.on('update-available', handler);
+      return () => ipcRenderer.removeListener('update-available', handler);
     },
     onUpdateNotAvailable: (callback) => {
-      ipcRenderer.on('update-not-available', () => callback());
+      const handler = () => callback();
+      ipcRenderer.on('update-not-available', handler);
+      return () => ipcRenderer.removeListener('update-not-available', handler);
     },
     onUpdateDownloaded: (callback) => {
-      ipcRenderer.on('update-downloaded', (_e, info) => callback(info));
+      const handler = (_e, info) => callback(info);
+      ipcRenderer.on('update-downloaded', handler);
+      return () => ipcRenderer.removeListener('update-downloaded', handler);
     },
     onDownloadProgress: (callback) => {
-      ipcRenderer.on('download-progress', (_e, info) => callback(info));
+      const handler = (_e, info) => callback(info);
+      ipcRenderer.on('download-progress', handler);
+      return () => ipcRenderer.removeListener('download-progress', handler);
     },
     onUpdateError: (callback) => {
-      ipcRenderer.on('update-error', (_e, err) => callback(err));
+      const handler = (_e, err) => callback(err);
+      ipcRenderer.on('update-error', handler);
+      return () => ipcRenderer.removeListener('update-error', handler);
     },
   },
   app: {

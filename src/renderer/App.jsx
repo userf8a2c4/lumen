@@ -51,22 +51,26 @@ export default function App() {
   useEffect(() => {
     if (!window.lumen?.updater) return;
 
-    window.lumen.updater.onUpdateAvailable((info) => {
-      setUpdate({ status: 'available', version: info.version, notes: info.releaseNotes });
-      setSyncStatus('update');
-    });
-    window.lumen.updater.onUpdateNotAvailable(() => {
-      setSyncStatus('synced');
-    });
-    window.lumen.updater.onDownloadProgress((info) => {
-      setUpdate((prev) => ({ ...prev, status: 'downloading', percent: info.percent }));
-    });
-    window.lumen.updater.onUpdateDownloaded((info) => {
-      setUpdate({ status: 'downloaded', version: info.version });
-    });
-    window.lumen.updater.onUpdateError(() => {
-      setSyncStatus('error');
-    });
+    const cleanups = [
+      window.lumen.updater.onUpdateAvailable((info) => {
+        setUpdate({ status: 'available', version: info.version, notes: info.releaseNotes });
+        setSyncStatus('update');
+      }),
+      window.lumen.updater.onUpdateNotAvailable(() => {
+        setSyncStatus('synced');
+      }),
+      window.lumen.updater.onDownloadProgress((info) => {
+        setUpdate((prev) => ({ ...prev, status: 'downloading', percent: info.percent }));
+      }),
+      window.lumen.updater.onUpdateDownloaded((info) => {
+        setUpdate({ status: 'downloaded', version: info.version });
+      }),
+      window.lumen.updater.onUpdateError(() => {
+        setSyncStatus('error');
+      }),
+    ];
+
+    return () => cleanups.forEach((cleanup) => cleanup && cleanup());
   }, []);
 
   const toggleTheme = () => {
