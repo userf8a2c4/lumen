@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(cmd.exe /c \"where npm\")",
+      "Bash(cmd.exe /c \"where node\")",
+      "Bash(cmd.exe /c \"npm install\")",
+      "Bash(cmd.exe /c \"npm install 2>&1\")",
+      "Bash(powershell.exe -Command \"cd ''C:\\\\Users\\\\carlo_xkv09i\\\\OneDrive\\\\Documentos\\\\lumen''; npm install 2>&1\")",
+      "Read(//c/Program Files/nodejs//**)",
+      "Bash(\"/c/Program Files/nodejs/npm\" --version)",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npx vite:*)",
+      "Bash(node install.js)",
+      "Bash(find C:Userscarlo_xkv09iOneDriveDocumentoslumen -not -path */node_modules/* -not -path */dist/* -not -path */release/* -type f)",
+      "Bash(npm --version)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"chore: bump version to 1.1.0:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(curl -s https://api.github.com/repos/userf8a2c4/lumen/releases/latest)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(curl -s \"https://api.github.com/repos/userf8a2c4/lumen/actions/runs?per_page=5\")",
+      "Bash(git commit -m \"ci: generate placeholder icon in workflow:*)",
+      "Bash(git commit -m \"ci: fix release asset publishing:*)",
+      "Bash(git commit -m \"ci: generate icon using node instead of imagemagick:*)",
+      "Bash(git commit -m \"build: set icon to null to skip icon requirement:*)"
+    ]
+  }
+}

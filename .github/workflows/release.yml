@@ -36,10 +36,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: powershell
         run: |
-          # Find and upload all installer exe files (not unpacked binaries)
-          $exeFiles = Get-ChildItem -Path "dist" -Include "*.exe" -File -ErrorAction SilentlyContinue
+          # Find installer exe (not unpacked binaries or node_modules)
+          $exeFiles = Get-ChildItem -Path "dist" -Include "*.exe" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "win-unpacked" }
           if ($exeFiles.Count -eq 0) {
             Write-Error "No .exe files found in dist directory"
+            Get-ChildItem -Path "dist" -Recurse | Write-Output
             exit 1
           }
           foreach ($file in $exeFiles) {

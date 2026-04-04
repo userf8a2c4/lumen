@@ -7,16 +7,18 @@ import Search from './components/Search/Search';
 import Contacts from './components/Contacts/Contacts';
 import Assistant from './components/Assistant/Assistant';
 import Examples from './components/Examples/Examples';
+import Notes from './components/Notes/Notes';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
 
 const MODULES = {
   assistant: { label: 'Asistente de Caso', component: Assistant },
   knowledge: { label: 'Base de Conocimiento', component: KnowledgeBase },
-  search: { label: 'Búsqueda Instantánea', component: Search },
-  contacts: { label: 'Directorio de Escalación', component: Contacts },
+  search: { label: 'Busqueda Instantanea', component: Search },
+  contacts: { label: 'Directorio de Escalacion', component: Contacts },
   examples: { label: 'Casos de Ejemplo', component: Examples },
-  settings: { label: 'Configuración', component: Settings },
+  notes: { label: 'Notas', component: Notes },
+  settings: { label: 'Configuracion', component: Settings },
 };
 
 export default function App() {
@@ -27,6 +29,8 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState('idle');
   const [version, setVersion] = useState('1.0.0');
   const [model, setModel] = useState('claude-sonnet-4-20250514');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2200);
@@ -36,6 +40,12 @@ export default function App() {
   useEffect(() => {
     window.lumen.app.getVersion().then(setVersion).catch(() => {});
     window.lumen.settings.getModel().then(setModel).catch(() => {});
+    window.lumen.settings.getTheme().then((t) => {
+      if (t) {
+        setTheme(t);
+        document.documentElement.className = t === 'light' ? 'light-theme' : '';
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -59,6 +69,13 @@ export default function App() {
     });
   }, []);
 
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.className = next === 'light' ? 'light-theme' : '';
+    window.lumen.settings.setTheme(next).catch(() => {});
+  };
+
   const navigateTo = (module, props = {}) => {
     setActiveModule(module);
     setModuleProps(props);
@@ -73,7 +90,7 @@ export default function App() {
   const ActiveComponent = MODULES[activeModule].component;
 
   return (
-    <div className="flex flex-col h-screen bg-lumen-bg">
+    <div className="flex flex-col h-screen" style={{ background: 'var(--lumen-bg)' }}>
       {/* Update banner */}
       {update && (
         <UpdateBanner
@@ -86,7 +103,14 @@ export default function App() {
 
       {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar activeModule={activeModule} onNavigate={(m) => navigateTo(m)} />
+        <Sidebar
+          activeModule={activeModule}
+          onNavigate={(m) => navigateTo(m)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
         <main className="flex-1 overflow-y-auto p-6">
           <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} />
         </main>

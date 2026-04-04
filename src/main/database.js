@@ -54,9 +54,23 @@ async function initDatabase() {
     CREATE TABLE IF NOT EXISTS contacts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      department TEXT NOT NULL,
-      contact_method TEXT NOT NULL,
-      when_to_contact TEXT NOT NULL,
+      last_name TEXT NOT NULL DEFAULT '',
+      company TEXT NOT NULL DEFAULT '',
+      department TEXT NOT NULL DEFAULT '',
+      phones TEXT NOT NULL DEFAULT '[]',
+      emails TEXT NOT NULL DEFAULT '[]',
+      urls TEXT NOT NULL DEFAULT '[]',
+      addresses TEXT NOT NULL DEFAULT '[]',
+      birthday TEXT,
+      relationship TEXT NOT NULL DEFAULT '',
+      social_facebook TEXT NOT NULL DEFAULT '',
+      social_x TEXT NOT NULL DEFAULT '',
+      social_instagram TEXT NOT NULL DEFAULT '',
+      social_slack TEXT NOT NULL DEFAULT '',
+      social_linkedin TEXT NOT NULL DEFAULT '',
+      contact_method TEXT NOT NULL DEFAULT '',
+      when_to_contact TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -75,11 +89,67 @@ async function initDatabase() {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '[]',
+      attachments TEXT NOT NULL DEFAULT '[]',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     )
   `);
+
+  // Migrate old contacts table if needed (add new columns)
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN last_name TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN company TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN phones TEXT NOT NULL DEFAULT "[]"');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN emails TEXT NOT NULL DEFAULT "[]"');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN urls TEXT NOT NULL DEFAULT "[]"');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN addresses TEXT NOT NULL DEFAULT "[]"');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN birthday TEXT');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN relationship TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN social_facebook TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN social_x TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN social_instagram TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN social_slack TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN social_linkedin TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN notes TEXT NOT NULL DEFAULT ""');
+  } catch {}
 
   // Default settings
   const existing = queryOne('SELECT key FROM settings WHERE key = ?', ['model']);
@@ -166,7 +236,6 @@ function searchPolicies(query, department) {
   const words = query.trim().split(/\s+/).filter((w) => w.length > 1);
   if (words.length === 0) return getAllPolicies();
 
-  // Build LIKE conditions for each word (match in name, description, or content)
   const conditions = words.map(() => '(name LIKE ? OR description LIKE ? OR content LIKE ?)');
   const params = [];
   words.forEach((w) => {
@@ -183,7 +252,6 @@ function searchPolicies(query, department) {
 
   const results = queryAll(sql, params);
 
-  // Add snippet with highlights
   return results.map((r) => {
     const content = r.content || '';
     let snippet = '';
@@ -231,18 +299,38 @@ function getAllContacts() {
   return queryAll('SELECT * FROM contacts ORDER BY name ASC');
 }
 
-function createContact({ name, department, contact_method, when_to_contact }) {
+function createContact(data) {
   runAndSave(
-    'INSERT INTO contacts (name, department, contact_method, when_to_contact) VALUES (?, ?, ?, ?)',
-    [name, department, contact_method, when_to_contact]
+    `INSERT INTO contacts (name, last_name, company, department, phones, emails, urls, addresses, birthday, relationship,
+     social_facebook, social_x, social_instagram, social_slack, social_linkedin, contact_method, when_to_contact, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      data.name, data.last_name || '', data.company || '', data.department || '',
+      JSON.stringify(data.phones || []), JSON.stringify(data.emails || []),
+      JSON.stringify(data.urls || []), JSON.stringify(data.addresses || []),
+      data.birthday || null, data.relationship || '',
+      data.social_facebook || '', data.social_x || '', data.social_instagram || '',
+      data.social_slack || '', data.social_linkedin || '',
+      data.contact_method || '', data.when_to_contact || '', data.notes || '',
+    ]
   );
   return queryOne('SELECT * FROM contacts WHERE id = ?', [getLastId()]);
 }
 
-function updateContact(id, { name, department, contact_method, when_to_contact }) {
+function updateContact(id, data) {
   runAndSave(
-    'UPDATE contacts SET name=?, department=?, contact_method=?, when_to_contact=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-    [name, department, contact_method, when_to_contact, id]
+    `UPDATE contacts SET name=?, last_name=?, company=?, department=?, phones=?, emails=?, urls=?, addresses=?,
+     birthday=?, relationship=?, social_facebook=?, social_x=?, social_instagram=?, social_slack=?, social_linkedin=?,
+     contact_method=?, when_to_contact=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+    [
+      data.name, data.last_name || '', data.company || '', data.department || '',
+      JSON.stringify(data.phones || []), JSON.stringify(data.emails || []),
+      JSON.stringify(data.urls || []), JSON.stringify(data.addresses || []),
+      data.birthday || null, data.relationship || '',
+      data.social_facebook || '', data.social_x || '', data.social_instagram || '',
+      data.social_slack || '', data.social_linkedin || '',
+      data.contact_method || '', data.when_to_contact || '', data.notes || '', id,
+    ]
   );
   return queryOne('SELECT * FROM contacts WHERE id = ?', [id]);
 }
@@ -255,8 +343,8 @@ function searchContacts(query) {
   if (!query || query.trim().length === 0) return getAllContacts();
   const like = `%${query}%`;
   return queryAll(
-    'SELECT * FROM contacts WHERE name LIKE ? OR department LIKE ? OR when_to_contact LIKE ? ORDER BY name ASC',
-    [like, like, like]
+    'SELECT * FROM contacts WHERE name LIKE ? OR last_name LIKE ? OR department LIKE ? OR company LIKE ? OR when_to_contact LIKE ? OR notes LIKE ? ORDER BY name ASC',
+    [like, like, like, like, like, like]
   );
 }
 
@@ -299,6 +387,60 @@ function deleteExample(id) {
   runAndSave('DELETE FROM example_cases WHERE id = ?', [id]);
 }
 
+// --- Notes ---
+
+function getAllNotes() {
+  return queryAll('SELECT * FROM notes ORDER BY updated_at DESC');
+}
+
+function getNoteById(id) {
+  return queryOne('SELECT * FROM notes WHERE id = ?', [id]);
+}
+
+function createNote({ title, content, tags, attachments }) {
+  runAndSave(
+    'INSERT INTO notes (title, content, tags, attachments) VALUES (?, ?, ?, ?)',
+    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || [])]
+  );
+  return getNoteById(getLastId());
+}
+
+function updateNote(id, { title, content, tags, attachments }) {
+  runAndSave(
+    'UPDATE notes SET title=?, content=?, tags=?, attachments=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || []), id]
+  );
+  return getNoteById(id);
+}
+
+function deleteNote(id) {
+  runAndSave('DELETE FROM notes WHERE id = ?', [id]);
+}
+
+function searchNotes(query) {
+  if (!query || query.trim().length === 0) return getAllNotes();
+  const like = `%${query}%`;
+  return queryAll(
+    'SELECT * FROM notes WHERE title LIKE ? OR content LIKE ? OR tags LIKE ? ORDER BY updated_at DESC',
+    [like, like, like]
+  );
+}
+
+function searchNotesForAI(query) {
+  const words = query.trim().split(/\s+/).filter((w) => w.length > 2);
+  if (words.length === 0) return [];
+  const conditions = words.map(() => '(title LIKE ? OR content LIKE ?)');
+  const params = [];
+  words.forEach((w) => {
+    const like = `%${w}%`;
+    params.push(like, like);
+  });
+  return queryAll(
+    `SELECT * FROM notes WHERE (${conditions.join(' OR ')}) LIMIT 5`,
+    params
+  );
+}
+
 // --- Settings ---
 
 function getSetting(key) {
@@ -339,6 +481,13 @@ module.exports = {
   getExamplesForPolicies,
   createExample,
   deleteExample,
+  getAllNotes,
+  getNoteById,
+  createNote,
+  updateNote,
+  deleteNote,
+  searchNotes,
+  searchNotesForAI,
   getSetting,
   setSetting,
 };

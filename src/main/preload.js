@@ -22,17 +22,29 @@ contextBridge.exposeInMainWorld('lumen', {
     create: (data) => ipcRenderer.invoke('examples:create', data),
     delete: (id) => ipcRenderer.invoke('examples:delete', id),
   },
+  notes: {
+    getAll: () => ipcRenderer.invoke('notes:getAll'),
+    getById: (id) => ipcRenderer.invoke('notes:getById', id),
+    create: (data) => ipcRenderer.invoke('notes:create', data),
+    update: (id, data) => ipcRenderer.invoke('notes:update', id, data),
+    delete: (id) => ipcRenderer.invoke('notes:delete', id),
+    search: (query) => ipcRenderer.invoke('notes:search', query),
+    saveAttachment: (fileName, buffer) => ipcRenderer.invoke('notes:saveAttachment', fileName, buffer),
+  },
   settings: {
     getApiKey: () => ipcRenderer.invoke('settings:getApiKey'),
     setApiKey: (key) => ipcRenderer.invoke('settings:setApiKey', key),
     getModel: () => ipcRenderer.invoke('settings:getModel'),
     setModel: (model) => ipcRenderer.invoke('settings:setModel', model),
+    getTheme: () => ipcRenderer.invoke('settings:getTheme'),
+    setTheme: (theme) => ipcRenderer.invoke('settings:setTheme', theme),
   },
   scraper: {
     fetchUrl: (url) => ipcRenderer.invoke('scraper:fetchUrl', url),
   },
   ai: {
     analyze: (caseDescription) => ipcRenderer.invoke('ai:analyze', caseDescription),
+    generateEmail: (context) => ipcRenderer.invoke('ai:generateEmail', context),
   },
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),
