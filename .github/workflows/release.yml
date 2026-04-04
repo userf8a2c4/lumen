@@ -28,28 +28,7 @@ jobs:
       - name: Build Vite (renderer)
         run: npm run build
 
-      - name: Build Electron (installer)
-        run: npx electron-builder --win --publish never
-
-      - name: Find .exe file
-        id: find_exe
-        shell: bash
-        run: |
-          EXE_FILE=$(find dist -maxdepth 1 -name "*.exe" -type f | head -1)
-          if [ -n "$EXE_FILE" ]; then
-            echo "exe_path=$EXE_FILE" >> $GITHUB_OUTPUT
-            echo "Found: $EXE_FILE"
-          else
-            echo "No .exe found in dist/"
-            ls -R dist/
-            exit 1
-          fi
-
-      - name: Create Release and Upload Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.find_exe.outputs.exe_path }}
-          draft: false
-          prerelease: false
+      - name: Build and Publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always
