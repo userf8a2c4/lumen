@@ -117,9 +117,11 @@ function downloadUpdate() {
     }
 
     const file = fs.createWriteStream(filePath);
+    let totalBytes = 0;
+    let downloadedBytes = 0;
 
     const followRedirects = (url, redirectCount = 0) => {
-      if (redirectCount > 5) {
+      if (redirectCount > 10) {
         file.close();
         reject(new Error('Too many redirects'));
         return;
@@ -128,59 +130,74 @@ function downloadUpdate() {
       const urlObj = new URL(url);
       const mod = urlObj.protocol === 'https:' ? https : http;
 
-      mod
-        .get(url, { headers: { 'User-Agent': 'LUMEN-App' } }, (res) => {
-          if (res.statusCode === 301 || res.statusCode === 302) {
-            const redirectUrl = res.headers.location;
-            if (redirectUrl) {
-              followRedirects(redirectUrl, redirectCount + 1);
-              return;
-            }
-          }
-
-          if (res.statusCode !== 200) {
-            file.close();
-            reject(new Error(`Download failed: HTTP ${res.statusCode}`));
+      const req = mod.get(url, { headers: { 'User-Agent': 'LUMEN-App' } }, (res) => {
+        // Handle ALL redirect types (301, 302, 303, 307, 308)
+        if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
+          res.resume(); // drain response
+          const redirectUrl = res.headers.location;
+          if (redirectUrl) {
+            followRedirects(redirectUrl, redirectCount + 1);
             return;
           }
+        }
 
-          const totalBytes = parseInt(res.headers['content-length'], 10) || 0;
-          let downloadedBytes = 0;
+        if (res.statusCode !== 200) {
+          file.close();
+          reject(new Error(`Download failed: HTTP ${res.statusCode}`));
+          return;
+        }
 
-          res.on('data', (chunk) => {
-            downloadedBytes += chunk.length;
-            file.write(chunk);
-            if (mainWindow && !mainWindow.isDestroyed() && totalBytes > 0) {
-              mainWindow.webContents.send('download-progress', {
-                percent: (downloadedBytes / totalBytes) * 100,
-                transferred: downloadedBytes,
-                total: totalBytes,
+        totalBytes = parseInt(res.headers['content-length'], 10) || 0;
+
+        // Use pipe for reliable large file downloads
+        res.pipe(file);
+
+        res.on('data', (chunk) => {
+          downloadedBytes += chunk.length;
+          if (mainWindow && !mainWindow.isDestroyed() && totalBytes > 0) {
+            mainWindow.webContents.send('download-progress', {
+              percent: (downloadedBytes / totalBytes) * 100,
+              transferred: downloadedBytes,
+              total: totalBytes,
+            });
+          }
+        });
+
+        file.on('finish', () => {
+          file.close(() => {
+            downloadedFilePath = filePath;
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('update-downloaded', {
+                version: latestRelease.version,
               });
             }
+            resolve(filePath);
           });
+        });
 
-          res.on('end', () => {
-            file.end(() => {
-              downloadedFilePath = filePath;
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('update-downloaded', {
-                  version: latestRelease.version,
-                });
-              }
-              resolve(filePath);
-            });
-          });
-
-          res.on('error', (err) => {
-            file.close();
-            reject(err);
-          });
-        })
-        .on('error', (err) => {
-          file.close();
+        res.on('error', (err) => {
+          fs.unlink(filePath, () => {});
           reject(err);
         });
+      });
+
+      req.on('error', (err) => {
+        fs.unlink(filePath, () => {});
+        reject(err);
+      });
+
+      // Timeout after 5 minutes
+      req.setTimeout(300000, () => {
+        req.destroy();
+        fs.unlink(filePath, () => {});
+        reject(new Error('Download timeout'));
+      });
     };
+
+    file.on('error', (err) => {
+      fs.unlink(filePath, () => {});
+      reject(err);
+    });
 
     followRedirects(latestRelease.downloadUrl);
   });
