@@ -30,6 +30,7 @@
       "target": [
         "nsis"
       ],
+      "icon": null,
       "certificateFile": null,
       "certificatePassword": null
     },
