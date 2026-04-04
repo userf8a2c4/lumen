@@ -1,7 +1,7 @@
 appId: com.lumen.app
 productName: LUMEN
 directories:
-  output: release
+  output: dist
 files:
   - src/main/**/*
   - dist/renderer/**/*

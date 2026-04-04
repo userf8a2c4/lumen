@@ -36,9 +36,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: powershell
         run: |
-          # Find and upload all .exe files
-          $exeFiles = Get-ChildItem -Path . -Include "*.exe" -Recurse -ErrorAction SilentlyContinue
+          # Find and upload all installer exe files (not unpacked binaries)
+          $exeFiles = Get-ChildItem -Path "dist" -Include "*.exe" -File -ErrorAction SilentlyContinue
+          if ($exeFiles.Count -eq 0) {
+            Write-Error "No .exe files found in dist directory"
+            exit 1
+          }
           foreach ($file in $exeFiles) {
-            Write-Output "Found: $($file.FullName)"
+            Write-Output "Uploading: $($file.FullName)"
             & gh release upload ${{ github.ref_name }} $file.FullName --clobber
           }
