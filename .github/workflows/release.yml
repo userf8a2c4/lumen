@@ -31,7 +31,26 @@ jobs:
       - name: Build Electron (installer)
         run: npx electron-builder --win --publish never
 
-      - name: Upload Release Assets
+      - name: Find .exe file
+        id: find_exe
+        shell: powershell
+        run: |
+          $exe = Get-ChildItem -Path "dist" -Name "*.exe" -Include "*Setup*" | Select-Object -First 1
+          if ($exe) {
+            echo "exe_file=$exe" >> $env:GITHUB_OUTPUT
+            echo "exe_path=dist/$exe" >> $env:GITHUB_OUTPUT
+            echo "✓ Found: $exe"
+          } else {
+            echo "❌ No .exe found in dist"
+            Get-ChildItem -Path "dist" -Recurse | Select-Object Name
+            exit 1
+          }
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.find_exe.outputs.exe_path }}
+          draft: false
+          prerelease: false
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/upload-release.js ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
