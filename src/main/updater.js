@@ -119,6 +119,7 @@ function downloadUpdate() {
     const file = fs.createWriteStream(filePath);
     let totalBytes = 0;
     let downloadedBytes = 0;
+    let lastProgressSent = 0;
 
     const followRedirects = (url, redirectCount = 0) => {
       if (redirectCount > 10) {
@@ -155,11 +156,16 @@ function downloadUpdate() {
         res.on('data', (chunk) => {
           downloadedBytes += chunk.length;
           if (mainWindow && !mainWindow.isDestroyed() && totalBytes > 0) {
-            mainWindow.webContents.send('download-progress', {
-              percent: (downloadedBytes / totalBytes) * 100,
-              transferred: downloadedBytes,
-              total: totalBytes,
-            });
+            // Only send progress every 1% to avoid flooding the renderer
+            const percent = Math.round((downloadedBytes / totalBytes) * 100);
+            if (percent > lastProgressSent) {
+              lastProgressSent = percent;
+              mainWindow.webContents.send('download-progress', {
+                percent,
+                transferred: downloadedBytes,
+                total: totalBytes,
+              });
+            }
           }
         });
 
