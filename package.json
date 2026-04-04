@@ -29,7 +29,12 @@
     },
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": null,
       "certificateFile": null,
@@ -40,7 +45,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "LUMEN"
+      "shortcutName": "LUMEN",
+      "artifactName": "${productName} Setup ${version}.${ext}"
     }
   },
   "devDependencies": {
