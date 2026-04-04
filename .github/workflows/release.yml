@@ -34,6 +34,10 @@ jobs:
           convert -size 256x256 xc:"#7E3FF2" assets/icon.png
 
       - name: Build Electron (installer)
+        run: npx electron-builder --win --publish never
+
+      - name: Upload Release Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish always
+        run: |
+          gh release upload ${{ github.ref_name }} dist/LUMEN-Setup-*.exe --clobber
