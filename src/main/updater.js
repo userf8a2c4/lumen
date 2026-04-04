@@ -199,8 +199,33 @@ function installUpdate() {
   }
 
   try {
-    spawn(filePath, ['/S'], { detached: true, stdio: 'ignore' }).unref();
-    setTimeout(() => app.quit(), 1000);
+    // Get the current installation directory so NSIS installs in the same place
+    const exePath = app.getPath('exe');
+    const installDir = path.dirname(exePath);
+
+    // Create a batch script that:
+    // 1. Waits 3 seconds for the app to fully close
+    // 2. Runs the NSIS installer silently in the same directory
+    // 3. Deletes itself
+    const batPath = path.join(app.getPath('temp'), 'lumen-update.bat');
+    const batContent = [
+      '@echo off',
+      'timeout /t 3 /nobreak > nul',
+      `start "" "${filePath}" /S /D=${installDir}`,
+      `del "%~f0"`,
+    ].join('\r\n');
+
+    fs.writeFileSync(batPath, batContent, 'utf8');
+
+    // Launch the batch script detached
+    spawn('cmd.exe', ['/c', batPath], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    }).unref();
+
+    // Quit the app so files are unlocked
+    app.quit();
   } catch (err) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-error', `Error al instalar: ${err.message}`);
