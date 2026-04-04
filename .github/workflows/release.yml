@@ -28,6 +28,11 @@ jobs:
       - name: Build Vite (renderer)
         run: npm run build
 
+      - name: Create placeholder icon
+        run: |
+          mkdir -p assets
+          convert -size 256x256 xc:"#7E3FF2" assets/icon.png
+
       - name: Build Electron (installer)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
