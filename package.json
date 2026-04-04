@@ -1,6 +1,6 @@
 {
   "name": "lumen-app",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "LUMEN — Herramienta de asistencia laboral para agentes de atención al cliente",
   "main": "src/main/main.js",
   "author": "LUMEN Team",
@@ -18,6 +18,10 @@
   "build": {
     "appId": "com.lumen.app",
     "productName": "LUMEN",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/sql.js/dist/sql-wasm.wasm"
+    ],
     "files": [
       "dist/**/*",
       "src/main/**/*",
