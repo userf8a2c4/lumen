@@ -1,4 +1,5 @@
-const { app } = require('electron');
+const { app, shell } = require('electron');
+const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -6,6 +7,9 @@ const { spawn } = require('child_process');
 
 const REPO_OWNER = 'userf8a2c4';
 const REPO_NAME = 'lumen';
+const MAX_REDIRECTS = 10;
+const MAX_RETRIES = 3;
+const STALL_TIMEOUT = 30000; // 30s without data = stalled
 
 let mainWindow = null;
 let latestRelease = null;
@@ -48,7 +52,6 @@ function checkForUpdates() {
             const currentVersion = app.getVersion();
 
             if (isNewerVersion(latestVersion, currentVersion)) {
-              // Find .exe that is NOT .blockmap
               const exeAsset = release.assets?.find(
                 (a) => a.name.endsWith('.exe') && !a.name.endsWith('.blockmap')
               );
@@ -85,7 +88,33 @@ function checkForUpdates() {
   });
 }
 
-// ─── Download update using curl.exe (resilient) ────────
+// ─── HTTP(S) GET with redirect following ───────────────
+
+function httpGet(url, redirectCount) {
+  if (redirectCount === undefined) redirectCount = 0;
+  return new Promise((resolve, reject) => {
+    if (redirectCount > MAX_REDIRECTS) {
+      reject(new Error('Too many redirects'));
+      return;
+    }
+    const parsed = new URL(url);
+    const mod = parsed.protocol === 'https:' ? https : http;
+    const req = mod.get(url, { headers: { 'User-Agent': 'LUMEN-App' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        resolve(httpGet(res.headers.location, redirectCount + 1));
+        return;
+      }
+      resolve(res);
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => {
+      req.destroy(new Error('Connection timeout'));
+    });
+  });
+}
+
+// ─── Download update using Node.js https ───────────────
 
 function downloadUpdate() {
   if (!latestRelease || !latestRelease.downloadUrl) {
@@ -100,124 +129,113 @@ function downloadUpdate() {
 
   const tempDir = app.getPath('temp');
   const filePath = path.join(tempDir, latestRelease.fileName);
-  const totalSize = latestRelease.fileSize || (86 * 1024 * 1024);
 
-  // Don't delete existing partial file — curl will resume it
-  // Only delete if it's clearly a completed but corrupt file
-  try {
-    if (fs.existsSync(filePath)) {
-      const existingSize = fs.statSync(filePath).size;
-      // If file exists and is close to expected size, it might be complete already
-      if (existingSize >= totalSize * 0.99) {
-        // Verify it's a valid exe (check PE header)
-        const header = Buffer.alloc(2);
-        const fd = fs.openSync(filePath, 'r');
-        fs.readSync(fd, header, 0, 2, 0);
-        fs.closeSync(fd);
-        if (header[0] === 0x4D && header[1] === 0x5A) {
-          // Valid PE file, already downloaded
-          downloadedFilePath = filePath;
-          isDownloading = false;
-          sendToRenderer('download-progress', { percent: 100, transferred: existingSize, total: totalSize });
-          sendToRenderer('update-downloaded', { version: latestRelease.version });
-          return Promise.resolve(filePath);
-        }
-      }
-      // Partial or corrupt — delete and start fresh
-      fs.unlinkSync(filePath);
-    }
-  } catch {}
+  // Clean up any previous partial download
+  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+
+  return attemptDownload(filePath, 0);
+}
+
+function attemptDownload(filePath, attempt) {
+  const url = latestRelease.downloadUrl;
 
   return new Promise((resolve, reject) => {
-    const finish = (err) => {
-      isDownloading = false;
-      if (err) reject(err);
-    };
-
-    // curl.exe with maximum resilience:
-    // -L            : follow redirects (GitHub uses redirects)
-    // -o            : output file
-    // -C -          : RESUME interrupted downloads automatically
-    // --retry 5     : retry up to 5 times
-    // --retry-delay 3: wait 3 seconds between retries
-    // --retry-all-errors: retry on ANY error (not just specific ones)
-    // --connect-timeout 30: max 30s to establish connection
-    // --speed-limit 1000: if speed drops below 1KB/s...
-    // --speed-time 30: ...for 30 seconds, abort and retry
-    // NO --max-time: let it take as long as needed
-    const curl = spawn('curl.exe', [
-      '-L',
-      '-o', filePath,
-      '-C', '-',
-      '--connect-timeout', '30',
-      '--speed-limit', '1000',
-      '--speed-time', '30',
-      '--retry', '5',
-      '--retry-delay', '3',
-      '--retry-all-errors',
-      latestRelease.downloadUrl,
-    ], { windowsHide: true });
-
-    let lastPercent = 0;
-    const progressInterval = setInterval(() => {
-      try {
-        if (fs.existsSync(filePath)) {
-          const currentSize = fs.statSync(filePath).size;
-          const percent = Math.min(99, Math.round((currentSize / totalSize) * 100));
-          if (percent !== lastPercent) {
-            lastPercent = percent;
-            sendToRenderer('download-progress', {
-              percent,
-              transferred: currentSize,
-              total: totalSize,
-            });
-          }
+    httpGet(url)
+      .then((res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          throw new Error(`HTTP ${res.statusCode}`);
         }
-      } catch {}
-    }, 1000);
 
-    curl.on('close', (code) => {
-      clearInterval(progressInterval);
+        const totalSize = parseInt(res.headers['content-length'], 10) || latestRelease.fileSize || 0;
+        let downloaded = 0;
+        let lastPercent = 0;
 
-      if (code !== 0) {
-        sendToRenderer('update-error', `Descarga fallo (codigo ${code}). Reintentando...`);
-        try { fs.unlinkSync(filePath); } catch {}
-        finish(new Error(`curl exit code ${code}`));
-        return;
-      }
+        const fileStream = fs.createWriteStream(filePath);
 
-      if (!fs.existsSync(filePath)) {
-        sendToRenderer('update-error', 'Archivo no encontrado tras descarga.');
-        finish(new Error('File not found after download'));
-        return;
-      }
+        // Stall detection: if no data arrives for STALL_TIMEOUT, abort
+        let stallTimer = null;
+        const resetStallTimer = () => {
+          if (stallTimer) clearTimeout(stallTimer);
+          stallTimer = setTimeout(() => {
+            res.destroy(new Error('Download stalled'));
+          }, STALL_TIMEOUT);
+        };
 
-      const fileSize = fs.statSync(filePath).size;
-      if (fileSize < 1000000) {
-        sendToRenderer('update-error', 'Archivo descargado parece corrupto (muy pequeno).');
-        try { fs.unlinkSync(filePath); } catch {}
-        finish(new Error('Downloaded file too small'));
-        return;
-      }
+        resetStallTimer();
 
-      downloadedFilePath = filePath;
-      isDownloading = false;
-      sendToRenderer('download-progress', { percent: 100, transferred: fileSize, total: fileSize });
-      sendToRenderer('update-downloaded', { version: latestRelease.version });
-      resolve(filePath);
-    });
+        res.on('data', (chunk) => {
+          downloaded += chunk.length;
+          resetStallTimer();
 
-    curl.on('error', (err) => {
-      clearInterval(progressInterval);
-      if (err.code === 'ENOENT') {
-        sendToRenderer('update-error', 'curl.exe no encontrado. Descarga manual desde GitHub.');
-      } else {
-        sendToRenderer('update-error', `Error de descarga: ${err.message}`);
-      }
-      try { fs.unlinkSync(filePath); } catch {}
-      finish(err);
-    });
+          if (totalSize > 0) {
+            const percent = Math.min(99, Math.round((downloaded / totalSize) * 100));
+            if (percent !== lastPercent) {
+              lastPercent = percent;
+              sendToRenderer('download-progress', {
+                percent,
+                transferred: downloaded,
+                total: totalSize,
+              });
+            }
+          }
+        });
+
+        res.pipe(fileStream);
+
+        fileStream.on('finish', () => {
+          if (stallTimer) clearTimeout(stallTimer);
+
+          const fileSize = fs.statSync(filePath).size;
+          if (fileSize < 1000000) {
+            try { fs.unlinkSync(filePath); } catch {}
+            handleRetry(filePath, attempt, 'Archivo descargado muy pequeno', resolve, reject);
+            return;
+          }
+
+          downloadedFilePath = filePath;
+          isDownloading = false;
+          sendToRenderer('download-progress', { percent: 100, transferred: fileSize, total: fileSize });
+          sendToRenderer('update-downloaded', { version: latestRelease.version });
+          resolve(filePath);
+        });
+
+        fileStream.on('error', (err) => {
+          if (stallTimer) clearTimeout(stallTimer);
+          res.destroy();
+          try { fs.unlinkSync(filePath); } catch {}
+          handleRetry(filePath, attempt, err.message, resolve, reject);
+        });
+
+        res.on('error', (err) => {
+          if (stallTimer) clearTimeout(stallTimer);
+          fileStream.destroy();
+          try { fs.unlinkSync(filePath); } catch {}
+          handleRetry(filePath, attempt, err.message, resolve, reject);
+        });
+      })
+      .catch((err) => {
+        handleRetry(filePath, attempt, err.message, resolve, reject);
+      });
   });
+}
+
+function handleRetry(filePath, attempt, errorMsg, resolve, reject) {
+  if (attempt < MAX_RETRIES - 1) {
+    const delay = (attempt + 1) * 3000;
+    sendToRenderer('download-progress', { percent: 0, transferred: 0, total: 0, retrying: true });
+    setTimeout(() => {
+      try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+      attemptDownload(filePath, attempt + 1).then(resolve).catch(reject);
+    }, delay);
+  } else {
+    isDownloading = false;
+    // All retries failed — open browser as fallback
+    const releaseUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
+    shell.openExternal(releaseUrl).catch(() => {});
+    sendToRenderer('update-error', `Descarga fallida. Se abrio el navegador para descarga manual.`);
+    reject(new Error(`Download failed after ${MAX_RETRIES} attempts: ${errorMsg}`));
+  }
 }
 
 // ─── Install update ─────────────────────────────────────
