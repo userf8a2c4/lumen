@@ -1,8 +1,8 @@
-const { app, shell } = require('electron');
+const { app } = require('electron');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { execFile, spawn } = require('child_process');
+const { spawn } = require('child_process');
 
 const REPO_OWNER = 'userf8a2c4';
 const REPO_NAME = 'lumen';
@@ -10,7 +10,7 @@ const REPO_NAME = 'lumen';
 let mainWindow = null;
 let latestRelease = null;
 let downloadedFilePath = null;
-let isDownloading = false; // Guard against concurrent downloads
+let isDownloading = false;
 
 // ─── Init ───────────────────────────────────────────────
 
@@ -48,13 +48,16 @@ function checkForUpdates() {
             const currentVersion = app.getVersion();
 
             if (isNewerVersion(latestVersion, currentVersion)) {
-              const exeAsset = release.assets?.find((a) => a.name.endsWith('.exe'));
+              // Find .exe that is NOT .blockmap
+              const exeAsset = release.assets?.find(
+                (a) => a.name.endsWith('.exe') && !a.name.endsWith('.blockmap')
+              );
 
               latestRelease = {
                 version: latestVersion,
                 downloadUrl: exeAsset?.browser_download_url || null,
                 fileName: exeAsset?.name || 'LUMEN-Setup.exe',
-                fileSize: exeAsset?.size || 0, // Actual size from GitHub API
+                fileSize: exeAsset?.size || 0,
                 releaseNotes: release.body || '',
                 releaseDate: release.published_at,
               };
@@ -82,7 +85,7 @@ function checkForUpdates() {
   });
 }
 
-// ─── Download update using curl.exe ─────────────────────
+// ─── Download update using curl.exe (resilient) ────────
 
 function downloadUpdate() {
   if (!latestRelease || !latestRelease.downloadUrl) {
@@ -90,7 +93,6 @@ function downloadUpdate() {
     return Promise.reject(new Error('No download URL'));
   }
 
-  // Prevent concurrent downloads
   if (isDownloading) {
     return Promise.reject(new Error('Download already in progress'));
   }
@@ -98,12 +100,33 @@ function downloadUpdate() {
 
   const tempDir = app.getPath('temp');
   const filePath = path.join(tempDir, latestRelease.fileName);
+  const totalSize = latestRelease.fileSize || (86 * 1024 * 1024);
 
-  // Delete old file if exists
-  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
-
-  // Use actual file size from GitHub API, fallback to estimate
-  const totalSize = latestRelease.fileSize || (170 * 1024 * 1024);
+  // Don't delete existing partial file — curl will resume it
+  // Only delete if it's clearly a completed but corrupt file
+  try {
+    if (fs.existsSync(filePath)) {
+      const existingSize = fs.statSync(filePath).size;
+      // If file exists and is close to expected size, it might be complete already
+      if (existingSize >= totalSize * 0.99) {
+        // Verify it's a valid exe (check PE header)
+        const header = Buffer.alloc(2);
+        const fd = fs.openSync(filePath, 'r');
+        fs.readSync(fd, header, 0, 2, 0);
+        fs.closeSync(fd);
+        if (header[0] === 0x4D && header[1] === 0x5A) {
+          // Valid PE file, already downloaded
+          downloadedFilePath = filePath;
+          isDownloading = false;
+          sendToRenderer('download-progress', { percent: 100, transferred: existingSize, total: totalSize });
+          sendToRenderer('update-downloaded', { version: latestRelease.version });
+          return Promise.resolve(filePath);
+        }
+      }
+      // Partial or corrupt — delete and start fresh
+      fs.unlinkSync(filePath);
+    }
+  } catch {}
 
   return new Promise((resolve, reject) => {
     const finish = (err) => {
@@ -111,25 +134,37 @@ function downloadUpdate() {
       if (err) reject(err);
     };
 
-    // curl.exe: -L follow redirects, -o output file
+    // curl.exe with maximum resilience:
+    // -L            : follow redirects (GitHub uses redirects)
+    // -o            : output file
+    // -C -          : RESUME interrupted downloads automatically
+    // --retry 5     : retry up to 5 times
+    // --retry-delay 3: wait 3 seconds between retries
+    // --retry-all-errors: retry on ANY error (not just specific ones)
+    // --connect-timeout 30: max 30s to establish connection
+    // --speed-limit 1000: if speed drops below 1KB/s...
+    // --speed-time 30: ...for 30 seconds, abort and retry
+    // NO --max-time: let it take as long as needed
     const curl = spawn('curl.exe', [
       '-L',
       '-o', filePath,
+      '-C', '-',
       '--connect-timeout', '30',
-      '--max-time', '600',
-      '--retry', '3',
-      '--retry-delay', '5',
+      '--speed-limit', '1000',
+      '--speed-time', '30',
+      '--retry', '5',
+      '--retry-delay', '3',
+      '--retry-all-errors',
       latestRelease.downloadUrl,
     ], { windowsHide: true });
 
-    // Poll file size every second for smooth progress
     let lastPercent = 0;
     const progressInterval = setInterval(() => {
       try {
         if (fs.existsSync(filePath)) {
           const currentSize = fs.statSync(filePath).size;
           const percent = Math.min(99, Math.round((currentSize / totalSize) * 100));
-          if (percent > lastPercent) {
+          if (percent !== lastPercent) {
             lastPercent = percent;
             sendToRenderer('download-progress', {
               percent,
@@ -145,7 +180,7 @@ function downloadUpdate() {
       clearInterval(progressInterval);
 
       if (code !== 0) {
-        sendToRenderer('update-error', `Descarga fallo (codigo ${code}).`);
+        sendToRenderer('update-error', `Descarga fallo (codigo ${code}). Reintentando...`);
         try { fs.unlinkSync(filePath); } catch {}
         finish(new Error(`curl exit code ${code}`));
         return;
@@ -159,7 +194,7 @@ function downloadUpdate() {
 
       const fileSize = fs.statSync(filePath).size;
       if (fileSize < 1000000) {
-        sendToRenderer('update-error', 'Archivo descargado parece corrupto.');
+        sendToRenderer('update-error', 'Archivo descargado parece corrupto (muy pequeno).');
         try { fs.unlinkSync(filePath); } catch {}
         finish(new Error('Downloaded file too small'));
         return;
@@ -174,7 +209,6 @@ function downloadUpdate() {
 
     curl.on('error', (err) => {
       clearInterval(progressInterval);
-      // curl.exe not found — fallback message
       if (err.code === 'ENOENT') {
         sendToRenderer('update-error', 'curl.exe no encontrado. Descarga manual desde GitHub.');
       } else {
@@ -202,10 +236,10 @@ function installUpdate() {
     const exePath = app.getPath('exe');
     const installDir = path.dirname(exePath);
 
-    // Batch script that:
-    // 1. Waits for LUMEN.exe to fully exit (polls every 2s, up to 30s)
-    // 2. Runs installer silently in the same directory
-    // 3. Cleans up
+    // Batch script:
+    // 1. Wait for LUMEN.exe to exit (poll every 2s)
+    // 2. Run NSIS installer silently in same directory
+    // 3. Clean up batch file
     // NOTE: /D= must be LAST arg and must NOT be quoted (NSIS requirement)
     const batPath = path.join(app.getPath('temp'), 'lumen-update.bat');
     const batContent = [
@@ -234,21 +268,6 @@ function installUpdate() {
   }
 }
 
-// ─── Report error ───────────────────────────────────────
-
-function reportError(description) {
-  const version = app.getVersion();
-  const platform = `${process.platform} ${process.arch}`;
-  const electronVer = process.versions.electron;
-  const title = encodeURIComponent(`[Bug] ${description.slice(0, 60)}`);
-  const body = encodeURIComponent(
-    `## Descripcion del error\n${description}\n\n## Informacion del sistema\n- **Version LUMEN:** v${version}\n- **Plataforma:** ${platform}\n- **Electron:** ${electronVer}\n\n---\n*Reporte generado automaticamente desde LUMEN*`
-  );
-  shell.openExternal(
-    `https://github.com/${REPO_OWNER}/${REPO_NAME}/issues/new?title=${title}&body=${body}`
-  );
-}
-
 // ─── Helpers ────────────────────────────────────────────
 
 function isNewerVersion(latest, current) {
@@ -267,4 +286,4 @@ function sendToRenderer(channel, data) {
   }
 }
 
-module.exports = { initUpdater, checkForUpdates, downloadUpdate, installUpdate, reportError };
+module.exports = { initUpdater, checkForUpdates, downloadUpdate, installUpdate };
