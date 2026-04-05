@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Key, Cpu, Info, RefreshCw, Check, Eye, EyeOff, Github, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Key, Cpu, Info, RefreshCw, Check, Eye, EyeOff, Github, Mail, FlaskConical, Library, Globe, Shield } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
 
 const GEMINI_MODELS = [
@@ -18,6 +18,9 @@ export default function Settings({ onModelChange }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeyDisplay, setApiKeyDisplay] = useState('');
   const [showKey, setShowKey] = useState(false);
+  const [cseId, setCseId] = useState('');
+  const [cseIdInput, setCseIdInput] = useState('');
+  const [savedCse, setSavedCse] = useState(false);
   const [model, setModel] = useState('gemini-1.5-flash');
   const [userEmail, setUserEmail] = useState('');
   const [userEmailInput, setUserEmailInput] = useState('');
@@ -33,14 +36,25 @@ export default function Settings({ onModelChange }) {
       window.lumen.settings.getModel(),
       window.lumen.app.getVersion(),
       window.lumen.settings.getUserEmail(),
-    ]).then(([k, m, v, email]) => {
+      window.lumen.settings.getCseId(),
+    ]).then(([k, m, v, email, cse]) => {
       setApiKeyDisplay(k || '');
       setModel(GEMINI_MODELS.find((x) => x.id === m) ? m : 'gemini-1.5-flash');
       setVersion(v);
       setUserEmail(email || '');
       setUserEmailInput(email || '');
+      setCseId(cse || '');
+      setCseIdInput(cse || '');
     }).catch(() => {});
   }, []);
+
+  const saveCse = async () => {
+    const val = cseIdInput.trim();
+    await window.lumen.settings.setCseId(val);
+    setCseId(val);
+    setSavedCse(true);
+    setTimeout(() => setSavedCse(false), 2000);
+  };
 
   const saveKey = async () => {
     if (!apiKey.trim()) return;
@@ -209,6 +223,89 @@ export default function Settings({ onModelChange }) {
                 </div>
               </label>
             ))}
+          </div>
+        </div>
+
+        {/* Google CSE ID */}
+        <div className="bento-card bento-span-full">
+          <div className="flex items-center gap-2 mb-4">
+            <Globe size={15} style={{ color: '#3b82f6' }} />
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--lumen-text)' }}>Google CSE ID</h3>
+            <span className="ml-auto text-[10px]" style={{ color: 'var(--lumen-text-muted)' }}>Custom Search Engine</span>
+          </div>
+          {cseId && (
+            <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl"
+              style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
+              <Check size={12} style={{ color: '#3b82f6' }} />
+              <code className="text-[11px] font-mono" style={{ color: '#3b82f6' }}>{cseId.slice(0, 12)}...</code>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={cseIdInput}
+              onChange={(e) => setCseIdInput(e.target.value)}
+              placeholder="017576662512468239146:omuauf_lfve"
+              className="dark-input flex-1 !text-xs !font-mono"
+              onKeyDown={(e) => e.key === 'Enter' && saveCse()}
+            />
+            <button onClick={saveCse} disabled={cseIdInput === cseId} className="btn-accent !py-2 !px-3 !text-xs">
+              {savedCse ? <><Check size={12} /> OK</> : 'Guardar'}
+            </button>
+          </div>
+          <p className="text-[10px] mt-2" style={{ color: 'var(--lumen-text-muted)' }}>
+            ID de tu motor de busqueda personalizado en{' '}
+            <span style={{ color: '#3b82f6' }}>programmablesearchengine.google.com</span>
+          </p>
+        </div>
+
+        {/* LUMEN Guide */}
+        <div className="bento-card bento-span-full">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield size={15} style={{ color: '#7E3FF2' }} />
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--lumen-text)' }}>LUMEN Guide</h3>
+            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{ background: 'rgba(126,63,242,0.08)', color: '#7E3FF2' }}>
+              Instructivo
+            </span>
+          </div>
+          <div className="bento-grid bento-grid-2 !gap-3">
+            <div className="rounded-2xl p-4" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <FlaskConical size={13} style={{ color: '#7E3FF2' }} />
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#7E3FF2' }}>Laboratorio</span>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
+                Centro de analisis multimodal. Puedes describir un caso, adjuntar capturas de pantalla o PDFs con errores y diagramas. Gemini Vision los analiza y contrasta contra tus politicas internas.
+              </p>
+            </div>
+            <div className="rounded-2xl p-4" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Library size={13} style={{ color: '#10b981' }} />
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#10b981' }}>Biblioteca</span>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
+                Tu fuente de verdad inamovible. Contiene todas las politicas, protocolos y documentos de tu empresa. LUMEN nunca inventa informacion interna — si no esta aqui, lo dice explicitamente.
+              </p>
+            </div>
+            <div className="rounded-2xl p-4" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Globe size={13} style={{ color: '#3b82f6' }} />
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#3b82f6' }}>Modo Expandido</span>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
+                Activa Google Search en el Laboratorio para consultas externas (tendencias QA, normativas, noticias). Nunca reemplaza ni contradice la Biblioteca interna — es estrictamente complementario.
+              </p>
+            </div>
+            <div className="rounded-2xl p-4" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <RefreshCw size={13} style={{ color: '#f59e0b' }} />
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#f59e0b' }}>Actualizaciones</span>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
+                El sistema detecta nuevas versiones automaticamente. Si la descarga se interrumpe, se reintenta desde el punto donde quedo. Nunca perderias el progreso de una actualizacion.
+              </p>
+            </div>
           </div>
         </div>
 

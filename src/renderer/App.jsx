@@ -11,6 +11,7 @@ import Notes from './components/Notes/Notes';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
 import DailyInsight from './components/DailyInsight';
+import Dashboard from './components/Dashboard/Dashboard';
 
 function extractNameFromEmail(email) {
   if (!email || !email.trim()) return 'Lu';
@@ -20,18 +21,19 @@ function extractNameFromEmail(email) {
 }
 
 const MODULES = {
-  assistant: { label: 'Asistente de Caso', component: Assistant },
-  knowledge: { label: 'Base de Conocimiento', component: KnowledgeBase },
-  search: { label: 'Busqueda Instantanea', component: Search },
-  contacts: { label: 'Directorio de Escalacion', component: Contacts },
-  examples: { label: 'Casos de Ejemplo', component: Examples },
-  notes: { label: 'Notas', component: Notes },
-  settings: { label: 'Configuracion', component: Settings },
+  dashboard: { label: 'Inicio',       component: Dashboard },
+  assistant: { label: 'Laboratorio',  component: Assistant },
+  knowledge: { label: 'Biblioteca',   component: KnowledgeBase },
+  search:    { label: 'Busqueda',     component: Search },
+  contacts:  { label: 'Escalacion',   component: Contacts },
+  examples:  { label: 'Ejemplos',     component: Examples },
+  notes:     { label: 'Notas',        component: Notes },
+  settings:  { label: 'Configuracion', component: Settings },
 };
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [activeModule, setActiveModule] = useState('assistant');
+  const [activeModule, setActiveModule] = useState('dashboard');
   const [moduleProps, setModuleProps] = useState({});
   const [update, setUpdate] = useState(null);
   const [syncStatus, setSyncStatus] = useState('idle');
@@ -56,7 +58,11 @@ export default function App() {
       }
     }).catch(() => {});
     window.lumen.settings.getUserEmail().then((email) => {
-      if (email) setUserName(extractNameFromEmail(email));
+      // Full first name (e.g. "Lucila" not "Lu") — formal address
+      if (email) {
+        const name = extractNameFromEmail(email);
+        setUserName(name || 'Lucila');
+      }
     }).catch(() => {});
   }, []);
 

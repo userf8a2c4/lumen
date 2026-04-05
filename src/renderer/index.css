@@ -328,6 +328,81 @@ body {
   color: var(--lumen-text-muted);
 }
 
+/* ═══ Glassmorphism — Aero-Bento Edition ═══ */
+.glass-card {
+  background: rgba(22, 22, 31, 0.72);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.04);
+  border-radius: 20px;
+}
+.light-theme .glass-card {
+  background: rgba(249, 249, 251, 0.78);
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
+}
+.glass-sidebar {
+  background: rgba(17, 17, 24, 0.85);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.light-theme .glass-sidebar {
+  background: rgba(234, 234, 238, 0.88);
+  border-right: 1px solid rgba(0,0,0,0.07);
+}
+
+/* Refined bento card with glass micro-border */
+.bento-card {
+  position: relative;
+}
+.bento-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.light-theme .bento-card::before {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+/* Glow border on hover for interactive bento cards */
+.bento-card.interactive:hover {
+  border-color: rgba(126,63,242,0.18);
+  box-shadow: 0 8px 32px rgba(126,63,242,0.08), 0 1px 3px rgba(0,0,0,0.12);
+}
+
+/* Drop zone for vision upload */
+.drop-zone {
+  border: 1.5px dashed var(--lumen-border-light);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: rgba(126,63,242,0.4);
+  background: rgba(126,63,242,0.04);
+}
+
+/* Nav item micro-interaction */
+.nav-item {
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.nav-item:hover:not(.active) {
+  background: rgba(126,63,242,0.05) !important;
+  color: var(--lumen-text) !important;
+}
+.nav-item.active {
+  background: rgba(126,63,242,0.1) !important;
+  color: #7E3FF2 !important;
+  box-shadow: inset 0 0 0 1px rgba(126,63,242,0.12);
+}
+
 /* ═══ Module header ═══ */
 .module-header {
   display: flex;

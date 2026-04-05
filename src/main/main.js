@@ -124,7 +124,22 @@ Si hay notas relevantes del agente en LUMEN, usalas como contexto adicional.`;
   }
 
   const geminiModel = genAI.getGenerativeModel(modelConfig);
-  const result = await geminiModel.generateContent(userMessage);
+
+  // Build content parts — prepend image/PDF if provided
+  const contentParts = [];
+  if (options.attachment && options.attachment.data) {
+    contentParts.push({
+      inlineData: {
+        data: options.attachment.data,
+        mimeType: options.attachment.mimeType || 'image/png',
+      },
+    });
+    contentParts.push({ text: `[Archivo adjunto: ${options.attachment.name}]\n\n${userMessage}` });
+  } else {
+    contentParts.push({ text: userMessage });
+  }
+
+  const result = await geminiModel.generateContent(contentParts);
   const text = result.response.text();
 
   return {
@@ -243,6 +258,8 @@ function registerHandlers() {
   ipcMain.handle('settings:setTheme', (_e, theme) => db.setSetting('theme', theme));
   ipcMain.handle('settings:getUserEmail', () => db.getSetting('user_email') || '');
   ipcMain.handle('settings:setUserEmail', (_e, email) => db.setSetting('user_email', email));
+  ipcMain.handle('settings:getCseId', () => db.getSetting('cse_id') || '');
+  ipcMain.handle('settings:setCseId', (_e, id) => db.setSetting('cse_id', id));
 
   // Scraper
   ipcMain.handle('scraper:fetchUrl', async (_e, url) => {
@@ -275,6 +292,7 @@ function registerHandlers() {
   ipcMain.handle('updater:install', () => installUpdate());
   // App
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.handle('app:quit', () => app.quit());
 }
 
 // --- App lifecycle ---

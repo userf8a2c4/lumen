@@ -1,7 +1,7 @@
 {
   "name": "lumen-app",
-  "version": "0.5.2",
-  "description": "LUMEN — Motor de Conocimiento Personal (Google Native Edition)",
+  "version": "0.5.3",
+  "description": "LUMEN — Motor de Conocimiento Personal (Aero-Bento Edition)",
   "main": "src/main/main.js",
   "author": "LUMEN Team",
   "license": "MIT",

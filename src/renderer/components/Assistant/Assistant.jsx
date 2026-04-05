@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Bot, Send, Copy, Check, Loader2, AlertCircle,
+  Bot, Copy, Check, Loader2, AlertCircle,
   BookOpen, Users, FileText, Sparkles, StickyNote, Mail,
   ChevronDown, ChevronRight, Phone, ExternalLink,
-  Zap, Globe, Database,
+  Zap, Globe, Database, Paperclip, X, Image,
 } from 'lucide-react';
 
 const GEMINI_MODELS = [
@@ -60,6 +60,38 @@ export default function Assistant({ userName = 'Lu' }) {
   const [generatingEmail, setGeneratingEmail] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const [searchMode, setSearchMode] = useState('local'); // 'local' | 'expanded'
+  const [attachment, setAttachment] = useState(null); // { name, mimeType, data (base64) }
+  const [dragOver, setDragOver] = useState(false);
+
+  const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, mimeType: file.type, data: reader.result.split(',')[1] });
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handleFileAttach = async (file) => {
+    if (!file) return;
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'];
+    if (!allowed.includes(file.type)) {
+      setError('Formato no soportado. Usa PNG, JPG, WebP, GIF o PDF.');
+      return;
+    }
+    try {
+      const att = await readFileAsBase64(file);
+      setAttachment(att);
+      setError('');
+    } catch {
+      setError('Error al leer el archivo.');
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileAttach(file);
+  };
 
   const handleAnalyze = async () => {
     if (!caseDesc.trim()) return;
@@ -69,7 +101,11 @@ export default function Assistant({ userName = 'Lu' }) {
     setExpandedPolicy(null);
     setGeneratedEmail('');
     try {
-      setResult(await window.lumen.ai.analyze(caseDesc.trim(), { model: selectedModel, searchMode }));
+      setResult(await window.lumen.ai.analyze(caseDesc.trim(), {
+        model: selectedModel,
+        searchMode,
+        attachment: attachment || undefined,
+      }));
     } catch (e) {
       setError(e.message || 'Error al analizar. Verifica tu API Key de Google AI.');
     } finally {
@@ -152,14 +188,36 @@ export default function Assistant({ userName = 'Lu' }) {
         <label className="block text-[13px] font-medium mb-2" style={{ color: 'var(--lumen-text-secondary)' }}>
           Describe el caso del cliente
         </label>
-        <textarea
-          value={caseDesc}
-          onChange={(e) => setCaseDesc(e.target.value)}
-          rows={4}
-          disabled={loading}
-          className="dark-input resize-y leading-relaxed"
-          placeholder="Ej: El cliente solicita un reembolso por un cobro duplicado..."
-        />
+        <div
+          className={`drop-zone ${dragOver ? 'drag-over' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          style={{ padding: 0, border: 'none', background: 'transparent' }}
+        >
+          <textarea
+            value={caseDesc}
+            onChange={(e) => setCaseDesc(e.target.value)}
+            rows={4}
+            disabled={loading}
+            className="dark-input resize-y leading-relaxed"
+            placeholder="Describe el caso... o arrastra una imagen / PDF aqui"
+            style={{ borderStyle: dragOver ? 'dashed' : 'solid', borderColor: dragOver ? 'rgba(126,63,242,0.4)' : undefined }}
+          />
+        </div>
+
+        {/* Attachment preview */}
+        {attachment && (
+          <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(126,63,242,0.06)', border: '1px solid rgba(126,63,242,0.15)' }}>
+            <Image size={13} style={{ color: '#7E3FF2' }} />
+            <span className="text-[11px] flex-1 truncate" style={{ color: '#9B5BFF' }}>{attachment.name}</span>
+            <span className="text-[10px]" style={{ color: 'var(--lumen-text-muted)' }}>{attachment.mimeType}</span>
+            <button onClick={() => setAttachment(null)} className="p-0.5 rounded hover:opacity-70">
+              <X size={12} style={{ color: 'var(--lumen-text-muted)' }} />
+            </button>
+          </div>
+        )}
 
         {/* Controls toolbar */}
         <div className="flex items-center gap-3 mt-3 pt-3" style={{ borderTop: '1px solid var(--lumen-border)' }}>
@@ -214,6 +272,19 @@ export default function Assistant({ userName = 'Lu' }) {
               <Globe size={11} /> LUMEN + Google
             </button>
           </div>
+
+          {/* Attach file */}
+          <label className="btn-ghost !py-2 !px-3 cursor-pointer" title="Adjuntar imagen o PDF (Vision)">
+            <Paperclip size={13} />
+            {!attachment && <span className="text-[11px]">Adjuntar</span>}
+            {attachment && <span className="text-[11px]" style={{ color: '#9B5BFF' }}>1 archivo</span>}
+            <input
+              type="file"
+              className="sr-only"
+              accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+              onChange={(e) => handleFileAttach(e.target.files[0])}
+            />
+          </label>
 
           <div className="flex-1" />
 

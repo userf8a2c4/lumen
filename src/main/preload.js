@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld('lumen', {
     setTheme: (theme) => ipcRenderer.invoke('settings:setTheme', theme),
     getUserEmail: () => ipcRenderer.invoke('settings:getUserEmail'),
     setUserEmail: (email) => ipcRenderer.invoke('settings:setUserEmail', email),
+    getCseId: () => ipcRenderer.invoke('settings:getCseId'),
+    setCseId: (id) => ipcRenderer.invoke('settings:setCseId', id),
   },
   scraper: {
     fetchUrl: (url) => ipcRenderer.invoke('scraper:fetchUrl', url),
@@ -80,5 +82,6 @@ contextBridge.exposeInMainWorld('lumen', {
   },
   app: {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
+    quit: () => ipcRenderer.invoke('app:quit'),
   },
 });

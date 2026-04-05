@@ -53,7 +53,7 @@ const QUOTES = [
   { text: 'La mentalidad de crecimiento lo transforma todo.', author: 'Carol Dweck' },
 ];
 
-export default function DailyInsight({ userName = 'Lu' }) {
+export default function DailyInsight({ userName = 'Lucila' }) {
   const [visible, setVisible] = useState(false);
   const [fading, setFading] = useState(false);
   const [quote] = useState(() => QUOTES[Math.floor(Math.random() * QUOTES.length)]);
