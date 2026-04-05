@@ -4,6 +4,7 @@ const fs = require('fs');
 const db = require('./database');
 const { scrapeUrl } = require('./scraper');
 const { initUpdater, checkForUpdates, downloadUpdate, installUpdate } = require('./updater');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let mainWindow;
 
@@ -36,21 +37,21 @@ function getApiKey() {
   }
 }
 
-// --- AI Analysis ---
+// --- AI Analysis (Gemini — Arquitectura Biblica de dos capas) ---
 
-async function analyzeCase(caseDescription) {
+async function analyzeCase(caseDescription, options = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('No se ha configurado la API Key de Anthropic. Ve a Configuracion para agregarla.');
+    throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
   }
 
-  const model = db.getSetting('model') || 'claude-sonnet-4-20250514';
+  const modelId = options.model || db.getSetting('model') || 'gemini-1.5-flash';
+  const searchMode = options.searchMode || 'local'; // 'local' | 'expanded'
+
   const policies = db.searchPoliciesForAI(caseDescription);
   const policyIds = policies.map((p) => p.id);
   const examples = db.getExamplesForPolicies(policyIds);
   const notes = db.searchNotesForAI(caseDescription);
-
-  // Get relevant contacts by matching departments
   const departments = [...new Set(policies.map((p) => p.department))];
   const contacts = db.getContactsByDepartments(departments);
 
@@ -60,89 +61,103 @@ async function analyzeCase(caseDescription) {
       .map((p, i) => `### Politica ${i + 1}: ${p.name}\n**Departamento:** ${p.department}\n**Descripcion:** ${p.description}\n**Contenido:**\n${p.content}`)
       .join('\n\n---\n\n');
   } else {
-    policiesContext = 'No se encontraron politicas directamente relacionadas en la base de conocimiento.';
+    policiesContext = '[SIN POLITICAS RELACIONADAS EN LA BASE DE DATOS DE LUMEN]';
   }
 
   let examplesContext = '';
   if (examples.length > 0) {
-    examplesContext = '\n\n## Casos de ejemplo previos:\n' + examples
+    examplesContext = '\n\n## Casos de ejemplo previos en LUMEN:\n' + examples
       .map((e) => `- **Politica:** ${e.policy_name}\n  **Problema:** ${e.problem_description}\n  **Respuesta usada:** ${e.response_used}\n  **Resultado:** ${e.result}`)
       .join('\n\n');
   }
 
   let contactsContext = '';
   if (contacts.length > 0) {
-    contactsContext = '\n\n## Contactos de escalacion disponibles:\n' + contacts
+    contactsContext = '\n\n## Contactos de escalacion en LUMEN:\n' + contacts
       .map((c) => `- **${c.name} ${c.last_name || ''}** (${c.department}) — ${c.contact_method} — Contactar cuando: ${c.when_to_contact}`)
       .join('\n');
   }
 
   let notesContext = '';
   if (notes.length > 0) {
-    notesContext = '\n\n## Notas relevantes del agente:\n' + notes
+    notesContext = '\n\n## Notas relevantes del agente en LUMEN:\n' + notes
       .map((n) => `- **${n.title}:** ${n.content.slice(0, 500)}`)
       .join('\n\n');
   }
 
-  const systemPrompt = `Eres un asistente experto para agentes de atencion al cliente. Tu trabajo es analizar casos y proporcionar respuestas claras y profesionales basandote en las politicas de la empresa.
+  const searchContext = searchMode === 'expanded'
+    ? 'MODO EXPANDIDO ACTIVO: Puedes consultar informacion externa de internet SOLO para datos publicos (tendencias, noticias, normativas). NUNCA uses fuentes externas para inventar o contradecir datos internos de LUMEN.'
+    : 'MODO LOCAL ACTIVO: Usa exclusivamente los datos de la base de datos de LUMEN. No uses informacion externa.';
 
-Siempre responde en espanol. Se conciso pero completo. Estructura tu respuesta exactamente en estas tres secciones:
+  const systemPrompt = `Eres el asistente experto de LUMEN para agentes de atencion al cliente.
 
-1. **Politica aplicable**: Indica que politica(s) aplican y por que
-2. **Analisis y pasos a seguir**: Explica que debe hacer la agente paso a paso
+## ARQUITECTURA DE RESPUESTA — DOS CAPAS OBLIGATORIAS
+
+### CAPA 1 — BIBLIA DE LUMEN (PRIORIDAD ABSOLUTA E INAMOVIBLE):
+Los documentos, politicas, notas y contactos proporcionados en este contexto son la UNICA fuente autorizada para informacion interna de la organizacion.
+
+REGLAS ESTRICTAS (no negociables):
+- Si la informacion solicitada ESTA en los documentos de LUMEN: respondela con precision total y cita la politica
+- Si la informacion NO ESTA en los documentos de LUMEN: responde EXACTAMENTE: "No cuento con esa informacion en la base de datos de LUMEN."
+- JAMAS inventes, estimes ni generes datos internos que no esten explicita y textualmente en los documentos proporcionados
+- El modelo NO tiene permitido alucinar datos internos bajo ninguna circunstancia
+
+### CAPA 2 — CONTEXTO EXTERNO:
+${searchContext}
+
+## FORMATO DE RESPUESTA
+Siempre responde en espanol. Estructura tu respuesta en exactamente estas tres secciones:
+
+1. **Politica aplicable**: Indica que politica(s) de LUMEN aplican y por que (si no hay politica, indica exactamente "No cuento con esa informacion en la base de datos de LUMEN.")
+2. **Analisis y pasos a seguir**: Explica que debe hacer la agente paso a paso basandose en las politicas encontradas
 3. **Borrador de respuesta para el cliente**: Redacta una respuesta profesional y empatica lista para enviar al cliente
 
-Si hay contactos de escalacion relevantes, menciona cuando y a quien escalar.
-Si hay notas relevantes del agente, usalas como contexto adicional.
-Si no hay politicas relevantes en el contexto proporcionado, indica que no se encontro una politica especifica y ofrece una respuesta general basada en buenas practicas de servicio al cliente.`;
+Si hay contactos de escalacion relevantes en LUMEN, menciona cuando y a quien escalar.
+Si hay notas relevantes del agente en LUMEN, usalas como contexto adicional.`;
 
-  const userMessage = `## Caso del cliente:\n${caseDescription}\n\n## Politicas disponibles:\n${policiesContext}${examplesContext}${contactsContext}${notesContext}\n\nPor favor analiza este caso y proporciona tu recomendacion estructurada.`;
+  const userMessage = `## Caso del cliente:\n${caseDescription}\n\n## BASE DE DATOS LUMEN — POLITICAS INDEXADAS:\n${policiesContext}${examplesContext}${contactsContext}${notesContext}\n\nAnaliza este caso basandote EXCLUSIVAMENTE en las politicas de LUMEN proporcionadas.`;
 
-  const Anthropic = require('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelConfig = { model: modelId, systemInstruction: systemPrompt };
+  if (searchMode === 'expanded') {
+    modelConfig.tools = [{ googleSearch: {} }];
+  }
 
-  const response = await client.messages.create({
-    model,
-    max_tokens: 2048,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userMessage }],
-  });
+  const geminiModel = genAI.getGenerativeModel(modelConfig);
+  const result = await geminiModel.generateContent(userMessage);
+  const text = result.response.text();
 
   return {
-    analysis: response.content[0].text,
+    analysis: text,
     policiesUsed: policies.map((p) => ({
       id: p.id, name: p.name, department: p.department, description: p.description,
     })),
     contactsRelevant: contacts,
     examplesRelevant: examples,
     notesRelevant: notes.map((n) => ({ id: n.id, title: n.title })),
-    model,
+    model: modelId,
+    searchMode,
   };
 }
 
-// --- Email Generator ---
+// --- Email Generator (Gemini) ---
 
-async function generateEmail(context) {
+async function generateEmail(context, options = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('No se ha configurado la API Key de Anthropic.');
+    throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
   }
 
-  const model = db.getSetting('model') || 'claude-sonnet-4-20250514';
+  const modelId = options.model || db.getSetting('model') || 'gemini-1.5-flash';
 
-  const systemPrompt = `Eres un experto en comunicacion profesional. Genera un correo electronico profesional, empatico y claro basado en el contexto proporcionado. El correo debe estar listo para enviar. Responde SOLO con el correo, sin explicaciones adicionales. Escribe en espanol.`;
-
-  const Anthropic = require('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey });
-
-  const response = await client.messages.create({
-    model,
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: context }],
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const geminiModel = genAI.getGenerativeModel({
+    model: modelId,
+    systemInstruction: 'Eres un experto en comunicacion profesional. Genera un correo electronico profesional, empatico y claro basado en el contexto proporcionado. El correo debe estar listo para enviar. Responde SOLO con el correo, sin explicaciones adicionales. Escribe en espanol.',
   });
 
-  return response.content[0].text;
+  const result = await geminiModel.generateContent(context);
+  return result.response.text();
 }
 
 // --- Window creation ---
@@ -222,10 +237,12 @@ function registerHandlers() {
     return key.slice(0, 7) + '...' + key.slice(-4);
   });
   ipcMain.handle('settings:setApiKey', (_e, key) => saveApiKey(key));
-  ipcMain.handle('settings:getModel', () => db.getSetting('model') || 'claude-sonnet-4-20250514');
+  ipcMain.handle('settings:getModel', () => db.getSetting('model') || 'gemini-1.5-flash');
   ipcMain.handle('settings:setModel', (_e, model) => db.setSetting('model', model));
   ipcMain.handle('settings:getTheme', () => db.getSetting('theme') || 'dark');
   ipcMain.handle('settings:setTheme', (_e, theme) => db.setSetting('theme', theme));
+  ipcMain.handle('settings:getUserEmail', () => db.getSetting('user_email') || '');
+  ipcMain.handle('settings:setUserEmail', (_e, email) => db.setSetting('user_email', email));
 
   // Scraper
   ipcMain.handle('scraper:fetchUrl', async (_e, url) => {
@@ -237,16 +254,16 @@ function registerHandlers() {
   });
 
   // AI
-  ipcMain.handle('ai:analyze', async (_e, caseDescription) => {
+  ipcMain.handle('ai:analyze', async (_e, caseDescription, options) => {
     try {
-      return await analyzeCase(caseDescription);
+      return await analyzeCase(caseDescription, options || {});
     } catch (err) {
       throw new Error(err.message);
     }
   });
-  ipcMain.handle('ai:generateEmail', async (_e, context) => {
+  ipcMain.handle('ai:generateEmail', async (_e, context, options) => {
     try {
-      return await generateEmail(context);
+      return await generateEmail(context, options || {});
     } catch (err) {
       throw new Error(err.message);
     }

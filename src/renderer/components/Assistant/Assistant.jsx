@@ -3,7 +3,13 @@ import {
   Bot, Send, Copy, Check, Loader2, AlertCircle,
   BookOpen, Users, FileText, Sparkles, StickyNote, Mail,
   ChevronDown, ChevronRight, Phone, ExternalLink,
+  Zap, Globe, Database,
 } from 'lucide-react';
+
+const GEMINI_MODELS = [
+  { id: 'gemini-1.5-flash', label: 'Balanceado', sublabel: 'Pro' },
+  { id: 'gemini-1.5-pro', label: 'Maximo Rendimiento', sublabel: 'Ultra' },
+];
 
 function AccordionSection({ title, icon: Icon, count, color, defaultOpen = true, glow = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -42,7 +48,7 @@ function AccordionSection({ title, icon: Icon, count, color, defaultOpen = true,
   );
 }
 
-export default function Assistant() {
+export default function Assistant({ userName = 'Lu' }) {
   const [caseDesc, setCaseDesc] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -52,6 +58,8 @@ export default function Assistant() {
   const [emailContext, setEmailContext] = useState('');
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [generatingEmail, setGeneratingEmail] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
+  const [searchMode, setSearchMode] = useState('local'); // 'local' | 'expanded'
 
   const handleAnalyze = async () => {
     if (!caseDesc.trim()) return;
@@ -61,9 +69,9 @@ export default function Assistant() {
     setExpandedPolicy(null);
     setGeneratedEmail('');
     try {
-      setResult(await window.lumen.ai.analyze(caseDesc.trim()));
+      setResult(await window.lumen.ai.analyze(caseDesc.trim(), { model: selectedModel, searchMode }));
     } catch (e) {
-      setError(e.message || 'Error al analizar. Verifica tu API Key.');
+      setError(e.message || 'Error al analizar. Verifica tu API Key de Google AI.');
     } finally {
       setLoading(false);
     }
@@ -121,14 +129,19 @@ export default function Assistant() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header — Bento card */}
+      {/* Header — Bento card con saludo */}
       <div className="bento-card mb-4">
         <div className="module-header">
           <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
             <Bot size={22} style={{ color: '#7E3FF2' }} />
           </div>
-          <div>
-            <h2>Analisis de Caso</h2>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <h2>Analisis de Caso</h2>
+              <span className="text-[11px] font-medium" style={{ color: 'var(--lumen-text-muted)' }}>
+                Bienvenida, {userName}
+              </span>
+            </div>
             <p>Describe el problema y obten una solucion basada en tus politicas, notas y contactos</p>
           </div>
         </div>
@@ -136,7 +149,9 @@ export default function Assistant() {
 
       {/* Input — Bento card */}
       <div className="bento-card mb-4">
-        <label className="block text-[13px] font-medium mb-2" style={{ color: 'var(--lumen-text-secondary)' }}>Describe el caso del cliente</label>
+        <label className="block text-[13px] font-medium mb-2" style={{ color: 'var(--lumen-text-secondary)' }}>
+          Describe el caso del cliente
+        </label>
         <textarea
           value={caseDesc}
           onChange={(e) => setCaseDesc(e.target.value)}
@@ -145,7 +160,64 @@ export default function Assistant() {
           className="dark-input resize-y leading-relaxed"
           placeholder="Ej: El cliente solicita un reembolso por un cobro duplicado..."
         />
-        <div className="flex justify-end mt-3">
+
+        {/* Controls toolbar */}
+        <div className="flex items-center gap-3 mt-3 pt-3" style={{ borderTop: '1px solid var(--lumen-border)' }}>
+          {/* Model selector */}
+          <div className="flex items-center gap-1 p-0.5 rounded-xl" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+            {GEMINI_MODELS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setSelectedModel(m.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[11px] font-medium transition-all"
+                style={{
+                  background: selectedModel === m.id ? 'rgba(126,63,242,0.12)' : 'transparent',
+                  color: selectedModel === m.id ? '#7E3FF2' : 'var(--lumen-text-muted)',
+                  border: selectedModel === m.id ? '1px solid rgba(126,63,242,0.2)' : '1px solid transparent',
+                }}
+              >
+                <Zap size={11} />
+                {m.label}
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold"
+                  style={{
+                    background: selectedModel === m.id ? 'rgba(126,63,242,0.15)' : 'rgba(0,0,0,0.06)',
+                    color: selectedModel === m.id ? '#9B5BFF' : 'var(--lumen-text-muted)',
+                  }}>
+                  {m.sublabel}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Search mode toggle */}
+          <div className="flex items-center gap-1 p-0.5 rounded-xl" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+            <button
+              onClick={() => setSearchMode('local')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[11px] font-medium transition-all"
+              style={{
+                background: searchMode === 'local' ? 'rgba(16,185,129,0.1)' : 'transparent',
+                color: searchMode === 'local' ? '#10b981' : 'var(--lumen-text-muted)',
+                border: searchMode === 'local' ? '1px solid rgba(16,185,129,0.2)' : '1px solid transparent',
+              }}
+            >
+              <Database size={11} /> Solo LUMEN
+            </button>
+            <button
+              onClick={() => setSearchMode('expanded')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[11px] font-medium transition-all"
+              style={{
+                background: searchMode === 'expanded' ? 'rgba(59,130,246,0.1)' : 'transparent',
+                color: searchMode === 'expanded' ? '#60a5fa' : 'var(--lumen-text-muted)',
+                border: searchMode === 'expanded' ? '1px solid rgba(59,130,246,0.2)' : '1px solid transparent',
+              }}
+            >
+              <Globe size={11} /> LUMEN + Google
+            </button>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Analyze button */}
           <button onClick={handleAnalyze} disabled={loading || !caseDesc.trim()} className="btn-accent">
             {loading ? (
               <><Loader2 size={15} className="animate-spin" /> Analizando...</>
@@ -316,12 +388,18 @@ export default function Assistant() {
             </AccordionSection>
           )}
 
-          <AccordionSection title="Sugerencia de Claude" icon={Sparkles} count={0} color="violet" defaultOpen={true}>
+          <AccordionSection title="Analisis de Gemini" icon={Sparkles} count={0} color="violet" defaultOpen={true}>
             <div className="rounded-2xl p-4" style={{ background: 'rgba(126,63,242,0.04)', border: '1px solid rgba(126,63,242,0.15)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles size={13} style={{ color: '#7E3FF2' }} />
                   <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#7E3FF2' }}>Procedimiento recomendado</span>
+                  {result.searchMode === 'expanded' && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold"
+                      style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa' }}>
+                      <Globe size={9} /> Google Search
+                    </span>
+                  )}
                 </div>
                 <button onClick={() => copyToClipboard(extractDraft(result.analysis), 'draft')} className="btn-ghost !py-1 !px-2.5 !text-[11px]">
                   {copied === 'draft' ? <><Check size={10} style={{ color: '#10b981' }} /> Copiado</> : <><Copy size={10} /> Copiar borrador</>}

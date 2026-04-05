@@ -10,6 +10,14 @@ import Examples from './components/Examples/Examples';
 import Notes from './components/Notes/Notes';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
+import DailyInsight from './components/DailyInsight';
+
+function extractNameFromEmail(email) {
+  if (!email || !email.trim()) return 'Lu';
+  const local = email.split('@')[0];
+  const first = local.split('.')[0];
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
 
 const MODULES = {
   assistant: { label: 'Asistente de Caso', component: Assistant },
@@ -28,9 +36,10 @@ export default function App() {
   const [update, setUpdate] = useState(null);
   const [syncStatus, setSyncStatus] = useState('idle');
   const [version, setVersion] = useState('1.0.0');
-  const [model, setModel] = useState('claude-sonnet-4-20250514');
+  const [model, setModel] = useState('gemini-1.5-flash');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState('dark');
+  const [userName, setUserName] = useState('Lu');
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2200);
@@ -45,6 +54,9 @@ export default function App() {
         setTheme(t);
         document.documentElement.className = t === 'light' ? 'light-theme' : '';
       }
+    }).catch(() => {});
+    window.lumen.settings.getUserEmail().then((email) => {
+      if (email) setUserName(extractNameFromEmail(email));
     }).catch(() => {});
   }, []);
 
@@ -95,6 +107,9 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen" style={{ background: 'var(--lumen-bg)' }}>
+      {/* Daily insight toast */}
+      <DailyInsight userName={userName} />
+
       {/* Update banner */}
       {update && (
         <UpdateBanner
@@ -116,7 +131,7 @@ export default function App() {
           onToggleTheme={toggleTheme}
         />
         <main className="flex-1 overflow-y-auto p-6">
-          <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} />
+          <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} />
         </main>
       </div>
 

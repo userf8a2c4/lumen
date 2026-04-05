@@ -2,9 +2,8 @@ import React from 'react';
 import { Github, Cpu } from 'lucide-react';
 
 const MODEL_LABELS = {
-  'claude-sonnet-4-20250514': 'Sonnet 4',
-  'claude-haiku-4-5-20251001': 'Haiku 4.5',
-  'claude-opus-4-6': 'Opus 4.6',
+  'gemini-1.5-flash': 'Gemini Flash',
+  'gemini-1.5-pro': 'Gemini Pro',
 };
 
 const SYNC_CONFIG = {

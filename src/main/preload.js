@@ -38,13 +38,15 @@ contextBridge.exposeInMainWorld('lumen', {
     setModel: (model) => ipcRenderer.invoke('settings:setModel', model),
     getTheme: () => ipcRenderer.invoke('settings:getTheme'),
     setTheme: (theme) => ipcRenderer.invoke('settings:setTheme', theme),
+    getUserEmail: () => ipcRenderer.invoke('settings:getUserEmail'),
+    setUserEmail: (email) => ipcRenderer.invoke('settings:setUserEmail', email),
   },
   scraper: {
     fetchUrl: (url) => ipcRenderer.invoke('scraper:fetchUrl', url),
   },
   ai: {
-    analyze: (caseDescription) => ipcRenderer.invoke('ai:analyze', caseDescription),
-    generateEmail: (context) => ipcRenderer.invoke('ai:generateEmail', context),
+    analyze: (caseDescription, options) => ipcRenderer.invoke('ai:analyze', caseDescription, options),
+    generateEmail: (context, options) => ipcRenderer.invoke('ai:generateEmail', context, options),
   },
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

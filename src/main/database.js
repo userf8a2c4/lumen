@@ -154,7 +154,10 @@ async function initDatabase() {
   // Default settings
   const existing = queryOne('SELECT key FROM settings WHERE key = ?', ['model']);
   if (!existing) {
-    db.run('INSERT INTO settings (key, value) VALUES (?, ?)', ['model', 'claude-sonnet-4-20250514']);
+    db.run('INSERT INTO settings (key, value) VALUES (?, ?)', ['model', 'gemini-1.5-flash']);
+  } else if (existing && (existing.value || '').includes('claude')) {
+    // Migrate from Anthropic to Gemini
+    db.run("UPDATE settings SET value = 'gemini-1.5-flash' WHERE key = 'model'");
   }
 
   save();
