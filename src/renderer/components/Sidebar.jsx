@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bot, BookOpen, Search, Users, FileText, Settings, StickyNote, Sun, Moon, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import LumenLogo from './LumenLogo';
 
 const NAV_ITEMS = [
   { id: 'assistant', label: 'Asistente', icon: Bot },
@@ -15,15 +16,14 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
     <aside className={`flex flex-col shrink-0 transition-all duration-300 ${collapsed ? 'w-[60px]' : 'w-[220px]'}`}
       style={{ background: 'var(--lumen-surface)', borderRight: '1px solid var(--lumen-border)' }}>
       {/* Logo */}
-      <div className={`flex items-center gap-3 py-5 ${collapsed ? 'px-3 justify-center' : 'px-5'}`}>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg animate-pulse-glow"
-          style={{ background: '#7E3FF2', boxShadow: '0 4px 15px rgba(126,63,242,0.2)' }}>
-          <span className="text-white font-bold text-sm">L</span>
+      <div className={`flex items-center gap-3 py-5 ${collapsed ? 'px-2 justify-center' : 'px-5'}`}>
+        <div className="shrink-0">
+          <LumenLogo size={collapsed ? 30 : 34} />
         </div>
         {!collapsed && (
           <div>
-            <h1 className="font-bold text-sm tracking-wider" style={{ color: '#7E3FF2' }}>LUMEN</h1>
-            <p className="text-[10px] -mt-0.5" style={{ color: 'var(--lumen-text-muted)' }}>Motor de Conocimiento Personal</p>
+            <h1 className="font-semibold text-sm tracking-wider" style={{ color: '#7E3FF2', letterSpacing: '0.12em' }}>LUMEN</h1>
+            <p className="text-[10px] -mt-0.5 font-medium" style={{ color: 'var(--lumen-text-muted)' }}>Motor de Conocimiento Personal</p>
           </div>
         )}
       </div>
@@ -32,7 +32,7 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
       <div className="mx-3 border-t" style={{ borderColor: 'var(--lumen-border)' }} />
 
       {/* Navigation */}
-      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = activeModule === item.id;
@@ -58,7 +58,7 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
       </nav>
 
       {/* Bottom section */}
-      <div className="px-2 pb-3 space-y-1 border-t pt-2" style={{ borderColor: 'var(--lumen-border)' }}>
+      <div className="px-2 pb-3 space-y-0.5 border-t pt-2" style={{ borderColor: 'var(--lumen-border)' }}>
         {/* Settings */}
         <button
           onClick={() => onNavigate('settings')}

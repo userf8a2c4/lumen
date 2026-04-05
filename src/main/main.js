@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./database');
 const { scrapeUrl } = require('./scraper');
-const { initUpdater, checkForUpdates, downloadUpdate, installUpdate, reportError } = require('./updater');
+const { initUpdater, checkForUpdates, downloadUpdate, installUpdate } = require('./updater');
 
 let mainWindow;
 
@@ -256,8 +256,6 @@ function registerHandlers() {
   ipcMain.handle('updater:check', () => checkForUpdates());
   ipcMain.handle('updater:download', () => downloadUpdate());
   ipcMain.handle('updater:install', () => installUpdate());
-  ipcMain.handle('updater:reportError', (_e, desc) => reportError(desc));
-
   // App
   ipcMain.handle('app:getVersion', () => app.getVersion());
 }

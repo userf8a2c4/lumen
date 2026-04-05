@@ -1,7 +1,7 @@
 {
   "name": "lumen-app",
-  "version": "0.5.0",
-  "description": "LUMEN — Herramienta de asistencia laboral para agentes de atención al cliente",
+  "version": "0.5.1",
+  "description": "LUMEN — Motor de Conocimiento Personal",
   "main": "src/main/main.js",
   "author": "LUMEN Team",
   "license": "MIT",

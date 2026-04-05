@@ -39,13 +39,16 @@ export default function Examples({ selectedPolicyId }) {
 
   return (
     <div>
-      <div className="dark-card p-5 mb-5 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.1)' }}>
-          <FileText size={20} style={{ color: '#fbbf24' }} />
-        </div>
-        <div>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--lumen-text)' }}>Casos de Ejemplo</h2>
-          <p className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>Casos resueltos organizados por politica</p>
+      {/* Header */}
+      <div className="bento-card mb-4">
+        <div className="module-header">
+          <div className="module-icon" style={{ background: 'rgba(245,158,11,0.08)' }}>
+            <FileText size={22} style={{ color: '#fbbf24' }} />
+          </div>
+          <div>
+            <h2>Casos de Ejemplo</h2>
+            <p>Casos resueltos organizados por politica</p>
+          </div>
         </div>
       </div>
 
@@ -54,9 +57,9 @@ export default function Examples({ selectedPolicyId }) {
           <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: '#7E3FF2' }} />
         </div>
       ) : policies.length === 0 ? (
-        <div className="dark-card flex flex-col items-center justify-center py-16">
+        <div className="bento-card flex flex-col items-center justify-center py-16">
           <FileText size={40} strokeWidth={1} style={{ color: 'var(--lumen-text-muted)' }} className="mb-3" />
-          <p className="text-sm" style={{ color: 'var(--lumen-text-secondary)' }}>No hay politicas aun</p>
+          <p className="text-[13px]" style={{ color: 'var(--lumen-text-secondary)' }}>No hay politicas aun</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -64,12 +67,12 @@ export default function Examples({ selectedPolicyId }) {
             const isOpen = expanded === p.id;
             const items = examples[p.id] || [];
             return (
-              <div key={p.id} className="dark-card overflow-hidden">
+              <div key={p.id} className="bento-card !p-0 overflow-hidden">
                 <button onClick={() => toggle(p.id)} className="w-full flex items-center justify-between px-5 py-3.5 transition-colors">
                   <div className="flex items-center gap-3">
-                    {isOpen ? <ChevronDown size={16} style={{ color: '#fbbf24' }} /> : <ChevronRight size={16} style={{ color: 'var(--lumen-text-muted)' }} />}
-                    <span className="text-sm font-medium" style={{ color: 'var(--lumen-text)' }}>{p.name}</span>
-                    <span className="px-2.5 py-0.5 text-xs rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24' }}>{p.department}</span>
+                    {isOpen ? <ChevronDown size={15} style={{ color: '#fbbf24' }} /> : <ChevronRight size={15} style={{ color: 'var(--lumen-text-muted)' }} />}
+                    <span className="text-[13px] font-medium" style={{ color: 'var(--lumen-text)' }}>{p.name}</span>
+                    <span className="px-2.5 py-0.5 text-[10px] rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.08)', color: '#fbbf24' }}>{p.department}</span>
                   </div>
                   {isOpen && <span className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>{items.length} ejemplo{items.length !== 1 ? 's' : ''}</span>}
                 </button>
@@ -78,7 +81,7 @@ export default function Examples({ selectedPolicyId }) {
                   <div className="px-5 py-4" style={{ borderTop: '1px solid var(--lumen-border)' }}>
                     <div className="flex justify-end mb-3">
                       <button onClick={() => { setFormPolicyId(p.id); setForm({ problem_description: '', response_used: '', result: '' }); setShowForm(true); }}
-                        className="btn-ghost" style={{ color: '#fbbf24', borderColor: 'rgba(245,158,11,0.2)' }}>
+                        className="btn-ghost" style={{ color: '#fbbf24', borderColor: 'rgba(245,158,11,0.15)' }}>
                         <Plus size={12} /> Agregar ejemplo
                       </button>
                     </div>
@@ -88,7 +91,7 @@ export default function Examples({ selectedPolicyId }) {
                     ) : (
                       <div className="space-y-2.5">
                         {items.map((ex) => (
-                          <div key={ex.id} className="rounded-xl p-3.5 group" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+                          <div key={ex.id} className="rounded-2xl p-3.5 group" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
                             <div className="flex justify-between items-start">
                               <div className="flex-1 space-y-2">
                                 <div>
@@ -125,15 +128,15 @@ export default function Examples({ selectedPolicyId }) {
         <Modal title="Nuevo caso de ejemplo" onClose={() => setShowForm(false)} wide>
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>Descripcion del problema *</label>
+              <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>Descripcion del problema *</label>
               <textarea value={form.problem_description} onChange={(e) => setForm((f) => ({ ...f, problem_description: e.target.value }))} rows={3} className="dark-input resize-y" placeholder="Cual era el problema?" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>Respuesta usada *</label>
+              <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>Respuesta usada *</label>
               <textarea value={form.response_used} onChange={(e) => setForm((f) => ({ ...f, response_used: e.target.value }))} rows={3} className="dark-input resize-y" placeholder="Que respuesta se dio?" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>Resultado *</label>
+              <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>Resultado *</label>
               <textarea value={form.result} onChange={(e) => setForm((f) => ({ ...f, result: e.target.value }))} rows={2} className="dark-input resize-y" placeholder="Se resolvio? Se escalo?" />
             </div>
             <div className="flex justify-end gap-3 pt-2">

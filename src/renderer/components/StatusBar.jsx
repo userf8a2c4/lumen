@@ -2,9 +2,9 @@ import React from 'react';
 import { Github, Cpu } from 'lucide-react';
 
 const MODEL_LABELS = {
-  'claude-sonnet-4-20250514': 'Claude Sonnet 4',
-  'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
-  'claude-opus-4-6': 'Claude Opus 4.6',
+  'claude-sonnet-4-20250514': 'Sonnet 4',
+  'claude-haiku-4-5-20251001': 'Haiku 4.5',
+  'claude-opus-4-6': 'Opus 4.6',
 };
 
 const SYNC_CONFIG = {
@@ -19,18 +19,18 @@ export default function StatusBar({ version, syncStatus, model }) {
   const modelLabel = MODEL_LABELS[model] || model;
 
   return (
-    <footer className="flex items-center justify-between px-5 py-1.5 text-[11px] select-none"
+    <footer className="flex items-center justify-between px-5 py-1.5 text-[10px] font-medium select-none"
       style={{ background: 'var(--lumen-surface)', borderTop: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)' }}>
       <div className="flex items-center gap-4">
-        <span className="font-mono">v{version}</span>
+        <span className="font-mono tracking-wide">v{version}</span>
         <div className="flex items-center gap-1.5">
-          <Github size={11} />
-          <div className="w-[6px] h-[6px] rounded-full" style={{ background: sync.dot }} />
+          <Github size={10} />
+          <div className="w-[5px] h-[5px] rounded-full" style={{ background: sync.dot }} />
           <span>{sync.label}</span>
         </div>
       </div>
       <div className="flex items-center gap-1.5">
-        <Cpu size={11} />
+        <Cpu size={10} />
         <span>{modelLabel}</span>
       </div>
     </footer>

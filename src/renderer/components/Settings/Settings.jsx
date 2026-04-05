@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Key, Cpu, Info, RefreshCw, Check, Eye, EyeOff, Github } from 'lucide-react';
+import LumenLogo from '../LumenLogo';
 
 const MODELS = [
-  { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Recomendado)' },
-  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (Rapido)' },
-  { id: 'claude-opus-4-6', label: 'Claude Opus 4.6 (Avanzado)' },
+  { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', desc: 'Recomendado' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', desc: 'Rapido' },
+  { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', desc: 'Avanzado' },
 ];
 
 export default function Settings({ onModelChange }) {
@@ -47,26 +48,29 @@ export default function Settings({ onModelChange }) {
 
   return (
     <div className="max-w-3xl">
-      <div className="dark-card p-5 mb-5 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(126,63,242,0.1)' }}>
-          <SettingsIcon size={20} style={{ color: '#7E3FF2' }} />
-        </div>
-        <div>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--lumen-text)' }}>Configuracion</h2>
-          <p className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>Administra tu API Key y preferencias</p>
+      {/* Header */}
+      <div className="bento-card mb-4">
+        <div className="module-header">
+          <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
+            <SettingsIcon size={22} style={{ color: '#7E3FF2' }} />
+          </div>
+          <div>
+            <h2>Configuracion</h2>
+            <p>Administra tu API Key y preferencias</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bento-grid bento-grid-2">
         {/* API Key */}
-        <div className="dark-card p-5">
+        <div className="bento-card">
           <div className="flex items-center gap-2 mb-4">
-            <Key size={16} style={{ color: '#7E3FF2' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--lumen-text)' }}>API Key de Anthropic</h3>
+            <Key size={15} style={{ color: '#7E3FF2' }} />
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--lumen-text)' }}>API Key de Anthropic</h3>
           </div>
 
           {apiKeyDisplay && (
-            <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
               <Check size={12} style={{ color: '#10b981' }} />
               <code className="text-xs font-mono" style={{ color: '#10b981' }}>{apiKeyDisplay}</code>
             </div>
@@ -84,22 +88,22 @@ export default function Settings({ onModelChange }) {
               {saved ? <><Check size={12} /> OK</> : 'Guardar'}
             </button>
           </div>
-          <p className="text-[11px] mt-2" style={{ color: 'var(--lumen-text-muted)' }}>Cifrada con DPAPI del sistema operativo.</p>
+          <p className="text-[10px] mt-2" style={{ color: 'var(--lumen-text-muted)' }}>Cifrada con DPAPI del sistema operativo.</p>
         </div>
 
         {/* Model */}
-        <div className="dark-card p-5">
+        <div className="bento-card">
           <div className="flex items-center gap-2 mb-4">
-            <Cpu size={16} style={{ color: '#7E3FF2' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--lumen-text)' }}>Modelo de Claude</h3>
+            <Cpu size={15} style={{ color: '#7E3FF2' }} />
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--lumen-text)' }}>Modelo de Claude</h3>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {MODELS.map((m) => (
               <label key={m.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-sm"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-[13px]"
                 style={{
-                  background: model === m.id ? 'rgba(126,63,242,0.1)' : 'transparent',
-                  border: `1px solid ${model === m.id ? 'rgba(126,63,242,0.2)' : 'transparent'}`,
+                  background: model === m.id ? 'rgba(126,63,242,0.08)' : 'transparent',
+                  border: `1px solid ${model === m.id ? 'rgba(126,63,242,0.15)' : 'transparent'}`,
                   color: model === m.id ? '#7E3FF2' : 'var(--lumen-text-secondary)',
                 }}>
                 <input type="radio" name="model" value={m.id} checked={model === m.id} onChange={() => saveModel(m.id)} className="sr-only" />
@@ -107,42 +111,44 @@ export default function Settings({ onModelChange }) {
                   style={{ border: `2px solid ${model === m.id ? '#7E3FF2' : 'var(--lumen-text-muted)'}` }}>
                   {model === m.id && <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#7E3FF2' }} />}
                 </div>
-                <div>
+                <div className="flex-1">
                   <span className="text-[13px] font-medium">{m.label}</span>
-                  <p className="text-[10px] font-mono" style={{ color: 'var(--lumen-text-muted)' }}>{m.id}</p>
+                  <span className="ml-1.5 text-[10px]" style={{ color: 'var(--lumen-text-muted)' }}>({m.desc})</span>
                 </div>
               </label>
             ))}
           </div>
         </div>
 
-        {/* App info */}
-        <div className="dark-card p-5 md:col-span-2">
+        {/* App info — full width bento */}
+        <div className="bento-card bento-span-full">
           <div className="flex items-center gap-2 mb-4">
-            <Info size={16} style={{ color: '#7E3FF2' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--lumen-text)' }}>Informacion</h3>
+            <Info size={15} style={{ color: '#7E3FF2' }} />
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--lumen-text)' }}>Informacion</h3>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl p-3 flex justify-between" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+
+          <div className="bento-grid bento-grid-3 !gap-3">
+            <div className="rounded-2xl p-3 flex items-center justify-between" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
               <span className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>Version</span>
-              <span className="text-xs font-mono" style={{ color: 'var(--lumen-text)' }}>v{version || '1.0.0'}</span>
+              <span className="text-xs font-mono font-medium" style={{ color: 'var(--lumen-text)' }}>v{version || '0.5.1'}</span>
             </div>
-            <div className="rounded-xl p-3 flex justify-between" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+            <div className="rounded-2xl p-3 flex items-center justify-between" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
               <span className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>Plataforma</span>
               <span className="text-xs" style={{ color: 'var(--lumen-text)' }}>Windows</span>
             </div>
-            <div className="rounded-xl p-3 flex items-center justify-between" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+            <div className="rounded-2xl p-3 flex items-center justify-between" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
               <div className="flex items-center gap-1.5">
-                <Github size={12} style={{ color: 'var(--lumen-text-muted)' }} />
-                <span className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>Repositorio</span>
+                <Github size={11} style={{ color: 'var(--lumen-text-muted)' }} />
+                <span className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>Repo</span>
               </div>
               <span className="text-xs font-mono" style={{ color: '#7E3FF2' }}>userf8a2c4/lumen</span>
             </div>
           </div>
-          <button onClick={checkUpdate} disabled={checking} className="btn-ghost w-full justify-center mt-3">
+
+          <button onClick={checkUpdate} disabled={checking} className="btn-ghost w-full justify-center mt-4">
             <RefreshCw size={12} className={checking ? 'animate-spin' : ''} /> Buscar actualizaciones
           </button>
-          {msg && <p className="text-[10px] text-center mt-1" style={{ color: 'var(--lumen-text-muted)' }}>{msg}</p>}
+          {msg && <p className="text-[10px] text-center mt-1.5" style={{ color: 'var(--lumen-text-muted)' }}>{msg}</p>}
         </div>
       </div>
     </div>

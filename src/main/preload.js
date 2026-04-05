@@ -50,7 +50,6 @@ contextBridge.exposeInMainWorld('lumen', {
     check: () => ipcRenderer.invoke('updater:check'),
     download: () => ipcRenderer.invoke('updater:download'),
     install: () => ipcRenderer.invoke('updater:install'),
-    reportError: (description) => ipcRenderer.invoke('updater:reportError', description),
     onUpdateAvailable: (callback) => {
       const handler = (_e, info) => callback(info);
       ipcRenderer.on('update-available', handler);

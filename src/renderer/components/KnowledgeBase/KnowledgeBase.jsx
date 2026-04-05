@@ -37,7 +37,6 @@ export default function KnowledgeBase({ navigateTo }) {
     loadPolicies();
   };
 
-  // Group by department for tree
   const grouped = policies.reduce((acc, p) => {
     (acc[p.department] = acc[p.department] || []).push(p);
     return acc;
@@ -53,21 +52,20 @@ export default function KnowledgeBase({ navigateTo }) {
     : policies;
 
   return (
-    <div className="flex gap-5">
+    <div className="flex gap-4">
       {/* Tree sidebar */}
       {showTree && departments.length > 0 && (
         <div className="w-56 shrink-0">
-          <div className="dark-card p-3 sticky top-0">
+          <div className="bento-card !p-3 sticky top-0">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--lumen-text-muted)' }}>Departamentos</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--lumen-text-muted)' }}>Departamentos</span>
             </div>
             <div className="space-y-0.5">
-              {/* All */}
               <button
                 onClick={() => setFilterDept('')}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium transition-colors"
                 style={{
-                  background: !filterDept ? 'rgba(126,63,242,0.1)' : 'transparent',
+                  background: !filterDept ? 'rgba(126,63,242,0.08)' : 'transparent',
                   color: !filterDept ? '#7E3FF2' : 'var(--lumen-text-secondary)',
                 }}
               >
@@ -83,9 +81,9 @@ export default function KnowledgeBase({ navigateTo }) {
                   <div key={dept}>
                     <button
                       onClick={() => { setFilterDept(dept); toggleDept(dept); }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium transition-colors"
                       style={{
-                        background: isActive ? 'rgba(16,185,129,0.1)' : 'transparent',
+                        background: isActive ? 'rgba(16,185,129,0.08)' : 'transparent',
                         color: isActive ? '#10b981' : 'var(--lumen-text-secondary)',
                       }}
                     >
@@ -101,7 +99,7 @@ export default function KnowledgeBase({ navigateTo }) {
                           <button
                             key={p.id}
                             onClick={() => { setEditingPolicy(p); setShowForm(true); }}
-                            className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] truncate transition-colors"
+                            className="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] truncate transition-colors"
                             style={{ color: 'var(--lumen-text-muted)' }}
                           >
                             <FileText size={10} className="shrink-0" />
@@ -120,33 +118,52 @@ export default function KnowledgeBase({ navigateTo }) {
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        <div className="dark-card p-5 mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-              <BookOpen size={20} style={{ color: '#10b981' }} />
+        {/* Header bento */}
+        <div className="bento-card mb-4 flex items-center justify-between">
+          <div className="module-header">
+            <div className="module-icon" style={{ background: 'rgba(16,185,129,0.08)' }}>
+              <BookOpen size={22} style={{ color: '#10b981' }} />
             </div>
             <div>
-              <h2 className="text-base font-semibold" style={{ color: 'var(--lumen-text)' }}>Base de Conocimiento</h2>
-              <p className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>
-                {filteredPolicies.length} politica{filteredPolicies.length !== 1 ? 's' : ''}
-                {filterDept ? ` en ${filterDept}` : ''}
-              </p>
+              <h2>Base de Conocimiento</h2>
+              <p>{filteredPolicies.length} politica{filteredPolicies.length !== 1 ? 's' : ''}{filterDept ? ` en ${filterDept}` : ''}</p>
             </div>
           </div>
           <div className="flex gap-2">
             {departments.length > 0 && (
               <button onClick={() => setShowTree(!showTree)} className="btn-ghost !py-2 !px-3">
-                <FolderOpen size={14} /> {showTree ? 'Ocultar arbol' : 'Arbol'}
+                <FolderOpen size={14} /> {showTree ? 'Ocultar' : 'Arbol'}
               </button>
             )}
-            <button
-              onClick={() => { setEditingPolicy(null); setShowForm(true); }}
-              className="btn-accent"
-            >
-              <Plus size={16} /> Agregar politica
+            <button onClick={() => { setEditingPolicy(null); setShowForm(true); }} className="btn-accent">
+              <Plus size={15} /> Agregar
             </button>
           </div>
         </div>
+
+        {/* Stats row */}
+        {!loading && policies.length > 0 && (
+          <div className="bento-grid bento-grid-3 mb-4">
+            <div className="bento-card flex items-center gap-3">
+              <div className="bento-stat">
+                <span className="stat-value">{policies.length}</span>
+                <span className="stat-label">Total Politicas</span>
+              </div>
+            </div>
+            <div className="bento-card flex items-center gap-3">
+              <div className="bento-stat">
+                <span className="stat-value">{departments.length}</span>
+                <span className="stat-label">Departamentos</span>
+              </div>
+            </div>
+            <div className="bento-card flex items-center gap-3">
+              <div className="bento-stat">
+                <span className="stat-value">{policies.filter(p => p.source_url).length}</span>
+                <span className="stat-label">Desde URL</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">

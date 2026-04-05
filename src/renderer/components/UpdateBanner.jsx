@@ -6,8 +6,8 @@ export default function UpdateBanner({ update, onDownload, onInstall, onDismiss 
 
   return (
     <div className="flex items-center justify-between px-5 py-2.5"
-      style={{ background: 'rgba(126,63,242,0.05)', borderBottom: '1px solid rgba(126,63,242,0.15)' }}>
-      <div className="flex items-center gap-2 text-sm" style={{ color: '#7E3FF2' }}>
+      style={{ background: 'rgba(126,63,242,0.04)', borderBottom: '1px solid rgba(126,63,242,0.12)' }}>
+      <div className="flex items-center gap-2 text-[13px] font-medium" style={{ color: '#7E3FF2' }}>
         {update.status === 'available' && (
           <><Download size={14} /><span>Nueva version disponible: <strong>v{update.version}</strong></span></>
         )}
@@ -25,8 +25,8 @@ export default function UpdateBanner({ update, onDownload, onInstall, onDismiss 
         {update.status === 'downloaded' && (
           <button onClick={onInstall} className="btn-accent !py-1 !px-3 !text-xs">Reiniciar ahora</button>
         )}
-        <button onClick={onDismiss} className="p-1 rounded transition-colors">
-          <X size={14} style={{ color: 'var(--lumen-text-muted)' }} />
+        <button onClick={onDismiss} className="p-1 rounded-lg transition-colors">
+          <X size={13} style={{ color: 'var(--lumen-text-muted)' }} />
         </button>
       </div>
     </div>
