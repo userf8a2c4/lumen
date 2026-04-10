@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const db = require('./database');
@@ -37,15 +37,53 @@ function getApiKey() {
   }
 }
 
+// --- Local-first analysis (no API needed) ---
+
+function buildLocalAnalysis(policies, contacts, notes, examples, caseDescription) {
+  const parts = [];
+
+  if (policies.length > 0) {
+    parts.push('## Politica aplicable\n' +
+      policies.map((p) =>
+        `**${p.name}** (${p.department})\n${p.description || ''}\n\n${p.content ? p.content.slice(0, 400) + (p.content.length > 400 ? '...' : '') : ''}`
+      ).join('\n\n---\n\n')
+    );
+  } else {
+    parts.push('## Politica aplicable\nNo cuento con esa informacion en la base de datos de LUMEN.');
+  }
+
+  const steps = [];
+  if (policies.length > 0) {
+    steps.push(`Aplica la politica **${policies[0].name}** del departamento ${policies[0].department}.`);
+  }
+  if (contacts.length > 0) {
+    steps.push('Contactos disponibles para escalacion:');
+    contacts.forEach((c) => steps.push(`- **${c.name} ${c.last_name || ''}** (${c.department}) — ${c.contact_method}. Contactar cuando: ${c.when_to_contact}`));
+  }
+  if (notes.length > 0) {
+    steps.push('\nNotas relevantes del agente:');
+    notes.forEach((n) => steps.push(`- ${n.title}`));
+  }
+  if (examples.length > 0) {
+    steps.push('\nCasos similares previamente resueltos:');
+    examples.forEach((e) => steps.push(`- **${e.policy_name}**: ${e.response_used.slice(0, 150)}`));
+  }
+
+  parts.push('## Analisis y pasos a seguir\n' + (steps.length > 0 ? steps.join('\n') : 'Revisa las politicas identificadas para determinar los pasos correctos.'));
+
+  if (policies.length > 0) {
+    const p = policies[0];
+    parts.push(`## Borrador de respuesta para el cliente\nEstimado/a cliente,\n\nGracias por comunicarse. He revisado su solicitud relacionada con "${caseDescription.slice(0, 80)}..." y me complace informarle que contamos con una politica especifica para este caso.\n\n[Personalizar respuesta con base en: ${p.name}]\n\nQuedo atento/a ante cualquier consulta adicional.\n\nSaludos cordiales.`);
+  } else {
+    parts.push('## Borrador de respuesta para el cliente\nEstimado/a cliente,\n\nGracias por su contacto. Hemos recibido su solicitud y la estamos revisando para brindarle la mejor solucion posible. En breve nos pondremos en contacto con usted.\n\nSaludos cordiales.');
+  }
+
+  return parts.join('\n\n');
+}
+
 // --- AI Analysis (Gemini — Arquitectura Biblica de dos capas) ---
 
 async function analyzeCase(caseDescription, options = {}) {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
-  }
-
-  const modelId = options.model || db.getSetting('model') || 'gemini-1.5-flash';
   const searchMode = options.searchMode || 'local'; // 'local' | 'expanded'
 
   const policies = db.searchPoliciesForAI(caseDescription);
@@ -54,6 +92,26 @@ async function analyzeCase(caseDescription, options = {}) {
   const notes = db.searchNotesForAI(caseDescription);
   const departments = [...new Set(policies.map((p) => p.department))];
   const contacts = db.getContactsByDepartments(departments);
+
+  // ── LOCAL-FIRST: skip Gemini entirely in local mode ──────────────
+  if (searchMode === 'local') {
+    return {
+      analysis: buildLocalAnalysis(policies, contacts, notes, examples, caseDescription),
+      policiesUsed: policies.map((p) => ({ id: p.id, name: p.name, department: p.department, description: p.description })),
+      contactsRelevant: contacts,
+      examplesRelevant: examples,
+      notesRelevant: notes.map((n) => ({ id: n.id, title: n.title })),
+      model: 'local',
+      searchMode: 'local',
+    };
+  }
+
+  // ── EXPANDED MODE: call Gemini ───────────────────────────────────
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
+  }
+  const modelId = options.model || db.getSetting('model') || 'gemini-1.5-flash';
 
   let policiesContext = '';
   if (policies.length > 0) {
@@ -178,6 +236,9 @@ async function generateEmail(context, options = {}) {
 // --- Window creation ---
 
 function createWindow() {
+  // SpaceX Stealth: remove native menu bar entirely
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -186,6 +247,7 @@ function createWindow() {
     title: 'LUMEN',
     backgroundColor: '#0a0a0f',
     show: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -260,6 +322,8 @@ function registerHandlers() {
   ipcMain.handle('settings:setUserEmail', (_e, email) => db.setSetting('user_email', email));
   ipcMain.handle('settings:getCseId', () => db.getSetting('cse_id') || '');
   ipcMain.handle('settings:setCseId', (_e, id) => db.setSetting('cse_id', id));
+  ipcMain.handle('settings:getAccentColor', () => db.getSetting('accent_color') || '#7E3FF2');
+  ipcMain.handle('settings:setAccentColor', (_e, color) => db.setSetting('accent_color', color));
 
   // Scraper
   ipcMain.handle('scraper:fetchUrl', async (_e, url) => {

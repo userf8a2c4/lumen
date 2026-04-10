@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FlaskConical, Library, Search, BookOpen, Users, StickyNote, Zap, Globe, Shield, RefreshCw } from 'lucide-react';
+import { FlaskConical, Library, Users, BookOpen, StickyNote, Zap, Globe, Shield } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
 
 function StatCard({ icon: Icon, color, value, label, loading }) {
@@ -74,7 +74,7 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
               Bienvenida, <span style={{ color: '#7E3FF2', fontWeight: 600 }}>{userName}</span>
             </h1>
             <p className="text-[12px]" style={{ color: 'var(--lumen-text-muted)' }}>
-              LUMEN esta listo. Tu base de conocimiento es la unica fuente de verdad.
+              LUMEN esta listo. Potenciando tu conocimiento para alcanzar la excelencia.
             </p>
           </div>
           <div style={{ opacity: 0.07 }}>
@@ -107,11 +107,11 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
           onClick={() => navigateTo('knowledge')}
         />
         <QuickAction
-          icon={Search}
-          color="#f59e0b"
-          title="Busqueda Rapida"
-          desc="Encuentra cualquier politica o contacto al instante"
-          onClick={() => navigateTo('search')}
+          icon={Users}
+          color="#3b82f6"
+          title="Directorio"
+          desc="Contactos estrategicos: aliados, tecnicos y proveedores clave"
+          onClick={() => navigateTo('contacts')}
         />
       </div>
 

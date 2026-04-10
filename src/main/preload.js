@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('lumen', {
     setUserEmail: (email) => ipcRenderer.invoke('settings:setUserEmail', email),
     getCseId: () => ipcRenderer.invoke('settings:getCseId'),
     setCseId: (id) => ipcRenderer.invoke('settings:setCseId', id),
+    getAccentColor: () => ipcRenderer.invoke('settings:getAccentColor'),
+    setAccentColor: (color) => ipcRenderer.invoke('settings:setAccentColor', color),
   },
   scraper: {
     fetchUrl: (url) => ipcRenderer.invoke('scraper:fetchUrl', url),

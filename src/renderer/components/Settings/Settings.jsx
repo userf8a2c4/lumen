@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Key, Cpu, Info, RefreshCw, Check, Eye, EyeOff, Github, Mail, FlaskConical, Library, Globe, Shield } from 'lucide-react';
+import { Settings as SettingsIcon, Key, Cpu, Info, RefreshCw, Check, Eye, EyeOff, Github, Mail, FlaskConical, Library, Globe, Shield, Palette, LogOut } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
 
 const GEMINI_MODELS = [
@@ -27,6 +27,8 @@ export default function Settings({ onModelChange }) {
   const [version, setVersion] = useState('');
   const [savedKey, setSavedKey] = useState(false);
   const [savedEmail, setSavedEmail] = useState(false);
+  const [accentColor, setAccentColor] = useState('#7E3FF2');
+  const [savedAccent, setSavedAccent] = useState(false);
   const [checking, setChecking] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -37,7 +39,8 @@ export default function Settings({ onModelChange }) {
       window.lumen.app.getVersion(),
       window.lumen.settings.getUserEmail(),
       window.lumen.settings.getCseId(),
-    ]).then(([k, m, v, email, cse]) => {
+      window.lumen.settings.getAccentColor(),
+    ]).then(([k, m, v, email, cse, accent]) => {
       setApiKeyDisplay(k || '');
       setModel(GEMINI_MODELS.find((x) => x.id === m) ? m : 'gemini-1.5-flash');
       setVersion(v);
@@ -45,6 +48,7 @@ export default function Settings({ onModelChange }) {
       setUserEmailInput(email || '');
       setCseId(cse || '');
       setCseIdInput(cse || '');
+      if (accent) setAccentColor(accent);
     }).catch(() => {});
   }, []);
 
@@ -77,6 +81,18 @@ export default function Settings({ onModelChange }) {
     setModel(m);
     await window.lumen.settings.setModel(m);
     onModelChange?.(m);
+  };
+
+  const saveAccent = async (color) => {
+    setAccentColor(color);
+    document.documentElement.style.setProperty('--lumen-accent', color);
+    await window.lumen.settings.setAccentColor(color).catch(() => {});
+    setSavedAccent(true);
+    setTimeout(() => setSavedAccent(false), 1500);
+  };
+
+  const resetAccent = async () => {
+    await saveAccent('#7E3FF2');
   };
 
   const checkUpdate = async () => {
@@ -309,6 +325,51 @@ export default function Settings({ onModelChange }) {
           </div>
         </div>
 
+        {/* Accent color */}
+        <div className="bento-card bento-span-full">
+          <div className="flex items-center gap-2 mb-4">
+            <Palette size={15} style={{ color: accentColor }} />
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--lumen-text)' }}>Color de Acento</h3>
+            {savedAccent && (
+              <span className="ml-auto flex items-center gap-1 text-[10px]" style={{ color: '#10b981' }}>
+                <Check size={11} /> Aplicado
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <input
+              type="color"
+              value={accentColor}
+              onChange={(e) => saveAccent(e.target.value)}
+              className="w-10 h-10 rounded-xl cursor-pointer border-0 p-0.5"
+              style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}
+            />
+            <div className="flex-1">
+              <p className="text-xs font-mono mb-1" style={{ color: 'var(--lumen-text)' }}>{accentColor}</p>
+              <p className="text-[10px]" style={{ color: 'var(--lumen-text-muted)' }}>
+                Color activo en iconos, botones y estados seleccionados.
+              </p>
+            </div>
+            <button onClick={resetAccent} className="btn-ghost !py-1.5 !px-3 !text-xs">
+              Reset
+            </button>
+          </div>
+          <div className="flex gap-2 mt-3">
+            {['#7E3FF2', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'].map((c) => (
+              <button
+                key={c}
+                onClick={() => saveAccent(c)}
+                className="w-6 h-6 rounded-full border-2 transition-all"
+                style={{
+                  background: c,
+                  borderColor: accentColor === c ? 'white' : 'transparent',
+                  transform: accentColor === c ? 'scale(1.2)' : 'scale(1)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* App info */}
         <div className="bento-card bento-span-full">
           <div className="flex items-center gap-2 mb-4">
@@ -320,7 +381,7 @@ export default function Settings({ onModelChange }) {
             <div className="rounded-2xl p-3 flex items-center justify-between"
               style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
               <span className="text-xs" style={{ color: 'var(--lumen-text-muted)' }}>Version</span>
-              <span className="text-xs font-mono font-medium" style={{ color: 'var(--lumen-text)' }}>v{version || '0.5.2'}</span>
+              <span className="text-xs font-mono font-medium" style={{ color: 'var(--lumen-text)' }}>v{version || '0.5.4'}</span>
             </div>
             <div className="rounded-2xl p-3 flex items-center justify-between"
               style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
@@ -343,6 +404,24 @@ export default function Settings({ onModelChange }) {
           {msg && (
             <p className="text-[10px] text-center mt-1.5" style={{ color: 'var(--lumen-text-muted)' }}>{msg}</p>
           )}
+        </div>
+
+        {/* Exit */}
+        <div className="bento-card bento-span-full">
+          <button
+            onClick={() => window.lumen.app.quit()}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl transition-all"
+            style={{
+              background: 'rgba(239,68,68,0.06)',
+              border: '1px solid rgba(239,68,68,0.15)',
+              color: '#ef4444',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; }}
+          >
+            <LogOut size={14} />
+            <span className="text-[13px] font-medium">Salir de LUMEN</span>
+          </button>
         </div>
       </div>
     </div>

@@ -3,10 +3,8 @@ import LoadingScreen from './components/LoadingScreen';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import KnowledgeBase from './components/KnowledgeBase/KnowledgeBase';
-import Search from './components/Search/Search';
 import Contacts from './components/Contacts/Contacts';
 import Assistant from './components/Assistant/Assistant';
-import Examples from './components/Examples/Examples';
 import Notes from './components/Notes/Notes';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
@@ -21,13 +19,11 @@ function extractNameFromEmail(email) {
 }
 
 const MODULES = {
-  dashboard: { label: 'Inicio',       component: Dashboard },
-  assistant: { label: 'Laboratorio',  component: Assistant },
-  knowledge: { label: 'Biblioteca',   component: KnowledgeBase },
-  search:    { label: 'Busqueda',     component: Search },
-  contacts:  { label: 'Escalacion',   component: Contacts },
-  examples:  { label: 'Ejemplos',     component: Examples },
-  notes:     { label: 'Notas',        component: Notes },
+  dashboard: { label: 'Inicio',        component: Dashboard },
+  assistant: { label: 'Laboratorio',   component: Assistant },
+  knowledge: { label: 'Biblioteca',    component: KnowledgeBase },
+  contacts:  { label: 'Directorio',    component: Contacts },
+  notes:     { label: 'Notas',         component: Notes },
   settings:  { label: 'Configuracion', component: Settings },
 };
 
