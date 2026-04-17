@@ -44,10 +44,6 @@ contextBridge.exposeInMainWorld('lumen', {
     setCseId: (id) => ipcRenderer.invoke('settings:setCseId', id),
     getAccentColor: () => ipcRenderer.invoke('settings:getAccentColor'),
     setAccentColor: (color) => ipcRenderer.invoke('settings:setAccentColor', color),
-    getGoogleClientId:     () => ipcRenderer.invoke('settings:getGoogleClientId'),
-    setGoogleClientId:     (v) => ipcRenderer.invoke('settings:setGoogleClientId', v),
-    getGoogleClientSecret: () => ipcRenderer.invoke('settings:getGoogleClientSecret'),
-    setGoogleClientSecret: (v) => ipcRenderer.invoke('settings:setGoogleClientSecret', v),
   },
   logic: {
     getAll:       ()         => ipcRenderer.invoke('logic:getAll'),
@@ -68,7 +64,7 @@ contextBridge.exposeInMainWorld('lumen', {
   },
   calendar: {
     isAuthenticated: ()              => ipcRenderer.invoke('calendar:isAuthenticated'),
-    connect:         (cid, csec)     => ipcRenderer.invoke('calendar:connect', cid, csec),
+    connect:         ()              => ipcRenderer.invoke('calendar:connect'),
     disconnect:      ()              => ipcRenderer.invoke('calendar:disconnect'),
     getEvents:       (days)          => ipcRenderer.invoke('calendar:getEvents', days),
     createEvent:     (data)          => ipcRenderer.invoke('calendar:createEvent', data),

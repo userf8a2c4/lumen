@@ -240,13 +240,7 @@ export default function Agenda({ navigateTo }) {
     setConnecting(true);
     setError('');
     try {
-      const clientId     = await window.lumen.settings.getGoogleClientId();
-      const clientSecret = await window.lumen.settings.getGoogleClientSecret();
-      if (!clientId || !clientSecret) {
-        setError('Configura el Client ID y Client Secret de Google OAuth en Configuracion primero.');
-        return;
-      }
-      await window.lumen.calendar.connect(clientId, clientSecret);
+      await window.lumen.calendar.connect();
       setAuthenticated(true);
       setLoading(true);
       await fetchEvents();
@@ -349,7 +343,7 @@ ${event.description ? `<p><strong>Descripción:</strong> ${event.description}</p
       {!authenticated && !loading && (
         <div className="bento-card flex flex-col items-center justify-center py-14 gap-4">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ background: 'rgba(126,63,242,0.08)' }}>
+            style={{ background: 'rgba(126,63,242,0.08)', border: '1px solid rgba(126,63,242,0.15)' }}>
             <WifiOff size={26} strokeWidth={1.5} style={{ color: ACCENT }} />
           </div>
           <div className="text-center">
@@ -357,17 +351,12 @@ ${event.description ? `<p><strong>Descripción:</strong> ${event.description}</p
               Conecta Google Calendar
             </h3>
             <p className="text-[12px] max-w-xs leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
-              Configura tus credenciales OAuth en Configuración y haz clic en Conectar para ver tus eventos.
+              Autoriza a LUMEN con tu cuenta Google. Se abrirá el navegador para completar la autenticación.
             </p>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => navigateTo?.('settings')} className="btn-ghost">
-              Ir a Configuración
-            </button>
-            <button onClick={handleConnect} disabled={connecting} className="btn-accent">
-              {connecting ? <><RefreshCw size={13} className="animate-spin" /> Conectando...</> : <><Wifi size={13} /> Conectar</>}
-            </button>
-          </div>
+          <button onClick={handleConnect} disabled={connecting} className="btn-accent">
+            {connecting ? <><RefreshCw size={13} className="animate-spin" /> Conectando…</> : <><Wifi size={13} /> Conectar con Google</>}
+          </button>
         </div>
       )}
 

@@ -362,36 +362,31 @@ function registerHandlers() {
   });
   ipcMain.handle('evidence:create', (_e, data) => db.createEvidence(data));
 
-  // Google Calendar
+  // Google Calendar — credenciales embebidas en calendar.js, usuario solo autoriza con su cuenta
   ipcMain.handle('calendar:isAuthenticated', () => cal.isAuthenticated());
-  ipcMain.handle('calendar:connect', async (_e, clientId, clientSecret) => {
+  ipcMain.handle('calendar:connect', async () => {
     try {
-      await cal.startOAuth(clientId, clientSecret);
+      await cal.startOAuth();
       return { ok: true };
     } catch (e) { throw new Error(e.message); }
   });
   ipcMain.handle('calendar:disconnect', () => cal.disconnect());
   ipcMain.handle('calendar:getEvents', async (_e, daysAhead) => {
-    try { return await cal.getEvents(db, daysAhead || 14); }
+    try { return await cal.getEvents(daysAhead || 14); }
     catch (e) { throw new Error(e.message); }
   });
   ipcMain.handle('calendar:createEvent', async (_e, eventData) => {
-    try { return await cal.createEvent(db, eventData); }
+    try { return await cal.createEvent(eventData); }
     catch (e) { throw new Error(e.message); }
   });
   ipcMain.handle('calendar:updateEvent', async (_e, eventId, eventData) => {
-    try { return await cal.updateEvent(db, eventId, eventData); }
+    try { return await cal.updateEvent(eventId, eventData); }
     catch (e) { throw new Error(e.message); }
   });
   ipcMain.handle('calendar:deleteEvent', async (_e, eventId) => {
-    try { await cal.deleteEvent(db, eventId); return { ok: true }; }
+    try { await cal.deleteEvent(eventId); return { ok: true }; }
     catch (e) { throw new Error(e.message); }
   });
-  // Google OAuth credentials (stored in DB settings)
-  ipcMain.handle('settings:getGoogleClientId',     () => db.getSetting('google_client_id') || '');
-  ipcMain.handle('settings:setGoogleClientId',     (_e, v) => db.setSetting('google_client_id', v));
-  ipcMain.handle('settings:getGoogleClientSecret', () => db.getSetting('google_client_secret') || '');
-  ipcMain.handle('settings:setGoogleClientSecret', (_e, v) => db.setSetting('google_client_secret', v));
 
   // Scraper
   ipcMain.handle('scraper:fetchUrl', async (_e, url) => {

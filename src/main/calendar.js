@@ -15,6 +15,14 @@ const OAUTH_SCOPES = 'https://www.googleapis.com/auth/calendar';
 const CAL_HOST     = 'www.googleapis.com';
 const TOKEN_HOST   = 'oauth2.googleapis.com';
 
+// ─── OAuth App Credentials (embedded — set once by the app owner) ─────────────
+// 1. Ve a console.cloud.google.com → APIs → Credenciales → OAuth 2.0
+// 2. Tipo: Aplicación de escritorio
+// 3. Habilita: Google Calendar API
+// 4. Copia Client ID y Client Secret aqui
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+
 // ─── Token persistence ───────────────────────────────────────────────────────
 
 function saveTokens(tokens) {
@@ -87,14 +95,14 @@ function apiReq(method, apiPath, accessToken, body = null) {
 
 // ─── Token refresh ────────────────────────────────────────────────────────────
 
-async function refreshTokens(clientId, clientSecret) {
+async function refreshTokens() {
   const tokens = loadTokens();
   if (!tokens?.refresh_token) throw new Error('Sin refresh_token. Reconecta el calendario.');
 
   const json = await postForm(TOKEN_HOST, '/token', {
     refresh_token: tokens.refresh_token,
-    client_id: clientId,
-    client_secret: clientSecret,
+    client_id: GOOGLE_CLIENT_ID,
+    client_secret: GOOGLE_CLIENT_SECRET,
     grant_type: 'refresh_token',
   });
 
@@ -107,24 +115,24 @@ async function refreshTokens(clientId, clientSecret) {
   return updated;
 }
 
-async function getAccessToken(db) {
+async function getAccessToken() {
   let tokens = loadTokens();
   if (!tokens?.access_token) {
     throw new Error('No autenticado. Conecta Google Calendar en Configuracion.');
   }
   // Refresh if expiring within 5 min
   if (!tokens.expires_at || tokens.expires_at < Date.now() + 300_000) {
-    const clientId = db.getSetting('google_client_id');
-    const clientSecret = db.getSetting('google_client_secret');
-    if (!clientId || !clientSecret) throw new Error('Faltan credenciales OAuth en Configuracion.');
-    tokens = await refreshTokens(clientId, clientSecret);
+    tokens = await refreshTokens();
   }
   return tokens.access_token;
 }
 
 // ─── OAuth flow (loopback) ────────────────────────────────────────────────────
 
-function startOAuth(clientId, clientSecret) {
+function startOAuth() {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    return Promise.reject(new Error('Credenciales OAuth no configuradas. Contacta al administrador de LUMEN.'));
+  }
   return new Promise((resolve, reject) => {
     const server = http.createServer();
     server.listen(0, '127.0.0.1', () => {
@@ -134,7 +142,7 @@ function startOAuth(clientId, clientSecret) {
       const authUrl =
         'https://accounts.google.com/o/oauth2/v2/auth?' +
         new URLSearchParams({
-          client_id: clientId,
+          client_id: GOOGLE_CLIENT_ID,
           redirect_uri: redirectUri,
           response_type: 'code',
           scope: OAUTH_SCOPES,
@@ -178,8 +186,8 @@ function startOAuth(clientId, clientSecret) {
         try {
           const json = await postForm(TOKEN_HOST, '/token', {
             code,
-            client_id: clientId,
-            client_secret: clientSecret,
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
             redirect_uri: redirectUri,
             grant_type: 'authorization_code',
           });
@@ -199,8 +207,8 @@ function startOAuth(clientId, clientSecret) {
 
 // ─── Calendar API ─────────────────────────────────────────────────────────────
 
-async function getEvents(db, daysAhead = 14) {
-  const token  = await getAccessToken(db);
+async function getEvents(daysAhead = 14) {
+  const token  = await getAccessToken();
   const tMin   = new Date().toISOString();
   const tMax   = new Date(Date.now() + daysAhead * 86_400_000).toISOString();
   const params = new URLSearchParams({
@@ -210,18 +218,18 @@ async function getEvents(db, daysAhead = 14) {
   return apiReq('GET', `/calendar/v3/calendars/primary/events?${params}`, token);
 }
 
-async function createEvent(db, eventData) {
-  const token = await getAccessToken(db);
+async function createEvent(eventData) {
+  const token = await getAccessToken();
   return apiReq('POST', '/calendar/v3/calendars/primary/events', token, eventData);
 }
 
-async function updateEvent(db, eventId, eventData) {
-  const token = await getAccessToken(db);
+async function updateEvent(eventId, eventData) {
+  const token = await getAccessToken();
   return apiReq('PATCH', `/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, token, eventData);
 }
 
-async function deleteEvent(db, eventId) {
-  const token = await getAccessToken(db);
+async function deleteEvent(eventId) {
+  const token = await getAccessToken();
   return apiReq('DELETE', `/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, token);
 }
 
