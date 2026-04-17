@@ -4,32 +4,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ═══ CSS Variables for themes ═══ */
+/* ═══ CSS Variables for themes — SpaceX Stealth Edition ═══ */
 :root {
-  --lumen-bg: #0a0a0f;
-  --lumen-surface: #111118;
-  --lumen-card: #16161f;
-  --lumen-card-hover: #1c1c28;
-  --lumen-border: #232333;
-  --lumen-border-light: #2a2a3d;
+  --lumen-bg: #000000;
+  --lumen-surface: #08080d;
+  --lumen-card: rgba(10,10,18,0.75);
+  --lumen-card-hover: rgba(14,14,24,0.88);
+  --lumen-border: rgba(255,255,255,0.06);
+  --lumen-border-light: rgba(255,255,255,0.11);
   --lumen-text: #e8e8ed;
   --lumen-text-secondary: #8b8b9e;
-  --lumen-text-muted: #5a5a6e;
+  --lumen-text-muted: #4a4a60;
   --lumen-accent: #7E3FF2;
   --lumen-accent-hover: #9B5BFF;
-  --lumen-scrollbar: #2a2a3d;
-  --lumen-scrollbar-hover: #3a3a50;
-  --lumen-input-bg: #111118;
-  --lumen-overlay: rgba(0,0,0,0.6);
+  --lumen-scrollbar: rgba(255,255,255,0.08);
+  --lumen-scrollbar-hover: rgba(255,255,255,0.14);
+  --lumen-input-bg: rgba(6,6,12,0.9);
+  --lumen-overlay: rgba(0,0,0,0.72);
 }
 
 .light-theme {
   --lumen-bg: #f5f5f7;
   --lumen-surface: #eaeaee;
-  --lumen-card: #f9f9fb;
-  --lumen-card-hover: #f0f0f4;
-  --lumen-border: #d8d8e0;
-  --lumen-border-light: #ccccd4;
+  --lumen-card: rgba(249,249,251,0.88);
+  --lumen-card-hover: rgba(240,240,244,0.95);
+  --lumen-border: rgba(0,0,0,0.07);
+  --lumen-border-light: rgba(0,0,0,0.12);
   --lumen-text: #1a1a2e;
   --lumen-text-secondary: #52526e;
   --lumen-text-muted: #8888a0;
@@ -37,8 +37,15 @@
   --lumen-accent-hover: #6a2fd6;
   --lumen-scrollbar: #c8c8d0;
   --lumen-scrollbar-hover: #a8a8b8;
-  --lumen-input-bg: #f0f0f4;
+  --lumen-input-bg: rgba(240,240,244,0.9);
   --lumen-overlay: rgba(0,0,0,0.25);
+}
+
+/* En modo claro: sin dot-grid, fondo sólido */
+.light-theme,
+.light-theme body {
+  background-color: #f5f5f7;
+  background-image: none;
 }
 
 /* ═══ Scrollbar ═══ */
@@ -49,12 +56,17 @@
 
 /* ═══ Base ═══ */
 body {
-  background: var(--lumen-bg);
+  background-color: #000000;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0);
+  background-size: 28px 28px;
   color: var(--lumen-text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   transition: background 0.3s, color 0.3s;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+.light-theme body {
+  background-image: none;
 }
 
 /* ═══ Animations ═══ */
@@ -120,42 +132,49 @@ body {
   }
 }
 
-/* ═══ Bento Card ═══ */
+/* ═══ Bento Card — SpaceX Stealth glassmorphism ═══ */
 .bento-card {
-  background: var(--lumen-card);
+  background: rgba(10,10,18,0.72);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border-radius: 20px;
-  border: 1px solid var(--lumen-border);
+  border: 1px solid rgba(255,255,255,0.06);
   padding: 20px;
-  transition: border-color 0.25s, box-shadow 0.25s, background 0.3s, transform 0.2s;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
   position: relative;
   overflow: hidden;
 }
 .bento-card:hover {
-  border-color: var(--lumen-border-light);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  border-color: rgba(255,255,255,0.1);
+  box-shadow: 0 4px 28px rgba(0,0,0,0.45);
 }
 .bento-card.interactive:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 32px rgba(126,63,242,0.08);
+  border-color: rgba(126,63,242,0.22);
+  box-shadow: 0 8px 36px rgba(126,63,242,0.12), 0 2px 8px rgba(0,0,0,0.5);
 }
 
 /* ═══ Themed card (legacy compat) ═══ */
 .dark-card {
-  background: var(--lumen-card);
+  background: rgba(10,10,18,0.72);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border-radius: 20px;
-  border: 1px solid var(--lumen-border);
-  transition: border-color 0.25s, box-shadow 0.25s, background 0.3s;
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: border-color 0.25s, box-shadow 0.25s;
 }
 .dark-card:hover {
-  border-color: var(--lumen-border-light);
+  border-color: rgba(255,255,255,0.1);
 }
 
 /* ═══ Themed input ═══ */
 .dark-input {
   width: 100%;
   padding: 10px 16px;
-  background: var(--lumen-input-bg);
-  border: 1px solid var(--lumen-border);
+  background: rgba(6,6,12,0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: 12px;
   color: var(--lumen-text);
   font-family: 'Inter', sans-serif;
@@ -164,12 +183,12 @@ body {
 }
 .dark-input:focus {
   outline: none;
-  border-color: #7E3FF2;
+  border-color: rgba(126,63,242,0.5);
   box-shadow: 0 0 0 3px rgba(126,63,242,0.1);
 }
 .dark-input::placeholder { color: var(--lumen-text-muted); }
 .dark-input:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -328,13 +347,13 @@ body {
   color: var(--lumen-text-muted);
 }
 
-/* ═══ Glassmorphism — Aero-Bento Edition ═══ */
+/* ═══ Glassmorphism — SpaceX Stealth Edition ═══ */
 .glass-card {
-  background: rgba(22, 22, 31, 0.72);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  background: rgba(8,8,16,0.78);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 2px 16px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
   border-radius: 20px;
 }
 .light-theme .glass-card {
@@ -343,9 +362,9 @@ body {
   box-shadow: 0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
 }
 .glass-sidebar {
-  background: rgba(17, 17, 24, 0.85);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  background: rgba(0,0,0,0.88);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
   border-right: 1px solid rgba(255,255,255,0.05);
 }
 .light-theme .glass-sidebar {
@@ -369,10 +388,10 @@ body {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
 }
 
-/* Glow border on hover for interactive bento cards */
+/* Glow border on hover for interactive bento cards — SpaceX Stealth */
 .bento-card.interactive:hover {
-  border-color: rgba(126,63,242,0.18);
-  box-shadow: 0 8px 32px rgba(126,63,242,0.08), 0 1px 3px rgba(0,0,0,0.12);
+  border-color: rgba(126,63,242,0.25);
+  box-shadow: 0 8px 36px rgba(126,63,242,0.13), 0 2px 8px rgba(0,0,0,0.5);
 }
 
 /* Drop zone for vision upload */

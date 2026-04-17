@@ -114,7 +114,7 @@ export default function App() {
   const ActiveComponent = MODULES[activeModule].component;
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: 'var(--lumen-bg)' }}>
+    <div className="flex flex-col h-screen" style={{ background: 'transparent' }}>
       {/* Daily insight toast */}
       <DailyInsight userName={userName} />
 
