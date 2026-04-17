@@ -1,15 +1,132 @@
 import React, { useState, useEffect } from 'react';
-import { StickyNote, Plus, Search, Trash2, Tag, Calendar, Paperclip } from 'lucide-react';
+import {
+  StickyNote, Plus, Search, Trash2, Tag, Calendar,
+  Paperclip, Edit3, ZoomIn, ZoomOut, ChevronRight,
+} from 'lucide-react';
 import Modal from '../Modal';
 import NoteEditor from './NoteEditor';
 
+/* ── Note preview (read-only viewer) ─────────────────────── */
+function NotePreview({ note, onEdit, onDelete, onClose }) {
+  const [zoom, setZoom] = useState(14); // base px: 14
+
+  let tags = [];
+  let attachments = [];
+  try { tags = JSON.parse(note.tags || '[]'); } catch {}
+  try { attachments = JSON.parse(note.attachments || '[]'); } catch {}
+
+  const formatDate = (d) => {
+    if (!d) return '';
+    return new Date(d).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Title + zoom controls */}
+      <div className="flex items-start justify-between gap-4 pb-3"
+        style={{ borderBottom: '1px solid var(--lumen-border)' }}>
+        <h2 className="text-[18px] font-semibold leading-snug flex-1"
+          style={{ color: 'var(--lumen-text)' }}>
+          {note.title}
+        </h2>
+        {/* Zoom strip */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setZoom((z) => Math.max(11, z - 1))}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--lumen-text-muted)' }}
+            title="Reducir texto"
+          >
+            <ZoomOut size={14} />
+          </button>
+          <span className="text-[10px] font-mono w-7 text-center" style={{ color: 'var(--lumen-text-muted)' }}>
+            {Math.round((zoom / 14) * 100)}%
+          </span>
+          <button
+            onClick={() => setZoom((z) => Math.min(24, z + 1))}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--lumen-text-muted)' }}
+            title="Ampliar texto"
+          >
+            <ZoomIn size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Meta: date + tags */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1.5" style={{ color: 'var(--lumen-text-muted)' }}>
+          <Calendar size={11} />
+          <span className="text-[11px]">{formatDate(note.updated_at)}</span>
+        </div>
+        {tags.map((tag) => (
+          <span key={tag} className="tag-pill">{tag}</span>
+        ))}
+      </div>
+
+      {/* Content rendered */}
+      <div
+        className="leading-relaxed rounded-2xl p-4 overflow-y-auto"
+        style={{
+          background: 'var(--lumen-surface)',
+          border: '1px solid var(--lumen-border)',
+          fontSize: `${zoom}px`,
+          color: 'var(--lumen-text)',
+          maxHeight: '40vh',
+          lineHeight: 1.75,
+        }}
+        dangerouslySetInnerHTML={{ __html: note.content || '<em style="color:var(--lumen-text-muted)">Sin contenido.</em>' }}
+      />
+
+      {/* Attachments */}
+      {attachments.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest mb-2"
+            style={{ color: 'var(--lumen-text-muted)' }}>
+            Archivos adjuntos
+          </p>
+          <div className="space-y-1.5">
+            {attachments.map((att, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+                <Paperclip size={12} style={{ color: 'var(--lumen-text-muted)' }} />
+                <span className="text-[12px]" style={{ color: 'var(--lumen-text-secondary)' }}>
+                  {typeof att === 'string' ? att : att.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions footer */}
+      <div className="flex gap-3 pt-2" style={{ borderTop: '1px solid var(--lumen-border)' }}>
+        <button
+          onClick={onDelete}
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-[13px] font-medium transition-all"
+          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; }}
+        >
+          <Trash2 size={14} /> Eliminar
+        </button>
+        <button onClick={onEdit} className="btn-accent flex-1 justify-center">
+          <Edit3 size={14} /> Editar nota
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main component ───────────────────────────────────────── */
 export default function Notes() {
-  const [notes, setNotes] = useState([]);
-  const [showEditor, setShowEditor] = useState(false);
-  const [editingNote, setEditingNote] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterTag, setFilterTag] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [notes, setNotes]               = useState([]);
+  const [previewNote, setPreviewNote]   = useState(null);
+  const [showEditor, setShowEditor]     = useState(false);
+  const [editingNote, setEditingNote]   = useState(null);
+  const [searchQuery, setSearchQuery]   = useState('');
+  const [filterTag, setFilterTag]       = useState('');
+  const [loading, setLoading]           = useState(true);
 
   const load = async () => {
     setLoading(true);
@@ -33,13 +150,21 @@ export default function Notes() {
     }
     setShowEditor(false);
     setEditingNote(null);
+    setPreviewNote(null);
     load();
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Eliminar esta nota?')) return;
+    if (!confirm('¿Eliminar esta nota?')) return;
     await window.lumen.notes.delete(id);
+    setPreviewNote(null);
     load();
+  };
+
+  const openEdit = (note) => {
+    setPreviewNote(null);
+    setEditingNote(note);
+    setShowEditor(true);
   };
 
   const allTags = [...new Set(notes.flatMap((n) => {
@@ -54,8 +179,7 @@ export default function Notes() {
 
   const formatDate = (d) => {
     if (!d) return '';
-    const date = new Date(d);
-    return date.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
+    return new Date(d).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const stripHtml = (html) => {
@@ -86,7 +210,8 @@ export default function Notes() {
       <div className="bento-grid bento-grid-3 mb-4">
         <div className="bento-card bento-span-2 !p-3">
           <div className="relative">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--lumen-text-muted)' }} />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2"
+              style={{ color: 'var(--lumen-text-muted)' }} />
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar notas..." className="dark-input !pl-10" />
           </div>
@@ -128,16 +253,17 @@ export default function Notes() {
         </div>
       )}
 
-      {/* Notes grid — Bento */}
+      {/* Notes grid */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: '#7E3FF2' }} />
+          <div className="w-6 h-6 border-2 rounded-full animate-spin"
+            style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: '#7E3FF2' }} />
         </div>
       ) : filteredNotes.length === 0 ? (
         <div className="bento-card flex flex-col items-center justify-center py-16">
           <StickyNote size={40} strokeWidth={1} style={{ color: 'var(--lumen-text-muted)' }} className="mb-3" />
           <p className="text-[13px]" style={{ color: 'var(--lumen-text-secondary)' }}>
-            {searchQuery || filterTag ? 'No se encontraron notas' : 'No hay notas aun'}
+            {searchQuery || filterTag ? 'No se encontraron notas' : 'No hay notas aún'}
           </p>
         </div>
       ) : (
@@ -149,19 +275,22 @@ export default function Notes() {
             try { attachments = JSON.parse(note.attachments || '[]'); } catch {}
 
             return (
-              <div key={note.id} className="bento-card interactive group cursor-pointer"
-                onClick={() => { setEditingNote(note); setShowEditor(true); }}>
+              <button
+                key={note.id}
+                className="bento-card interactive w-full text-left group"
+                onClick={() => setPreviewNote(note)}
+              >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-[13px] font-medium line-clamp-1" style={{ color: 'var(--lumen-text)' }}>{note.title}</h3>
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }}
-                      className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}>
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
+                  <h3 className="text-[13px] font-medium line-clamp-1 flex-1"
+                    style={{ color: 'var(--lumen-text)' }}>
+                    {note.title}
+                  </h3>
+                  <ChevronRight size={13} className="shrink-0 ml-1 mt-0.5 opacity-0 group-hover:opacity-40 transition-opacity"
+                    style={{ color: 'var(--lumen-text-muted)' }} />
                 </div>
 
-                <p className="text-xs line-clamp-3 mb-3 leading-relaxed" style={{ color: 'var(--lumen-text-secondary)' }}>
+                <p className="text-xs line-clamp-3 mb-3 leading-relaxed"
+                  style={{ color: 'var(--lumen-text-secondary)' }}>
                   {stripHtml(note.content).slice(0, 150)}
                 </p>
 
@@ -170,11 +299,16 @@ export default function Notes() {
                     {tags.slice(0, 3).map((tag) => (
                       <span key={tag} className="tag-pill">{tag}</span>
                     ))}
-                    {tags.length > 3 && <span className="text-[10px]" style={{ color: 'var(--lumen-text-muted)' }}>+{tags.length - 3}</span>}
+                    {tags.length > 3 && (
+                      <span className="text-[10px]" style={{ color: 'var(--lumen-text-muted)' }}>
+                        +{tags.length - 3}
+                      </span>
+                    )}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mt-auto pt-2" style={{ borderTop: '1px solid var(--lumen-border)' }}>
+                <div className="flex items-center justify-between mt-auto pt-2"
+                  style={{ borderTop: '1px solid var(--lumen-border)' }}>
                   <div className="flex items-center gap-1" style={{ color: 'var(--lumen-text-muted)' }}>
                     <Calendar size={10} />
                     <span className="text-[10px]">{formatDate(note.updated_at)}</span>
@@ -186,15 +320,40 @@ export default function Notes() {
                     </div>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       )}
 
+      {/* Preview modal */}
+      {previewNote && (
+        <Modal
+          title={previewNote.title}
+          onClose={() => setPreviewNote(null)}
+          wide
+        >
+          <NotePreview
+            note={previewNote}
+            onEdit={() => openEdit(previewNote)}
+            onDelete={() => handleDelete(previewNote.id)}
+            onClose={() => setPreviewNote(null)}
+          />
+        </Modal>
+      )}
+
+      {/* Editor modal */}
       {showEditor && (
-        <Modal title={editingNote ? 'Editar nota' : 'Nueva nota'} onClose={() => { setShowEditor(false); setEditingNote(null); }} wide>
-          <NoteEditor note={editingNote} onSave={handleSave} onCancel={() => { setShowEditor(false); setEditingNote(null); }} />
+        <Modal
+          title={editingNote ? 'Editar nota' : 'Nueva nota'}
+          onClose={() => { setShowEditor(false); setEditingNote(null); }}
+          wide
+        >
+          <NoteEditor
+            note={editingNote}
+            onSave={handleSave}
+            onCancel={() => { setShowEditor(false); setEditingNote(null); }}
+          />
         </Modal>
       )}
     </div>
