@@ -6,6 +6,8 @@ import KnowledgeBase from './components/KnowledgeBase/KnowledgeBase';
 import Contacts from './components/Contacts/Contacts';
 import Assistant from './components/Assistant/Assistant';
 import Notes from './components/Notes/Notes';
+import Agenda from './components/Agenda/Agenda';
+import EvidenceVault from './components/Evidence/EvidenceVault';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
 import DailyInsight from './components/DailyInsight';
@@ -20,10 +22,12 @@ function extractNameFromEmail(email) {
 
 const MODULES = {
   dashboard: { label: 'Inicio',        component: Dashboard },
+  agenda:    { label: 'Agenda',        component: Agenda },
   assistant: { label: 'Laboratorio',   component: Assistant },
   knowledge: { label: 'Biblioteca',    component: KnowledgeBase },
   contacts:  { label: 'Directorio',    component: Contacts },
   notes:     { label: 'Notas',         component: Notes },
+  evidence:  { label: 'Evidencias',    component: EvidenceVault },
   settings:  { label: 'Configuracion', component: Settings },
 };
 

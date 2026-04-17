@@ -1,18 +1,20 @@
 import React from 'react';
 import {
   LayoutDashboard, FlaskConical, Library,
-  Users, StickyNote,
+  Users, StickyNote, CalendarDays, ShieldCheck,
   Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import LumenLogo from './LumenLogo';
 
-// Primary nav — strict order per spec
+// Primary nav — Blueprint OMNI-OS order
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard',   icon: LayoutDashboard },
+  { id: 'agenda',    label: 'Agenda',      icon: CalendarDays },
   { id: 'assistant', label: 'Laboratorio', icon: FlaskConical },
   { id: 'knowledge', label: 'Biblioteca',  icon: Library },
   { id: 'contacts',  label: 'Directorio',  icon: Users },
   { id: 'notes',     label: 'Notas',       icon: StickyNote },
+  { id: 'evidence',  label: 'Evidencias',  icon: ShieldCheck },
 ];
 
 function NavBtn({ id, label, icon: Icon, active, collapsed, onClick, muted }) {

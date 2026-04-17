@@ -1,20 +1,27 @@
-const { app, BrowserWindow, ipcMain, safeStorage, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, Menu, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const db = require('./database');
 const { scrapeUrl } = require('./scraper');
 const { initUpdater, checkForUpdates, downloadUpdate, installUpdate } = require('./updater');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const cal = require('./calendar');
+
+// Register lumen:// scheme BEFORE app is ready (required by Electron)
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'lumen', privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true } },
+]);
 
 let mainWindow;
 
-const API_KEY_PATH = path.join(app.getPath('userData'), '.api-key');
+const API_KEY_PATH    = path.join(app.getPath('userData'), '.api-key');
 const ATTACHMENTS_DIR = path.join(app.getPath('userData'), 'attachments');
+const EVIDENCES_DIR   = path.join(app.getPath('userData'), 'evidences');
 
-// Ensure attachments directory exists
-if (!fs.existsSync(ATTACHMENTS_DIR)) {
-  fs.mkdirSync(ATTACHMENTS_DIR, { recursive: true });
-}
+// Ensure storage directories exist
+[ATTACHMENTS_DIR, EVIDENCES_DIR].forEach((dir) => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
 
 // --- API Key encryption ---
 
@@ -325,6 +332,59 @@ function registerHandlers() {
   ipcMain.handle('settings:getAccentColor', () => db.getSetting('accent_color') || '#7E3FF2');
   ipcMain.handle('settings:setAccentColor', (_e, color) => db.setSetting('accent_color', color));
 
+  // Evidence Vault
+  ipcMain.handle('evidence:getAll',    () => db.getAllEvidences());
+  ipcMain.handle('evidence:getById',   (_e, id) => db.getEvidenceById(id));
+  ipcMain.handle('evidence:search',    (_e, q)  => db.searchEvidences(q));
+  ipcMain.handle('evidence:update',    (_e, id, data) => db.updateEvidence(id, data));
+  ipcMain.handle('evidence:delete',    (_e, id) => {
+    const ev = db.getEvidenceById(id);
+    if (ev) {
+      const full = path.join(EVIDENCES_DIR, ev.file_path);
+      if (fs.existsSync(full)) fs.unlinkSync(full);
+    }
+    db.deleteEvidence(id);
+  });
+  ipcMain.handle('evidence:save', (_e, fileName, mimeType, buffer) => {
+    const safeName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const filePath = path.join(EVIDENCES_DIR, safeName);
+    fs.writeFileSync(filePath, Buffer.from(buffer));
+    const stats = fs.statSync(filePath);
+    return { safeName, fileSize: stats.size };
+  });
+  ipcMain.handle('evidence:create', (_e, data) => db.createEvidence(data));
+
+  // Google Calendar
+  ipcMain.handle('calendar:isAuthenticated', () => cal.isAuthenticated());
+  ipcMain.handle('calendar:connect', async (_e, clientId, clientSecret) => {
+    try {
+      await cal.startOAuth(clientId, clientSecret);
+      return { ok: true };
+    } catch (e) { throw new Error(e.message); }
+  });
+  ipcMain.handle('calendar:disconnect', () => cal.disconnect());
+  ipcMain.handle('calendar:getEvents', async (_e, daysAhead) => {
+    try { return await cal.getEvents(db, daysAhead || 14); }
+    catch (e) { throw new Error(e.message); }
+  });
+  ipcMain.handle('calendar:createEvent', async (_e, eventData) => {
+    try { return await cal.createEvent(db, eventData); }
+    catch (e) { throw new Error(e.message); }
+  });
+  ipcMain.handle('calendar:updateEvent', async (_e, eventId, eventData) => {
+    try { return await cal.updateEvent(db, eventId, eventData); }
+    catch (e) { throw new Error(e.message); }
+  });
+  ipcMain.handle('calendar:deleteEvent', async (_e, eventId) => {
+    try { await cal.deleteEvent(db, eventId); return { ok: true }; }
+    catch (e) { throw new Error(e.message); }
+  });
+  // Google OAuth credentials (stored in DB settings)
+  ipcMain.handle('settings:getGoogleClientId',     () => db.getSetting('google_client_id') || '');
+  ipcMain.handle('settings:setGoogleClientId',     (_e, v) => db.setSetting('google_client_id', v));
+  ipcMain.handle('settings:getGoogleClientSecret', () => db.getSetting('google_client_secret') || '');
+  ipcMain.handle('settings:setGoogleClientSecret', (_e, v) => db.setSetting('google_client_secret', v));
+
   // Scraper
   ipcMain.handle('scraper:fetchUrl', async (_e, url) => {
     try {
@@ -362,6 +422,20 @@ function registerHandlers() {
 // --- App lifecycle ---
 
 app.whenReady().then(async () => {
+  // Serve local files via lumen:// (evidences, attachments)
+  protocol.registerFileProtocol('lumen', (request, callback) => {
+    const rawUrl = request.url.replace(/^lumen:\/\//, '');
+    const decoded = decodeURIComponent(rawUrl);
+    // Security: only allow files inside userData
+    const filePath = path.join(app.getPath('userData'), decoded);
+    const userData = app.getPath('userData');
+    if (!filePath.startsWith(userData)) {
+      callback({ error: -10 }); // net::ERR_ACCESS_DENIED
+      return;
+    }
+    callback({ path: filePath });
+  });
+
   await db.initDatabase();
   registerHandlers();
   createWindow();

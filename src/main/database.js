@@ -107,6 +107,23 @@ async function initDatabase() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS evidences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      file_name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      mime_type TEXT NOT NULL DEFAULT 'image/png',
+      file_size INTEGER NOT NULL DEFAULT 0,
+      tags TEXT NOT NULL DEFAULT '[]',
+      case_ref TEXT NOT NULL DEFAULT '',
+      annotations TEXT NOT NULL DEFAULT '[]',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migrate old contacts table if needed (add new columns)
   try {
     db.run('ALTER TABLE contacts ADD COLUMN last_name TEXT NOT NULL DEFAULT ""');
@@ -444,6 +461,47 @@ function searchNotesForAI(query) {
   );
 }
 
+// --- Evidences ---
+
+function getAllEvidences() {
+  return queryAll('SELECT * FROM evidences ORDER BY updated_at DESC');
+}
+
+function getEvidenceById(id) {
+  return queryOne('SELECT * FROM evidences WHERE id = ?', [id]);
+}
+
+function createEvidence({ title, description, file_name, file_path, mime_type, file_size, tags, case_ref }) {
+  runAndSave(
+    'INSERT INTO evidences (title, description, file_name, file_path, mime_type, file_size, tags, case_ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [title, description || '', file_name, file_path, mime_type || 'image/png', file_size || 0,
+     JSON.stringify(tags || []), case_ref || '']
+  );
+  return getEvidenceById(getLastId());
+}
+
+function updateEvidence(id, { title, description, tags, case_ref, annotations }) {
+  runAndSave(
+    'UPDATE evidences SET title=?, description=?, tags=?, case_ref=?, annotations=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    [title, description || '', JSON.stringify(tags || []), case_ref || '',
+     JSON.stringify(annotations || []), id]
+  );
+  return getEvidenceById(id);
+}
+
+function deleteEvidence(id) {
+  runAndSave('DELETE FROM evidences WHERE id = ?', [id]);
+}
+
+function searchEvidences(query) {
+  if (!query || query.trim().length === 0) return getAllEvidences();
+  const like = `%${query}%`;
+  return queryAll(
+    'SELECT * FROM evidences WHERE title LIKE ? OR description LIKE ? OR tags LIKE ? OR case_ref LIKE ? ORDER BY updated_at DESC',
+    [like, like, like, like]
+  );
+}
+
 // --- Settings ---
 
 function getSetting(key) {
@@ -466,6 +524,12 @@ function closeDatabase() {
 module.exports = {
   initDatabase,
   closeDatabase,
+  getAllEvidences,
+  getEvidenceById,
+  createEvidence,
+  updateEvidence,
+  deleteEvidence,
+  searchEvidences,
   getAllPolicies,
   getPolicyById,
   createPolicy,

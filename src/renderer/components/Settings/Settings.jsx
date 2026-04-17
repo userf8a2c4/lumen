@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Key, Cpu, Info, RefreshCw, Check, Eye, EyeOff, Github, Mail, FlaskConical, Library, Globe, Shield, Palette, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Key, Cpu, Info, RefreshCw, Check, Eye, EyeOff, Github, Mail, FlaskConical, Library, Globe, Shield, Palette, LogOut, CalendarDays, Wifi, WifiOff } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
 
 const GEMINI_MODELS = [
@@ -27,8 +27,13 @@ export default function Settings({ onModelChange }) {
   const [version, setVersion] = useState('');
   const [savedKey, setSavedKey] = useState(false);
   const [savedEmail, setSavedEmail] = useState(false);
-  const [accentColor, setAccentColor] = useState('#7E3FF2');
-  const [savedAccent, setSavedAccent] = useState(false);
+  const [accentColor,       setAccentColor]       = useState('#7E3FF2');
+  const [savedAccent,       setSavedAccent]       = useState(false);
+  const [googleClientId,    setGoogleClientId]    = useState('');
+  const [googleClientSecret,setGoogleClientSecret]= useState('');
+  const [calConnected,      setCalConnected]      = useState(false);
+  const [calConnecting,     setCalConnecting]     = useState(false);
+  const [savedGoogleCreds,  setSavedGoogleCreds]  = useState(false);
   const [checking, setChecking] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -49,6 +54,16 @@ export default function Settings({ onModelChange }) {
       setCseId(cse || '');
       setCseIdInput(cse || '');
       if (accent) setAccentColor(accent);
+    }).catch(() => {});
+
+    Promise.all([
+      window.lumen.settings.getGoogleClientId(),
+      window.lumen.settings.getGoogleClientSecret(),
+      window.lumen.calendar.isAuthenticated(),
+    ]).then(([cid, csec, connected]) => {
+      setGoogleClientId(cid || '');
+      setGoogleClientSecret(csec || '');
+      setCalConnected(connected);
     }).catch(() => {});
   }, []);
 
@@ -81,6 +96,33 @@ export default function Settings({ onModelChange }) {
     setModel(m);
     await window.lumen.settings.setModel(m);
     onModelChange?.(m);
+  };
+
+  const saveGoogleCreds = async () => {
+    await Promise.all([
+      window.lumen.settings.setGoogleClientId(googleClientId.trim()),
+      window.lumen.settings.setGoogleClientSecret(googleClientSecret.trim()),
+    ]);
+    setSavedGoogleCreds(true);
+    setTimeout(() => setSavedGoogleCreds(false), 2000);
+  };
+
+  const connectCalendar = async () => {
+    setCalConnecting(true);
+    try {
+      await window.lumen.calendar.connect(googleClientId.trim(), googleClientSecret.trim());
+      setCalConnected(true);
+    } catch (e) {
+      setMsg(`Error al conectar: ${e.message}`);
+    } finally {
+      setCalConnecting(false);
+    }
+  };
+
+  const disconnectCalendar = async () => {
+    if (!confirm('¿Desconectar Google Calendar?')) return;
+    await window.lumen.calendar.disconnect();
+    setCalConnected(false);
   };
 
   const saveAccent = async (color) => {
@@ -323,6 +365,69 @@ export default function Settings({ onModelChange }) {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Google Calendar OAuth */}
+        <div className="bento-card bento-span-full">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarDays size={15} style={{ color: '#4285F4' }} />
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--lumen-text)' }}>Google Calendar</h3>
+            <span className="ml-auto flex items-center gap-1.5 text-[11px] font-medium"
+              style={{ color: calConnected ? '#10b981' : 'var(--lumen-text-muted)' }}>
+              {calConnected
+                ? <><Wifi size={11} /> Conectado</>
+                : <><WifiOff size={11} /> No conectado</>}
+            </span>
+          </div>
+
+          <div className="bento-grid bento-grid-2 !gap-3 mb-3">
+            <div>
+              <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>
+                OAuth Client ID
+              </label>
+              <input type="text" value={googleClientId}
+                onChange={(e) => setGoogleClientId(e.target.value)}
+                placeholder="xxxx.apps.googleusercontent.com"
+                className="dark-input !text-xs !font-mono" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>
+                OAuth Client Secret
+              </label>
+              <input type="password" value={googleClientSecret}
+                onChange={(e) => setGoogleClientSecret(e.target.value)}
+                placeholder="GOCSPX-..."
+                className="dark-input !text-xs !font-mono" />
+            </div>
+          </div>
+
+          <div className="flex gap-2 mb-3">
+            <button onClick={saveGoogleCreds}
+              disabled={!googleClientId.trim() || !googleClientSecret.trim()}
+              className="btn-ghost !py-2 !px-3 !text-xs">
+              {savedGoogleCreds ? <><Check size={11} /> Guardado</> : 'Guardar credenciales'}
+            </button>
+            {!calConnected ? (
+              <button onClick={connectCalendar}
+                disabled={calConnecting || !googleClientId.trim() || !googleClientSecret.trim()}
+                className="btn-accent !py-2 !text-xs">
+                {calConnecting
+                  ? <><RefreshCw size={11} className="animate-spin" /> Conectando...</>
+                  : <><Wifi size={11} /> Conectar Calendar</>}
+              </button>
+            ) : (
+              <button onClick={disconnectCalendar} className="!py-2 !px-3 !text-xs rounded-2xl transition-all"
+                style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                Desconectar
+              </button>
+            )}
+          </div>
+
+          <p className="text-[10px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
+            Crea credenciales tipo <strong>Aplicación de escritorio</strong> en{' '}
+            <span style={{ color: '#4285F4' }}>console.cloud.google.com</span>{' '}
+            → APIs y servicios → Credenciales → OAuth 2.0. Habilita la API de Google Calendar.
+          </p>
         </div>
 
         {/* Accent color */}
