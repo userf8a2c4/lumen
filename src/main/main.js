@@ -332,6 +332,14 @@ function registerHandlers() {
   ipcMain.handle('settings:getAccentColor', () => db.getSetting('accent_color') || '#7E3FF2');
   ipcMain.handle('settings:setAccentColor', (_e, color) => db.setSetting('accent_color', color));
 
+  // Logic Flows
+  ipcMain.handle('logic:getAll',    () => db.getAllFlows());
+  ipcMain.handle('logic:getById',   (_e, id) => db.getFlowById(id));
+  ipcMain.handle('logic:create',    (_e, data) => db.createFlow(data));
+  ipcMain.handle('logic:save',      (_e, id, data) => db.saveFlow(id, data));
+  ipcMain.handle('logic:delete',    (_e, id) => db.deleteFlow(id));
+  ipcMain.handle('logic:getPublished', () => db.getPublishedFlows());
+
   // Evidence Vault
   ipcMain.handle('evidence:getAll',    () => db.getAllEvidences());
   ipcMain.handle('evidence:getById',   (_e, id) => db.getEvidenceById(id));

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, FlaskConical, Library,
   Users, StickyNote, CalendarDays, ShieldCheck,
-  Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen,
+  GitBranch, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import LumenLogo from './LumenLogo';
 
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { id: 'contacts',  label: 'Directorio',  icon: Users },
   { id: 'notes',     label: 'Notas',       icon: StickyNote },
   { id: 'evidence',  label: 'Evidencias',  icon: ShieldCheck },
+  { id: 'logic',     label: 'Diseñador',   icon: GitBranch },
 ];
 
 function NavBtn({ id, label, icon: Icon, active, collapsed, onClick, muted }) {

@@ -8,6 +8,7 @@ import Assistant from './components/Assistant/Assistant';
 import Notes from './components/Notes/Notes';
 import Agenda from './components/Agenda/Agenda';
 import EvidenceVault from './components/Evidence/EvidenceVault';
+import LogicDesigner from './components/LogicDesigner/LogicDesigner';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
 import DailyInsight from './components/DailyInsight';
@@ -28,6 +29,7 @@ const MODULES = {
   contacts:  { label: 'Directorio',    component: Contacts },
   notes:     { label: 'Notas',         component: Notes },
   evidence:  { label: 'Evidencias',    component: EvidenceVault },
+  logic:     { label: 'Diseñador',     component: LogicDesigner },
   settings:  { label: 'Configuracion', component: Settings },
 };
 

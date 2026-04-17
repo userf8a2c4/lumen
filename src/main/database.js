@@ -108,6 +108,19 @@ async function initDatabase() {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS logic_flows (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      nodes TEXT NOT NULL DEFAULT '[]',
+      connections TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS evidences (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -461,6 +474,40 @@ function searchNotesForAI(query) {
   );
 }
 
+// --- Logic Flows ---
+
+function getAllFlows() {
+  return queryAll('SELECT * FROM logic_flows ORDER BY updated_at DESC');
+}
+
+function getFlowById(id) {
+  return queryOne('SELECT * FROM logic_flows WHERE id = ?', [id]);
+}
+
+function createFlow({ name, description }) {
+  runAndSave(
+    'INSERT INTO logic_flows (name, description) VALUES (?, ?)',
+    [name, description || '']
+  );
+  return getFlowById(getLastId());
+}
+
+function saveFlow(id, { name, description, nodes, connections, status }) {
+  runAndSave(
+    'UPDATE logic_flows SET name=?, description=?, nodes=?, connections=?, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    [name, description || '', JSON.stringify(nodes || []), JSON.stringify(connections || []), status || 'draft', id]
+  );
+  return getFlowById(id);
+}
+
+function deleteFlow(id) {
+  runAndSave('DELETE FROM logic_flows WHERE id = ?', [id]);
+}
+
+function getPublishedFlows() {
+  return queryAll("SELECT * FROM logic_flows WHERE status = 'published' ORDER BY updated_at DESC");
+}
+
 // --- Evidences ---
 
 function getAllEvidences() {
@@ -524,6 +571,12 @@ function closeDatabase() {
 module.exports = {
   initDatabase,
   closeDatabase,
+  getAllFlows,
+  getFlowById,
+  createFlow,
+  saveFlow,
+  deleteFlow,
+  getPublishedFlows,
   getAllEvidences,
   getEvidenceById,
   createEvidence,

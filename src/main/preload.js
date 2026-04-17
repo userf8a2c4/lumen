@@ -49,6 +49,14 @@ contextBridge.exposeInMainWorld('lumen', {
     getGoogleClientSecret: () => ipcRenderer.invoke('settings:getGoogleClientSecret'),
     setGoogleClientSecret: (v) => ipcRenderer.invoke('settings:setGoogleClientSecret', v),
   },
+  logic: {
+    getAll:       ()         => ipcRenderer.invoke('logic:getAll'),
+    getById:      (id)       => ipcRenderer.invoke('logic:getById', id),
+    create:       (data)     => ipcRenderer.invoke('logic:create', data),
+    save:         (id, data) => ipcRenderer.invoke('logic:save', id, data),
+    delete:       (id)       => ipcRenderer.invoke('logic:delete', id),
+    getPublished: ()         => ipcRenderer.invoke('logic:getPublished'),
+  },
   evidence: {
     getAll:    ()             => ipcRenderer.invoke('evidence:getAll'),
     getById:   (id)           => ipcRenderer.invoke('evidence:getById', id),
