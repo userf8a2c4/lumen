@@ -18,7 +18,10 @@ import Dashboard from './components/Dashboard/Dashboard';
 function extractNameFromEmail(email) {
   if (!email || !email.trim()) return 'Lu';
   const local = email.split('@')[0];
-  const first = local.split('.')[0];
+  // Strip numbers and split on common separators
+  const clean = local.replace(/[0-9_\-\.]+/g, ' ').trim();
+  const first = clean.split(/\s+/)[0] || local;
+  if (!first || first.length < 2) return 'Lu';
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
