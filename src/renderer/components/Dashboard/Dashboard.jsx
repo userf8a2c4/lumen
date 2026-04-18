@@ -5,14 +5,17 @@ import LumenLogo from '../LumenLogo';
 function StatCard({ icon: Icon, color, value, label, loading }) {
   return (
     <div className="bento-card flex items-center gap-4">
-      <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-        style={{ background: `${color}14` }}>
-        <Icon size={20} style={{ color }} />
+      <div style={{
+        width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: `${color}14`, border: `1px solid ${color}22`,
+      }}>
+        <Icon size={17} style={{ color }} />
       </div>
       <div className="bento-stat">
         {loading
-          ? <span className="stat-value" style={{ fontSize: '22px', color: 'var(--lumen-text-muted)' }}>—</span>
-          : <span className="stat-value" style={{ fontSize: '22px' }}>{value}</span>}
+          ? <span className="stat-value" style={{ fontSize: '20px', color: 'var(--lumen-text-muted)' }}>—</span>
+          : <span className="stat-value" style={{ fontSize: '20px' }}>{value}</span>}
         <span className="stat-label">{label}</span>
       </div>
     </div>
@@ -21,17 +24,16 @@ function StatCard({ icon: Icon, color, value, label, loading }) {
 
 function QuickAction({ icon: Icon, title, desc, color, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      className="bento-card interactive w-full text-left"
-      style={{ cursor: 'pointer' }}
-    >
-      <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3"
-        style={{ background: `${color}12` }}>
-        <Icon size={19} style={{ color }} />
+    <button onClick={onClick} className="bento-card interactive w-full text-left">
+      <div style={{
+        width: 32, height: 32, borderRadius: 7, marginBottom: 12,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: `${color}12`, border: `1px solid ${color}20`,
+      }}>
+        <Icon size={16} style={{ color }} />
       </div>
-      <p className="text-[13px] font-semibold mb-1" style={{ color: 'var(--lumen-text)' }}>{title}</p>
-      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>{desc}</p>
+      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 4, letterSpacing: '0.01em' }}>{title}</p>
+      <p style={{ fontSize: 11, lineHeight: 1.55, color: 'var(--lumen-text-muted)' }}>{desc}</p>
     </button>
   );
 }
@@ -127,33 +129,23 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
         </div>
 
         <div className="bento-grid bento-grid-3 !gap-3">
-          <div className="rounded-2xl p-3.5" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <Zap size={13} style={{ color: '#7E3FF2' }} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#7E3FF2' }}>Laboratorio</span>
+          {[
+            { icon: Zap,     color: '#7E3FF2', label: 'Laboratorio',   text: 'Análisis multimodal con Gemini Vision. Texto, imágenes y PDFs para detección de fallos de QA.' },
+            { icon: Library, color: '#10b981', label: 'Biblioteca',    text: 'Base de conocimiento inamovible. El sistema nunca inventa datos que no estén aquí.' },
+            { icon: Globe,   color: '#3b82f6', label: 'Modo Expandido',text: 'Google Search complementario para consultas externas. Nunca contradice la Biblioteca.' },
+          ].map(({ icon: Ic, color, label, text }) => (
+            <div key={label} style={{
+              padding: '12px 14px', borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderLeft: `2px solid ${color}60`,
+            }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Ic size={12} style={{ color }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
+              </div>
+              <p style={{ fontSize: 11, lineHeight: 1.55, color: 'var(--lumen-text-muted)' }}>{text}</p>
             </div>
-            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
-              Centro de analisis multimodal. Soporta texto, capturas de pantalla e imagenes para deteccion visual de fallos de QA con Gemini Vision.
-            </p>
-          </div>
-          <div className="rounded-2xl p-3.5" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <Library size={13} style={{ color: '#10b981' }} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#10b981' }}>Biblioteca</span>
-            </div>
-            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
-              Tu fuente de verdad inamovible. Politicas, protocolos y documentos internos indexados. El sistema no inventa datos que no esten aqui.
-            </p>
-          </div>
-          <div className="rounded-2xl p-3.5" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <Globe size={13} style={{ color: '#3b82f6' }} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#3b82f6' }}>Modo Expandido</span>
-            </div>
-            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>
-              Activa Google Search en el Laboratorio para complementar con datos externos en tiempo real — sin contradecir la Biblioteca.
-            </p>
-          </div>
+          ))}
         </div>
       </div>
     </div>
