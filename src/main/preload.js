@@ -75,8 +75,15 @@ contextBridge.exposeInMainWorld('lumen', {
     fetchUrl: (url) => ipcRenderer.invoke('scraper:fetchUrl', url),
   },
   ai: {
-    analyze: (caseDescription, options) => ipcRenderer.invoke('ai:analyze', caseDescription, options),
-    generateEmail: (context, options) => ipcRenderer.invoke('ai:generateEmail', context, options),
+    analyze:       (caseDescription, options) => ipcRenderer.invoke('ai:analyze', caseDescription, options),
+    generateEmail: (context, options)          => ipcRenderer.invoke('ai:generateEmail', context, options),
+  },
+  ac3: {
+    triage:       (caseDesc, options) => ipcRenderer.invoke('ac3:triage', caseDesc, options),
+    saveCase:     (caseDesc, decision) => ipcRenderer.invoke('ac3:saveCase', caseDesc, decision),
+    getCases:     ()                  => ipcRenderer.invoke('ac3:getCases'),
+    updateStatus: (id, status)        => ipcRenderer.invoke('ac3:updateStatus', id, status),
+    deleteCase:   (id)                => ipcRenderer.invoke('ac3:deleteCase', id),
   },
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

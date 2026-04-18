@@ -137,6 +137,28 @@ async function initDatabase() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ac3_cases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      case_description TEXT NOT NULL,
+      categoria TEXT NOT NULL DEFAULT 'amenidades',
+      confianza INTEGER NOT NULL DEFAULT 0,
+      tipo_decision TEXT NOT NULL DEFAULT 'T2-reversible',
+      urgencia TEXT NOT NULL DEFAULT 'media',
+      resumen_ejecutivo TEXT NOT NULL DEFAULT '',
+      dri TEXT NOT NULL DEFAULT '',
+      plazo_horas INTEGER NOT NULL DEFAULT 24,
+      politica_aplicable TEXT,
+      pasos_accion TEXT NOT NULL DEFAULT '[]',
+      criterio_escalacion TEXT NOT NULL DEFAULT '',
+      contacto_sugerido TEXT,
+      resultado_deseado TEXT NOT NULL DEFAULT '',
+      notas_internas TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migrate old contacts table if needed (add new columns)
   try {
     db.run('ALTER TABLE contacts ADD COLUMN last_name TEXT NOT NULL DEFAULT ""');
@@ -560,6 +582,51 @@ function setSetting(key, value) {
   runAndSave('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, value]);
 }
 
+// --- AC3 Cases ---
+
+function createAC3Case(data) {
+  runAndSave(
+    `INSERT INTO ac3_cases
+      (case_description, categoria, confianza, tipo_decision, urgencia, resumen_ejecutivo,
+       dri, plazo_horas, politica_aplicable, pasos_accion, criterio_escalacion,
+       contacto_sugerido, resultado_deseado, notas_internas)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      data.case_description,
+      data.categoria || 'amenidades',
+      data.confianza || 0,
+      data.tipo_decision || 'T2-reversible',
+      data.urgencia || 'media',
+      data.resumen_ejecutivo || '',
+      data.dri || '',
+      data.plazo_horas || 24,
+      data.politica_aplicable || null,
+      JSON.stringify(data.pasos_accion || []),
+      data.criterio_escalacion || '',
+      data.contacto_sugerido || null,
+      data.resultado_deseado || '',
+      data.notas_internas || '',
+    ]
+  );
+  const id = getLastId();
+  const row = queryOne('SELECT * FROM ac3_cases WHERE id = ?', [id]);
+  if (row) row.pasos_accion = JSON.parse(row.pasos_accion || '[]');
+  return row;
+}
+
+function getAllAC3Cases() {
+  const rows = queryAll('SELECT * FROM ac3_cases ORDER BY created_at DESC');
+  return rows.map((r) => ({ ...r, pasos_accion: JSON.parse(r.pasos_accion || '[]') }));
+}
+
+function updateAC3CaseStatus(id, status) {
+  runAndSave('UPDATE ac3_cases SET status = ? WHERE id = ?', [status, id]);
+}
+
+function deleteAC3Case(id) {
+  runAndSave('DELETE FROM ac3_cases WHERE id = ?', [id]);
+}
+
 function closeDatabase() {
   if (db) {
     save();
@@ -610,4 +677,8 @@ module.exports = {
   searchNotesForAI,
   getSetting,
   setSetting,
+  createAC3Case,
+  getAllAC3Cases,
+  updateAC3CaseStatus,
+  deleteAC3Case,
 };

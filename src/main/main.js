@@ -220,6 +220,115 @@ Si hay notas relevantes del agente en LUMEN, usalas como contexto adicional.`;
   };
 }
 
+// ─── AC3 — Motor de Decisiones Amazon-style ──────────────────────────────────
+
+function buildLocalTriage(caseDescription, policies, contacts) {
+  const lower = caseDescription.toLowerCase();
+  let categoria = 'amenidades';
+  let confianza = 60;
+
+  if (/pago|cobr|factur|reembolso|dinero|monto|precio|costo|tarjeta|cargo|devoluci/.test(lower)) {
+    categoria = 'finanzas'; confianza = 75;
+  } else if (/contrato|legal|ley|normat|incumplimiento|demanda|garantia|litigio|cláusula/.test(lower)) {
+    categoria = 'legal'; confianza = 75;
+  } else if (/sistema|error|bug|fallo|tecnico|configuraci|servidor|app|software|acceso|contrase/.test(lower)) {
+    categoria = 'tecnico'; confianza = 75;
+  }
+
+  const policy  = policies[0] || null;
+  const contact = contacts[0] || null;
+
+  return {
+    categoria,
+    confianza,
+    tipo_decision:        'T2-reversible',
+    urgencia:             'media',
+    resumen_ejecutivo:    `Caso clasificado como ${categoria} (análisis local heurístico)`,
+    dri:                  policy ? `Supervisor de ${policy.department}` : 'Supervisor de turno',
+    plazo_horas:          24,
+    politica_aplicable:   policy ? policy.name : null,
+    pasos_accion: [
+      'Revisar la solicitud completa del cliente',
+      policy  ? `Aplicar política: ${policy.name}` : 'Consultar manual de procedimientos',
+      contact ? `Coordinar con: ${contact.name} ${contact.last_name || ''}` : 'Coordinar con supervisor de área',
+    ],
+    criterio_escalacion:  'Si el caso no se resuelve en el plazo o supera el umbral de autoridad',
+    contacto_sugerido:    contact ? `${contact.name} ${contact.last_name || ''} — ${contact.department}` : null,
+    resultado_deseado:    'Resolución satisfactoria para el cliente dentro del plazo acordado',
+    notas_internas:       'Análisis heurístico local. Configura una API Key en Configuración para análisis AC3 completo.',
+    _isLocal:             true,
+  };
+}
+
+async function triageCase(caseDescription, options = {}) {
+  const policies    = db.searchPoliciesForAI(caseDescription);
+  const departments = [...new Set(policies.map((p) => p.department))];
+  const contacts    = db.getContactsByDepartments(departments.length > 0 ? departments : ['General']);
+  const notes       = db.searchNotesForAI(caseDescription);
+  const modelId     = options.model || db.getSetting('model') || 'gemini-1.5-flash';
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return buildLocalTriage(caseDescription, policies, contacts);
+  }
+
+  const systemPrompt = `Eres AC3 — Motor de Decisiones de LUMEN, diseñado con principios Amazon.
+
+PRINCIPIOS:
+- Tipo 1 (T1-irreversible): alto impacto, difícil de revertir → requiere jerarquía completa
+- Tipo 2 (T2-reversible): se puede corregir → decidir rápido, ejecutar, ajustar
+- DRI: un único responsable por decisión (Directly Responsible Individual)
+- Working Backwards: define el resultado deseado para el cliente antes de actuar
+- Escalación específica y medible, nunca vaga
+
+CATEGORÍAS:
+- finanzas: reembolsos, cobros incorrectos, ajustes monetarios, créditos, compensaciones
+- legal: contratos, garantías, cumplimiento normativo, responsabilidad, litigios
+- tecnico: fallas de sistema, errores de software, configuración, acceso, SLA, integraciones
+- amenidades: experiencia del cliente, instalaciones, calidad de servicio, comodidad, logística
+
+INSTRUCCIÓN CRÍTICA:
+Responde ÚNICAMENTE con JSON válido. Sin texto extra, sin markdown, sin bloques de código.
+Usa solo datos de las políticas y contactos de LUMEN proporcionados.
+
+{
+  "categoria": "finanzas|legal|tecnico|amenidades",
+  "confianza": 0-100,
+  "tipo_decision": "T1-irreversible|T2-reversible",
+  "urgencia": "critica|alta|media|baja",
+  "resumen_ejecutivo": "máx 15 palabras que describen el caso",
+  "dri": "rol exacto del responsable",
+  "plazo_horas": número,
+  "politica_aplicable": "nombre de política o null",
+  "pasos_accion": ["paso 1", "paso 2", "paso 3"],
+  "criterio_escalacion": "condición específica y medible",
+  "contacto_sugerido": "Nombre Apellido — Cargo o null",
+  "resultado_deseado": "promesa concreta al cliente en una oración",
+  "notas_internas": "contexto para el agente, máx 2 oraciones"
+}`;
+
+  let context = `CASO DEL CLIENTE:\n${caseDescription}\n\n`;
+  if (policies.length > 0) {
+    context += `POLÍTICAS LUMEN:\n${policies.map((p) => `- ${p.name} (${p.department}): ${p.description}`).join('\n')}\n\n`;
+  } else {
+    context += `POLÍTICAS LUMEN: Sin políticas específicas para este caso.\n\n`;
+  }
+  if (contacts.length > 0) {
+    context += `CONTACTOS DISPONIBLES:\n${contacts.map((c) => `- ${c.name} ${c.last_name || ''} (${c.department}): ${c.when_to_contact}`).join('\n')}\n\n`;
+  }
+  if (notes.length > 0) {
+    context += `NOTAS DEL AGENTE:\n${notes.map((n) => `- ${n.title}: ${n.content.slice(0, 200)}`).join('\n')}`;
+  }
+
+  const genAI        = new GoogleGenerativeAI(apiKey);
+  const geminiModel  = genAI.getGenerativeModel({ model: modelId, systemInstruction: systemPrompt });
+  const result       = await geminiModel.generateContent(context);
+  const text         = result.response.text().trim();
+  const jsonMatch    = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('AC3: respuesta no es JSON válido');
+  return JSON.parse(jsonMatch[0]);
+}
+
 // --- Email Generator (Gemini) ---
 
 async function generateEmail(context, options = {}) {
@@ -412,6 +521,21 @@ function registerHandlers() {
       throw new Error(err.message);
     }
   });
+
+  // AC3 — Motor de Decisiones
+  ipcMain.handle('ac3:triage', async (_e, caseDesc, options) => {
+    try {
+      return await triageCase(caseDesc, options || {});
+    } catch (err) {
+      throw new Error(err.message);
+    }
+  });
+  ipcMain.handle('ac3:saveCase', (_e, caseDesc, decision) => {
+    return db.createAC3Case({ case_description: caseDesc, ...decision });
+  });
+  ipcMain.handle('ac3:getCases',       ()           => db.getAllAC3Cases());
+  ipcMain.handle('ac3:updateStatus',   (_e, id, st) => db.updateAC3CaseStatus(id, st));
+  ipcMain.handle('ac3:deleteCase',     (_e, id)     => db.deleteAC3Case(id));
 
   // Updater
   ipcMain.handle('updater:check', () => checkForUpdates());

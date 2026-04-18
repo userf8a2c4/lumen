@@ -3,12 +3,14 @@ import {
   LayoutDashboard, FlaskConical, Library,
   Users, StickyNote, CalendarDays, ShieldCheck,
   GitBranch, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen,
+  Cpu,
 } from 'lucide-react';
 import LumenLogo from './LumenLogo';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard',   icon: LayoutDashboard },
   { id: 'agenda',    label: 'Agenda',      icon: CalendarDays },
+  { id: 'ac3',       label: 'AC3',         icon: Cpu },
   { id: 'assistant', label: 'Laboratorio', icon: FlaskConical },
   { id: 'knowledge', label: 'Biblioteca',  icon: Library },
   { id: 'contacts',  label: 'Directorio',  icon: Users },

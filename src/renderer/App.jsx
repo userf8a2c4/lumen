@@ -9,6 +9,7 @@ import Notes from './components/Notes/Notes';
 import Agenda from './components/Agenda/Agenda';
 import EvidenceVault from './components/Evidence/EvidenceVault';
 import LogicDesigner from './components/LogicDesigner/LogicDesigner';
+import AC3 from './components/AC3/AC3';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
 import DailyInsight from './components/DailyInsight';
@@ -22,9 +23,10 @@ function extractNameFromEmail(email) {
 }
 
 const MODULES = {
-  dashboard: { label: 'Inicio',        component: Dashboard },
-  agenda:    { label: 'Agenda',        component: Agenda },
-  assistant: { label: 'Laboratorio',   component: Assistant },
+  dashboard: { label: 'Inicio',              component: Dashboard },
+  agenda:    { label: 'Agenda',              component: Agenda },
+  ac3:       { label: 'AC3 Decisiones',      component: AC3 },
+  assistant: { label: 'Laboratorio',         component: Assistant },
   knowledge: { label: 'Biblioteca',    component: KnowledgeBase },
   contacts:  { label: 'Directorio',    component: Contacts },
   notes:     { label: 'Notas',         component: Notes },
