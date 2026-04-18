@@ -54,7 +54,7 @@ export default function Examples({ selectedPolicyId }) {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: '#7E3FF2' }} />
+          <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: 'var(--lumen-accent)' }} />
         </div>
       ) : policies.length === 0 ? (
         <div className="bento-card flex flex-col items-center justify-center py-16">

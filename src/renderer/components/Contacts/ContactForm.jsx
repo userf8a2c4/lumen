@@ -24,7 +24,7 @@ function DynamicList({ items, onAdd, onRemove, onChange, placeholder, icon: Icon
       ))}
       <button type="button" onClick={onAdd}
         className="flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-lg transition-colors"
-        style={{ color: '#7E3FF2' }}>
+        style={{ color: 'var(--lumen-accent)' }}>
         <Plus size={12} /> Agregar
       </button>
     </div>
@@ -154,7 +154,7 @@ export default function ContactForm({ contact, onSave, onCancel }) {
       {/* Social networks */}
       <div>
         <button type="button" onClick={() => setShowSocial(!showSocial)}
-          className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: '#7E3FF2' }}>
+          className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: 'var(--lumen-accent)' }}>
           {showSocial ? <X size={12} /> : <Plus size={12} />} Redes sociales
         </button>
         {showSocial && (
@@ -177,7 +177,7 @@ export default function ContactForm({ contact, onSave, onCancel }) {
 
       {/* Escalation fields */}
       <div className="p-3 rounded-xl" style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#7E3FF2' }}>Informacion de escalacion</p>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--lumen-accent)' }}>Informacion de escalacion</p>
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--lumen-text-secondary)' }}>Medio de contacto</label>

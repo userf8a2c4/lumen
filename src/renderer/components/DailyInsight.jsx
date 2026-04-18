@@ -149,7 +149,7 @@ export default function DailyInsight({ userName = 'Lucila' }) {
             width: '28px',
             height: '3px',
             borderRadius: '2px',
-            background: 'rgba(126,63,242,0.3)',
+            background: 'rgba(255,255,255,0.06)',
             animation: 'shrink-bar 6s linear',
           }} />
         </div>

@@ -24,7 +24,27 @@
       "Bash(git commit -m \"ci: generate placeholder icon in workflow:*)",
       "Bash(git commit -m \"ci: fix release asset publishing:*)",
       "Bash(git commit -m \"ci: generate icon using node instead of imagemagick:*)",
-      "Bash(git commit -m \"build: set icon to null to skip icon requirement:*)"
+      "Bash(git commit -m \"build: set icon to null to skip icon requirement:*)",
+      "Bash(git commit -m \"refactor: simplify release process with dedicated upload script:*)",
+      "Bash(curl -s \"https://api.github.com/repos/userf8a2c4/lumen/actions/runs?per_page=3\")",
+      "Bash(git commit -m \"fix: configure nsis to generate .exe installer properly:*)",
+      "Bash(node scripts/upload-release.js v1.1.0)",
+      "Bash(git commit -m \"fix: use softprops/action-gh-release for reliable asset upload:*)",
+      "Bash(git commit:*)",
+      "Bash(start \"\" \"C:\\\\Users\\\\carlo_xkv09i\\\\AppData\\\\Local\\\\Temp\\\\LUMEN.Setup.1.1.0.exe\")",
+      "Read(//c/Users/carlo_xkv09i/AppData/Local/Programs/**)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/carlo_xkv09i/AppData/Local/**)",
+      "Bash(taskkill /IM \"LUMEN.exe\" /F)",
+      "Bash(gh release:*)",
+      "Bash(node -e \":*)",
+      "Bash(curl.exe -s \"https://api.github.com/repos/userf8a2c4/lumen/actions/runs?per_page=3\")",
+      "Bash(dir \"C:\\\\Users\\\\carlo_xkv09i\\\\OneDrive\\\\Documentos\\\\lumen\\\\src\\\\renderer\\\\components\\\\LogicDesigner\\\\\")",
+      "Bash(gh pr *)",
+      "Bash(command -v gh)",
+      "Bash(powershell -Command \"Select-String -Path 'src\\\\renderer\\\\components\\\\Settings\\\\Settings.jsx' -Pattern 'lumen-accent|ACCENT|accent' | Select-Object -First 20 | Format-Table LineNumber, Line -Wrap\")",
+      "Bash(powershell -Command \"Get-Content 'src\\\\renderer\\\\components\\\\Settings\\\\Settings.jsx' | Select-Object -First 60\")",
+      "Bash(powershell -Command \"Get-Content 'src\\\\renderer\\\\components\\\\Settings\\\\Settings.jsx' | Select-Object -Skip 265 -First 40\")"
     ]
   }
 }

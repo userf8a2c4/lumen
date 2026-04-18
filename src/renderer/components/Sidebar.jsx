@@ -26,28 +26,19 @@ function NavBtn({ id, label, icon: Icon, active, collapsed, onClick, muted }) {
         ${active ? 'active' : ''}
         ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2 gap-3'}`}
       style={{
-        borderRadius: 5,
+        borderRadius: 3,
         color: active
-          ? 'var(--lumen-accent)'
+          ? 'rgba(255,255,255,0.95)'
           : muted
           ? 'var(--lumen-text-muted)'
           : 'var(--lumen-text-secondary)',
         fontSize: 12,
-        fontWeight: active ? 600 : 400,
-        letterSpacing: active ? '0.01em' : '0',
+        fontWeight: active ? 500 : 400,
+        letterSpacing: '0.01em',
       }}
     >
-      <Icon size={16} strokeWidth={active ? 2 : 1.5} style={{ flexShrink: 0 }} />
+      <Icon size={15} strokeWidth={active ? 1.75 : 1.5} style={{ flexShrink: 0 }} />
       {!collapsed && <span className="truncate">{label}</span>}
-      {!collapsed && active && (
-        <span style={{
-          marginLeft: 'auto',
-          width: 4, height: 4, borderRadius: '50%',
-          background: 'var(--lumen-accent)',
-          boxShadow: '0 0 6px rgba(126,63,242,0.8)',
-          flexShrink: 0,
-        }} />
-      )}
     </button>
   );
 }
@@ -63,8 +54,8 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
         {!collapsed && (
           <div>
             <p style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.14em',
-              color: 'var(--lumen-accent)', textTransform: 'uppercase',
+              fontSize: 11, fontWeight: 600, letterSpacing: '0.18em',
+              color: 'rgba(255,255,255,0.88)', textTransform: 'uppercase',
             }}>
               LUMEN
             </p>

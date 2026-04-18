@@ -6,8 +6,8 @@ export default function UpdateBanner({ update, onDownload, onInstall, onDismiss 
 
   return (
     <div className="flex items-center justify-between px-5 py-2.5"
-      style={{ background: 'rgba(126,63,242,0.04)', borderBottom: '1px solid rgba(126,63,242,0.12)' }}>
-      <div className="flex items-center gap-2 text-[13px] font-medium" style={{ color: '#7E3FF2' }}>
+      style={{ background: 'rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center gap-2 text-[13px] font-medium" style={{ color: 'var(--lumen-accent)' }}>
         {update.status === 'available' && (
           <><Download size={14} /><span>Nueva version disponible: <strong>v{update.version}</strong></span></>
         )}

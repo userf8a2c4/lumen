@@ -6,7 +6,7 @@ import {
 import Modal from '../Modal';
 import EvidenceViewer from './EvidenceViewer';
 
-const ACCENT = '#7E3FF2';
+const ACCENT = 'var(--lumen-accent)';
 
 // ─── Mime type helpers ────────────────────────────────────────────────────────
 
@@ -119,7 +119,7 @@ function UploadZone({ onFilesSelected }) {
       className="drop-zone rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-all"
       style={{
         borderColor: dragging ? ACCENT : 'var(--lumen-border)',
-        background: dragging ? 'rgba(126,63,242,0.04)' : 'transparent',
+        background: dragging ? 'rgba(255,255,255,0.06)' : 'transparent',
       }}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
@@ -127,7 +127,7 @@ function UploadZone({ onFilesSelected }) {
       onClick={() => inputRef.current?.click()}
     >
       <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
-        style={{ background: 'rgba(126,63,242,0.08)' }}>
+        style={{ background: 'rgba(255,255,255,0.06)' }}>
         <Upload size={22} style={{ color: ACCENT }} />
       </div>
       <div className="text-center">
@@ -305,7 +305,7 @@ export default function EvidenceVault() {
       {/* Header */}
       <div className="bento-card mb-4 flex items-center justify-between">
         <div className="module-header">
-          <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
+          <div className="module-icon" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <ShieldCheck size={22} style={{ color: ACCENT }} />
           </div>
           <div>
@@ -338,13 +338,13 @@ export default function EvidenceVault() {
         <div className="flex flex-wrap gap-2 mb-4">
           <button onClick={() => setFilterTag('')}
             className="px-3 py-1 rounded-full text-xs font-medium transition-all"
-            style={{ background: !filterTag ? ACCENT : 'rgba(126,63,242,0.08)', color: !filterTag ? 'white' : '#9B5BFF' }}>
+            style={{ background: !filterTag ? ACCENT : 'rgba(255,255,255,0.06)', color: !filterTag ? 'white' : 'var(--lumen-accent)' }}>
             Todas
           </button>
           {allTags.map((tag) => (
             <button key={tag} onClick={() => setFilterTag(filterTag === tag ? '' : tag)}
               className="px-3 py-1 rounded-full text-xs font-medium transition-all"
-              style={{ background: filterTag === tag ? ACCENT : 'rgba(126,63,242,0.08)', color: filterTag === tag ? 'white' : '#9B5BFF' }}>
+              style={{ background: filterTag === tag ? ACCENT : 'rgba(255,255,255,0.06)', color: filterTag === tag ? 'white' : 'var(--lumen-accent)' }}>
               <Tag size={9} className="inline mr-1" />{tag}
             </button>
           ))}
@@ -360,7 +360,7 @@ export default function EvidenceVault() {
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="w-6 h-6 border-2 rounded-full animate-spin"
-            style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: ACCENT }} />
+            style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: ACCENT }} />
         </div>
       ) : filtered.length === 0 ? (
         <div className="bento-card flex flex-col items-center justify-center py-16">
@@ -396,7 +396,7 @@ export default function EvidenceVault() {
           {uploading ? (
             <div className="flex flex-col items-center gap-3 py-10">
               <div className="w-8 h-8 border-2 rounded-full animate-spin"
-                style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: ACCENT }} />
+                style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: ACCENT }} />
               <p className="text-[13px]" style={{ color: 'var(--lumen-text-secondary)' }}>Guardando archivos...</p>
             </div>
           ) : (

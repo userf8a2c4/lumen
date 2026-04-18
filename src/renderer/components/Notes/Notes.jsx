@@ -193,8 +193,8 @@ export default function Notes() {
       {/* Header */}
       <div className="bento-card mb-4 flex items-center justify-between">
         <div className="module-header">
-          <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
-            <StickyNote size={22} style={{ color: '#7E3FF2' }} />
+          <div className="module-icon" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <StickyNote size={22} style={{ color: 'var(--lumen-accent)' }} />
           </div>
           <div>
             <h2>Notas</h2>
@@ -231,8 +231,8 @@ export default function Notes() {
             onClick={() => setFilterTag('')}
             className="px-3 py-1 rounded-full text-xs font-medium transition-all"
             style={{
-              background: !filterTag ? '#7E3FF2' : 'rgba(126,63,242,0.08)',
-              color: !filterTag ? 'white' : '#9B5BFF',
+              background: !filterTag ? 'var(--lumen-accent)' : 'rgba(255,255,255,0.06)',
+              color: !filterTag ? 'white' : 'var(--lumen-accent)',
             }}
           >
             Todas
@@ -243,8 +243,8 @@ export default function Notes() {
               onClick={() => setFilterTag(filterTag === tag ? '' : tag)}
               className="px-3 py-1 rounded-full text-xs font-medium transition-all"
               style={{
-                background: filterTag === tag ? '#7E3FF2' : 'rgba(126,63,242,0.08)',
-                color: filterTag === tag ? 'white' : '#9B5BFF',
+                background: filterTag === tag ? 'var(--lumen-accent)' : 'rgba(255,255,255,0.06)',
+                color: filterTag === tag ? 'white' : 'var(--lumen-accent)',
               }}
             >
               <Tag size={9} className="inline mr-1" />{tag}
@@ -257,7 +257,7 @@ export default function Notes() {
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="w-6 h-6 border-2 rounded-full animate-spin"
-            style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: '#7E3FF2' }} />
+            style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: 'var(--lumen-accent)' }} />
         </div>
       ) : filteredNotes.length === 0 ? (
         <div className="bento-card flex flex-col items-center justify-center py-16">

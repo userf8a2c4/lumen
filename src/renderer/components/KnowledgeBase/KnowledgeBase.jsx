@@ -65,8 +65,8 @@ export default function KnowledgeBase({ navigateTo }) {
                 onClick={() => setFilterDept('')}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium transition-colors"
                 style={{
-                  background: !filterDept ? 'rgba(126,63,242,0.08)' : 'transparent',
-                  color: !filterDept ? '#7E3FF2' : 'var(--lumen-text-secondary)',
+                  background: !filterDept ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  color: !filterDept ? 'var(--lumen-accent)' : 'var(--lumen-text-secondary)',
                 }}
               >
                 <BookOpen size={13} /> Todas ({policies.length})
@@ -167,7 +167,7 @@ export default function KnowledgeBase({ navigateTo }) {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: '#7E3FF2' }} />
+            <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: 'var(--lumen-accent)' }} />
           </div>
         ) : (
           <PolicyList

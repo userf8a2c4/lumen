@@ -11,7 +11,7 @@ export default function EvidenceViewer({ evidence, onClose, onEdit, onDelete }) 
   const [brightness,  setBrightness]  = useState(100);
   const [contrast,    setContrast]    = useState(100);
   const [tool,        setTool]        = useState(TOOLS.none);
-  const [penColor,    setPenColor]    = useState('#7E3FF2');
+  const [penColor,    setPenColor]    = useState('var(--lumen-accent)');
   const [penSize,     setPenSize]     = useState(3);
   const [annotations, setAnnotations] = useState(() => {
     try { return JSON.parse(evidence.annotations || '[]'); } catch { return []; }
@@ -35,7 +35,7 @@ export default function EvidenceViewer({ evidence, onClose, onEdit, onDelete }) 
 
     annotations.forEach((shape) => {
       ctx.save();
-      ctx.strokeStyle = shape.color || '#7E3FF2';
+      ctx.strokeStyle = shape.color || 'var(--lumen-accent)';
       ctx.lineWidth   = (shape.size || 3) / zoom;
       ctx.lineCap     = 'round';
       ctx.lineJoin    = 'round';
@@ -217,8 +217,8 @@ export default function EvidenceViewer({ evidence, onClose, onEdit, onDelete }) 
               <button key={t} onClick={() => setTool(tool === t ? TOOLS.none : t)}
                 className="p-1.5 rounded-lg transition-colors" title={label}
                 style={{
-                  background: tool === t ? 'rgba(126,63,242,0.2)' : 'transparent',
-                  color: tool === t ? '#9B5BFF' : '#8b8b9e',
+                  background: tool === t ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  color: tool === t ? 'var(--lumen-accent)' : '#8b8b9e',
                 }}>
                 {icon}
               </button>
@@ -230,7 +230,7 @@ export default function EvidenceViewer({ evidence, onClose, onEdit, onDelete }) 
               <Trash2 size={13} />
             </button>
             <button onClick={saveAnnotations} className="p-1.5 rounded-lg flex items-center gap-1" title="Guardar anotaciones"
-              style={{ color: savedAnn ? '#10b981' : '#7E3FF2' }}>
+              style={{ color: savedAnn ? '#10b981' : 'var(--lumen-accent)' }}>
               {savedAnn ? <Check size={13} /> : <Check size={13} />}
             </button>
             <div className="w-px h-5" style={{ background: 'rgba(255,255,255,0.08)' }} />

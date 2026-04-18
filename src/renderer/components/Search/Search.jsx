@@ -49,8 +49,8 @@ export default function Search() {
       {/* Search header — Bento */}
       <div className="bento-card mb-4">
         <div className="module-header mb-4">
-          <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
-            <SearchIcon size={22} style={{ color: '#7E3FF2' }} />
+          <div className="module-icon" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <SearchIcon size={22} style={{ color: 'var(--lumen-accent)' }} />
           </div>
           <div>
             <h2>Busqueda Instantanea</h2>
@@ -83,7 +83,7 @@ export default function Search() {
 
       {searching && (
         <div className="flex items-center justify-center py-12">
-          <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: '#7E3FF2' }} />
+          <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: 'var(--lumen-accent)' }} />
         </div>
       )}
 
@@ -101,7 +101,7 @@ export default function Search() {
             <div key={p.id} className="bento-card interactive">
               <div className="flex items-center gap-2 mb-1.5">
                 <h3 className="text-[13px] font-medium" style={{ color: 'var(--lumen-text)' }}>{p.name}</h3>
-                <span className="px-2.5 py-0.5 text-[10px] rounded-full font-medium" style={{ background: 'rgba(126,63,242,0.08)', color: '#7E3FF2' }}>{p.department}</span>
+                <span className="px-2.5 py-0.5 text-[10px] rounded-full font-medium" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--lumen-accent)' }}>{p.department}</span>
               </div>
               {p.description && <p className="text-xs mb-2" style={{ color: 'var(--lumen-text-secondary)' }}>{p.description}</p>}
               <div className="text-xs leading-relaxed rounded-xl p-3 mt-2"

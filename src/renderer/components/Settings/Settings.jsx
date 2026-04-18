@@ -10,7 +10,7 @@ const MODELS = [
   { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro',   desc: 'Máximo rendimiento' },
 ];
 
-const ACCENT_PRESETS = ['#7E3FF2', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
+const ACCENT_PRESETS = ['#ffffff', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
 
 // ─── Row wrapper ──────────────────────────────────────────────────────────────
 function Row({ label, icon: Icon, iconColor = 'var(--lumen-accent)', children, hint }) {
@@ -38,7 +38,7 @@ export default function Settings({ onModelChange }) {
   const [model,        setModel]        = useState('gemini-1.5-flash');
   const [email,        setEmail]        = useState('');
   const [emailInput,   setEmailInput]   = useState('');
-  const [accentColor,  setAccentColor]  = useState('#7E3FF2');
+  const [accentColor,  setAccentColor]  = useState('#ffffff');
   const [calConnected, setCalConnected] = useState(false);
   const [calBusy,      setCalBusy]      = useState(false);
   const [version,      setVersion]      = useState('');
@@ -131,8 +131,8 @@ export default function Settings({ onModelChange }) {
       {/* Page header */}
       <div className="flex items-center gap-3 mb-6">
         <div style={{
-          width: 32, height: 32, borderRadius: 8, background: 'rgba(126,63,242,0.1)',
-          border: '1px solid rgba(126,63,242,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <SettingsIcon size={15} style={{ color: 'var(--lumen-accent)' }} />
         </div>
@@ -209,11 +209,11 @@ export default function Settings({ onModelChange }) {
                 <button key={m.id} onClick={() => saveModel(m.id)}
                   style={{
                     flex: 1, padding: '10px 14px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                    background: active ? 'rgba(126,63,242,0.1)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${active ? 'rgba(126,63,242,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                    background: active ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${active ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.07)'}`,
                     transition: 'all 0.15s',
                   }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: active ? '#9B5BFF' : 'var(--lumen-text)', marginBottom: 2 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: active ? 'var(--lumen-accent)' : 'var(--lumen-text)', marginBottom: 2 }}>
                     {m.label}
                   </p>
                   <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)' }}>{m.desc}</p>
@@ -276,7 +276,7 @@ export default function Settings({ onModelChange }) {
                 width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)',
                 background: 'none', cursor: 'pointer', padding: 2,
               }} />
-            <button onClick={() => saveAccent('#7E3FF2')}
+            <button onClick={() => saveAccent('#ffffff')}
               style={{ fontSize: 11, color: 'var(--lumen-text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
               Reset
             </button>

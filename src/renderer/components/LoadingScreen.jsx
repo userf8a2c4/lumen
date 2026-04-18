@@ -3,27 +3,27 @@ import LumenLogo from './LumenLogo';
 
 export default function LoadingScreen() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen" style={{ background: 'var(--lumen-bg)' }}>
+    <div className="flex flex-col items-center justify-center h-screen" style={{ background: '#000000' }}>
       <div className="animate-fade-in-up">
-        <LumenLogo size={72} />
+        <LumenLogo size={64} />
       </div>
       <h1
-        className="text-4xl font-semibold tracking-[0.2em] animate-lumen-glow animate-fade-in-up mt-5"
-        style={{ animationDelay: '0.15s', opacity: 0, color: '#7E3FF2' }}
+        className="text-3xl font-light tracking-[0.25em] animate-fade-in-up mt-5"
+        style={{ animationDelay: '0.15s', opacity: 0, color: 'rgba(255,255,255,0.88)' }}
       >
         LUMEN
       </h1>
       <p
-        className="mt-2 text-xs font-medium tracking-widest uppercase animate-fade-in-up"
+        className="mt-2 text-[10px] font-medium tracking-widest uppercase animate-fade-in-up"
         style={{ animationDelay: '0.35s', opacity: 0, color: 'var(--lumen-text-muted)' }}
       >
         Motor de Conocimiento Personal
       </p>
       <div className="mt-8 animate-fade-in-up" style={{ animationDelay: '0.55s', opacity: 0 }}>
-        <div className="w-48 h-[3px] rounded-full overflow-hidden" style={{ background: 'var(--lumen-border)' }}>
+        <div className="w-40 h-px overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
           <div
-            className="h-full rounded-full"
-            style={{ background: 'linear-gradient(90deg, #7E3FF2, #9B5BFF)', animation: 'loadBar 1.8s ease-in-out forwards' }}
+            className="h-full"
+            style={{ background: 'rgba(255,255,255,0.55)', animation: 'loadBar 1.8s ease-in-out forwards' }}
           />
         </div>
       </div>

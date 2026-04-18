@@ -8,7 +8,7 @@ import Modal from '../Modal';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const OP_TAGS = ['reunion', 'reunión', 'cierre', 'junta', 'meeting', 'visita', 'entrega', 'pago'];
-const ACCENT  = '#7E3FF2';
+const ACCENT  = 'var(--lumen-accent)';
 
 function isOperational(event) {
   const txt = `${event.summary || ''} ${event.description || ''}`.toLowerCase();
@@ -153,7 +153,7 @@ function EventCard({ event, onEdit, onDelete, onCreateNote }) {
       className="flex items-start gap-3 px-4 py-3 rounded-2xl group transition-all"
       style={{
         background: 'var(--lumen-surface)',
-        border: `1px solid ${op ? 'rgba(126,63,242,0.25)' : 'var(--lumen-border)'}`,
+        border: `1px solid ${op ? 'rgba(255,255,255,0.06)' : 'var(--lumen-border)'}`,
         borderLeft: op ? `3px solid ${ACCENT}` : undefined,
       }}
     >
@@ -305,7 +305,7 @@ ${event.description ? `<p><strong>Descripción:</strong> ${event.description}</p
       {/* Header */}
       <div className="bento-card mb-4 flex items-center justify-between">
         <div className="module-header">
-          <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
+          <div className="module-icon" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <CalendarDays size={22} style={{ color: ACCENT }} />
           </div>
           <div>
@@ -343,7 +343,7 @@ ${event.description ? `<p><strong>Descripción:</strong> ${event.description}</p
       {!authenticated && !loading && (
         <div className="bento-card flex flex-col items-center justify-center py-14 gap-4">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ background: 'rgba(126,63,242,0.08)', border: '1px solid rgba(126,63,242,0.15)' }}>
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <WifiOff size={26} strokeWidth={1.5} style={{ color: ACCENT }} />
           </div>
           <div className="text-center">
@@ -364,7 +364,7 @@ ${event.description ? `<p><strong>Descripción:</strong> ${event.description}</p
       {loading && authenticated && (
         <div className="flex items-center justify-center py-16">
           <div className="w-6 h-6 border-2 rounded-full animate-spin"
-            style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: ACCENT }} />
+            style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: ACCENT }} />
         </div>
       )}
 

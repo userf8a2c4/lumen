@@ -15,7 +15,7 @@ import {
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const PALETTE = {
-  start:    { label: 'Inicio',   color: '#7E3FF2', border: 'rgba(126,63,242,0.4)', glass: 'rgba(126,63,242,0.06)', w: 110, h: 44 },
+  start:    { label: 'Inicio',   color: 'var(--lumen-accent)', border: 'rgba(255,255,255,0.06)', glass: 'rgba(255,255,255,0.06)', w: 110, h: 44 },
   decision: { label: 'Decisión', color: '#60a5fa', border: 'rgba(96,165,250,0.35)', glass: 'rgba(59,130,246,0.05)', w: 224, h: 82 },
   action:   { label: 'Acción',   color: '#34d399', border: 'rgba(52,211,153,0.35)', glass: 'rgba(16,185,129,0.05)', w: 204, h: 66 },
   arsenal:  { label: 'Arsenal',  color: '#fbbf24', border: 'rgba(251,191,36,0.35)', glass: 'rgba(245,158,11,0.05)', w: 204, h: 66 },
@@ -53,7 +53,7 @@ const ARROW_DEFS = (
       <marker key={k} id={`arr-${k}`} viewBox="0 0 10 10"
         refX={8} refY={5} markerWidth={6} markerHeight={6} orient="auto-start-reverse">
         <path d="M 0 1 L 9 5 L 0 9 z"
-          fill={k === 'temp' ? '#7E3FF2' : (HANDLE_COLOR[k] || '#6b7280')} />
+          fill={k === 'temp' ? 'var(--lumen-accent)' : (HANDLE_COLOR[k] || '#6b7280')} />
       </marker>
     ))}
   </defs>
@@ -77,7 +77,7 @@ function ConnLine({ conn, nodes, selected, onClick }) {
     <g onClick={onClick} style={{ cursor: 'pointer' }}>
       <path d={bezier(sh.x, sh.y, th.x, th.y)} fill="none" stroke="transparent" strokeWidth={14} />
       <path d={bezier(sh.x, sh.y, th.x, th.y)} fill="none"
-        stroke={selected ? '#9B5BFF' : col}
+        stroke={selected ? 'var(--lumen-accent)' : col}
         strokeWidth={selected ? 2.5 : 1.5}
         opacity={0.8}
         markerEnd={`url(#arr-${conn.fromHandle})`} />
@@ -109,13 +109,13 @@ function FlowNode({ node, selected, connecting, onMouseDown, onHandleDown, onHan
         left: node.x, top: node.y,
         width: p.w, height: p.h,
         background: selected
-          ? `rgba(126,63,242,0.1)`
+          ? `rgba(255,255,255,0.06)`
           : p.glass,
         backdropFilter: 'blur(12px)',
-        border: `1px solid ${selected ? 'rgba(126,63,242,0.6)' : p.border}`,
+        border: `1px solid ${selected ? 'rgba(255,255,255,0.06)' : p.border}`,
         borderRadius: node.type === 'start' ? 22 : 12,
         boxShadow: selected
-          ? `0 0 0 2px rgba(126,63,242,0.25), 0 4px 20px rgba(0,0,0,0.5)`
+          ? `0 0 0 2px rgba(255,255,255,0.06), 0 4px 20px rgba(0,0,0,0.5)`
           : `0 2px 12px rgba(0,0,0,0.4)`,
         cursor: 'grab',
         userSelect: 'none',
@@ -182,11 +182,11 @@ function FlowNode({ node, selected, connecting, onMouseDown, onHandleDown, onHan
               position: 'absolute',
               left: hp.x - node.x - 6, top: hp.y - node.y - 6,
               width: 12, height: 12, borderRadius: '50%',
-              background: active ? '#7E3FF2' : HANDLE_COLOR[hk] || '#6b7280',
+              background: active ? 'var(--lumen-accent)' : HANDLE_COLOR[hk] || '#6b7280',
               border: '1.5px solid rgba(0,0,0,0.6)',
               cursor: isOut ? 'crosshair' : (active ? 'pointer' : 'default'),
               zIndex: 20,
-              boxShadow: active ? '0 0 0 4px rgba(126,63,242,0.3)' : 'none',
+              boxShadow: active ? '0 0 0 4px rgba(255,255,255,0.06)' : 'none',
               transition: 'box-shadow 0.15s, background 0.15s',
             }}
           />
@@ -319,7 +319,7 @@ function FlowList({ flows, onCreate, onOpen, onDelete }) {
       {/* Header */}
       <div className="bento-card mb-4 flex items-center justify-between">
         <div className="module-header">
-          <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
+          <div className="module-icon" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <GitBranch size={22} style={{ color: 'var(--lumen-accent)' }} />
           </div>
           <div>
@@ -375,7 +375,7 @@ function FlowList({ flows, onCreate, onOpen, onDelete }) {
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(126,63,242,0.08)' }}>
+                    style={{ background: 'rgba(255,255,255,0.06)' }}>
                     <GitBranch size={17} style={{ color: 'var(--lumen-accent)' }} />
                   </div>
                   <div>
@@ -659,12 +659,12 @@ function FlowEditor({ flow: init, onBack, onFlowUpdated }) {
         <button onClick={() => save('published')} disabled={saving}
           style={{
             display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px',
-            background: 'linear-gradient(135deg, #7E3FF2 0%, #9B5BFF 100%)',
+            background: 'linear-gradient(135deg, var(--lumen-accent) 0%, var(--lumen-accent) 100%)',
             border: 'none', borderRadius: 9, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'white',
-            boxShadow: '0 2px 12px rgba(126,63,242,0.35)', transition: 'all 0.15s',
+            boxShadow: '0 2px 12px rgba(255,255,255,0.06)', transition: 'all 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(126,63,242,0.5)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(126,63,242,0.35)'; }}>
+          onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,255,255,0.06)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(255,255,255,0.06)'; }}>
           <Play size={12} /> Publicar
         </button>
       </div>
@@ -701,7 +701,7 @@ function FlowEditor({ flow: init, onBack, onFlowUpdated }) {
               if (!sh) return null;
               return (
                 <path d={bezier(sh.x, sh.y, connecting.tx, connecting.ty)}
-                  fill="none" stroke="#7E3FF2" strokeWidth={1.5} strokeDasharray="6 3"
+                  fill="none" stroke="var(--lumen-accent)" strokeWidth={1.5} strokeDasharray="6 3"
                   opacity={0.65} markerEnd="url(#arr-temp)"
                   style={{ pointerEvents: 'none' }} />
               );
@@ -729,7 +729,7 @@ function FlowEditor({ flow: init, onBack, onFlowUpdated }) {
         {/* Empty hint */}
         {nodes.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-            <GitBranch size={52} strokeWidth={0.8} style={{ color: 'rgba(126,63,242,0.12)', marginBottom: 14 }} />
+            <GitBranch size={52} strokeWidth={0.8} style={{ color: 'rgba(255,255,255,0.06)', marginBottom: 14 }} />
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.12)', textAlign: 'center', lineHeight: 1.7 }}>
               Agrega nodos desde la barra superior<br />
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.07)' }}>
@@ -743,9 +743,9 @@ function FlowEditor({ flow: init, onBack, onFlowUpdated }) {
         {connecting && (
           <div style={{
             position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(126,63,242,0.12)', backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(126,63,242,0.3)', borderRadius: 20,
-            padding: '5px 16px', fontSize: 11, color: '#9B5BFF', pointerEvents: 'none',
+            background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.06)', borderRadius: 20,
+            padding: '5px 16px', fontSize: 11, color: 'var(--lumen-accent)', pointerEvents: 'none',
             whiteSpace: 'nowrap',
           }}>
             Haz clic en la entrada ● de otro nodo &nbsp;·&nbsp; Escape para cancelar
@@ -787,7 +787,7 @@ export default function LogicDesigner() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'rgba(126,63,242,0.2)', borderTopColor: 'var(--lumen-accent)' }} />
+          style={{ borderColor: 'rgba(255,255,255,0.06)', borderTopColor: 'var(--lumen-accent)' }} />
       </div>
     );
   }

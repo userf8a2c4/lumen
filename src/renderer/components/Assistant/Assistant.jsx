@@ -17,7 +17,7 @@ function AccordionSection({ title, icon: Icon, count, color, defaultOpen = true,
     green: { border: '#10b981', bg: 'rgba(16,185,129,0.08)', text: '#10b981', badge: 'rgba(16,185,129,0.12)' },
     blue: { border: '#3b82f6', bg: 'rgba(59,130,246,0.08)', text: '#60a5fa', badge: 'rgba(59,130,246,0.12)' },
     orange: { border: '#f59e0b', bg: 'rgba(245,158,11,0.08)', text: '#fbbf24', badge: 'rgba(245,158,11,0.12)' },
-    violet: { border: '#7E3FF2', bg: 'rgba(126,63,242,0.08)', text: '#7E3FF2', badge: 'rgba(126,63,242,0.12)' },
+    violet: { border: 'var(--lumen-accent)', bg: 'rgba(255,255,255,0.06)', text: 'var(--lumen-accent)', badge: 'rgba(255,255,255,0.06)' },
     pink: { border: '#ec4899', bg: 'rgba(236,72,153,0.08)', text: '#ec4899', badge: 'rgba(236,72,153,0.12)' },
   };
   const c = colors[color] || colors.violet;
@@ -140,9 +140,9 @@ export default function Assistant({ userName = 'Lu' }) {
 
   const renderAnalysis = (text) =>
     text.split('\n').map((line, i) => {
-      if (line.startsWith('### ')) return <h3 key={i} className="font-semibold text-[13px] mt-4 mb-1.5" style={{ color: '#9B5BFF' }}>{line.slice(4)}</h3>;
-      if (line.startsWith('## ')) return <h2 key={i} className="font-semibold mt-4 mb-1.5" style={{ color: '#9B5BFF' }}>{line.slice(3)}</h2>;
-      if (line.startsWith('# ')) return <h1 key={i} className="font-bold text-lg mt-4 mb-1.5" style={{ color: '#9B5BFF' }}>{line.slice(2)}</h1>;
+      if (line.startsWith('### ')) return <h3 key={i} className="font-semibold text-[13px] mt-4 mb-1.5" style={{ color: 'var(--lumen-accent)' }}>{line.slice(4)}</h3>;
+      if (line.startsWith('## ')) return <h2 key={i} className="font-semibold mt-4 mb-1.5" style={{ color: 'var(--lumen-accent)' }}>{line.slice(3)}</h2>;
+      if (line.startsWith('# ')) return <h1 key={i} className="font-bold text-lg mt-4 mb-1.5" style={{ color: 'var(--lumen-accent)' }}>{line.slice(2)}</h1>;
       if (line.match(/^\*\*.*\*\*/)) {
         const f = line.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--lumen-text)">$1</strong>');
         return <p key={i} className="text-[13px] mb-1" style={{ color: 'var(--lumen-text-secondary)' }} dangerouslySetInnerHTML={{ __html: f }} />;
@@ -168,8 +168,8 @@ export default function Assistant({ userName = 'Lu' }) {
       {/* Header — Bento card con saludo */}
       <div className="bento-card mb-4">
         <div className="module-header">
-          <div className="module-icon" style={{ background: 'rgba(126,63,242,0.08)' }}>
-            <Bot size={22} style={{ color: '#7E3FF2' }} />
+          <div className="module-icon" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <Bot size={22} style={{ color: 'var(--lumen-accent)' }} />
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between">
@@ -202,16 +202,16 @@ export default function Assistant({ userName = 'Lu' }) {
             disabled={loading}
             className="dark-input resize-y leading-relaxed"
             placeholder="Describe el caso... o arrastra una imagen / PDF aqui"
-            style={{ borderStyle: dragOver ? 'dashed' : 'solid', borderColor: dragOver ? 'rgba(126,63,242,0.4)' : undefined }}
+            style={{ borderStyle: dragOver ? 'dashed' : 'solid', borderColor: dragOver ? 'rgba(255,255,255,0.06)' : undefined }}
           />
         </div>
 
         {/* Attachment preview */}
         {attachment && (
           <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl"
-            style={{ background: 'rgba(126,63,242,0.06)', border: '1px solid rgba(126,63,242,0.15)' }}>
-            <Image size={13} style={{ color: '#7E3FF2' }} />
-            <span className="text-[11px] flex-1 truncate" style={{ color: '#9B5BFF' }}>{attachment.name}</span>
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <Image size={13} style={{ color: 'var(--lumen-accent)' }} />
+            <span className="text-[11px] flex-1 truncate" style={{ color: 'var(--lumen-accent)' }}>{attachment.name}</span>
             <span className="text-[10px]" style={{ color: 'var(--lumen-text-muted)' }}>{attachment.mimeType}</span>
             <button onClick={() => setAttachment(null)} className="p-0.5 rounded hover:opacity-70">
               <X size={12} style={{ color: 'var(--lumen-text-muted)' }} />
@@ -229,17 +229,17 @@ export default function Assistant({ userName = 'Lu' }) {
                 onClick={() => setSelectedModel(m.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[11px] font-medium transition-all"
                 style={{
-                  background: selectedModel === m.id ? 'rgba(126,63,242,0.12)' : 'transparent',
-                  color: selectedModel === m.id ? '#7E3FF2' : 'var(--lumen-text-muted)',
-                  border: selectedModel === m.id ? '1px solid rgba(126,63,242,0.2)' : '1px solid transparent',
+                  background: selectedModel === m.id ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  color: selectedModel === m.id ? 'var(--lumen-accent)' : 'var(--lumen-text-muted)',
+                  border: selectedModel === m.id ? '1px solid rgba(255,255,255,0.06)' : '1px solid transparent',
                 }}
               >
                 <Zap size={11} />
                 {m.label}
                 <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold"
                   style={{
-                    background: selectedModel === m.id ? 'rgba(126,63,242,0.15)' : 'rgba(0,0,0,0.06)',
-                    color: selectedModel === m.id ? '#9B5BFF' : 'var(--lumen-text-muted)',
+                    background: selectedModel === m.id ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                    color: selectedModel === m.id ? 'var(--lumen-accent)' : 'var(--lumen-text-muted)',
                   }}>
                   {m.sublabel}
                 </span>
@@ -277,7 +277,7 @@ export default function Assistant({ userName = 'Lu' }) {
           <label className="btn-ghost !py-2 !px-3 cursor-pointer" title="Adjuntar imagen o PDF (Vision)">
             <Paperclip size={13} />
             {!attachment && <span className="text-[11px]">Adjuntar</span>}
-            {attachment && <span className="text-[11px]" style={{ color: '#9B5BFF' }}>1 archivo</span>}
+            {attachment && <span className="text-[11px]" style={{ color: 'var(--lumen-accent)' }}>1 archivo</span>}
             <input
               type="file"
               className="sr-only"
@@ -460,11 +460,11 @@ export default function Assistant({ userName = 'Lu' }) {
           )}
 
           <AccordionSection title="Analisis de Gemini" icon={Sparkles} count={0} color="violet" defaultOpen={true}>
-            <div className="rounded-2xl p-4" style={{ background: 'rgba(126,63,242,0.04)', border: '1px solid rgba(126,63,242,0.15)' }}>
+            <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={13} style={{ color: '#7E3FF2' }} />
-                  <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#7E3FF2' }}>Procedimiento recomendado</span>
+                  <Sparkles size={13} style={{ color: 'var(--lumen-accent)' }} />
+                  <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--lumen-accent)' }}>Procedimiento recomendado</span>
                   {result.searchMode === 'expanded' && (
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold"
                       style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa' }}>
