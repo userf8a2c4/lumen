@@ -8,3 +8,4 @@ release/
 thumbs.db
 .DS_Store
 src/main/gcal-config.js
+src/main/gemini-config.js

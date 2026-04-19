@@ -7,6 +7,10 @@ const { initUpdater, checkForUpdates, downloadUpdate, installUpdate } = require(
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const cal = require('./calendar');
 
+// Embedded API key (injected at build time via CI secrets, gitignored)
+let _geminiCfg = {};
+try { _geminiCfg = require('./gemini-config'); } catch { /* no local config */ }
+
 // Register lumen:// scheme BEFORE app is ready (required by Electron)
 protocol.registerSchemesAsPrivileged([
   { scheme: 'lumen', privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true } },
@@ -35,13 +39,17 @@ function saveApiKey(key) {
 }
 
 function getApiKey() {
-  if (!fs.existsSync(API_KEY_PATH)) return null;
-  try {
-    const encrypted = fs.readFileSync(API_KEY_PATH);
-    return safeStorage.decryptString(encrypted);
-  } catch {
-    return null;
+  // 1. User-configured key (takes priority — allows developer override)
+  if (fs.existsSync(API_KEY_PATH)) {
+    try {
+      const encrypted = fs.readFileSync(API_KEY_PATH);
+      const key = safeStorage.decryptString(encrypted);
+      if (key && key.length > 10) return key;
+    } catch { /* fall through */ }
   }
+  // 2. Embedded key (injected at build time — works out of the box for end users)
+  const embedded = process.env.GEMINI_API_KEY || _geminiCfg.GEMINI_API_KEY || '';
+  return embedded || null;
 }
 
 // --- Local-first analysis (no API needed) ---
