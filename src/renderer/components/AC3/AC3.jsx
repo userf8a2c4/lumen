@@ -412,26 +412,34 @@ export default function AC3() {
               <p style={{ fontSize: 12, color: 'var(--lumen-text-secondary)', lineHeight: 1.55 }}>{displayDecision.resultado_deseado}</p>
 
               {displayDecision.contacto_sugerido && (
-                <><SectionDivider label="Contacto asignado" />
-                <p style={{ fontSize: 12, color: 'var(--lumen-text)', fontWeight: 500 }}>{displayDecision.contacto_sugerido}</>)}
+                <>
+                  <SectionDivider label="Contacto asignado" />
+                  <p style={{ fontSize: 12, color: 'var(--lumen-text)', fontWeight: 500 }}>{displayDecision.contacto_sugerido}</p>
+                </>
+              )}
 
               {displayDecision.notas_internas && (
-                <><SectionDivider label="Notas internas" />
-                <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', lineHeight: 1.55, fontStyle: 'italic' }}>{displayDecision.notas_internas}</>)}
+                <>
+                  <SectionDivider label="Notas internas" />
+                  <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', lineHeight: 1.55, fontStyle: 'italic' }}>{displayDecision.notas_internas}</p>
+                </>
+              )}
 
               {/* Status (history mode) */}
               {isHistoryView && (
-                <><SectionDivider label="Estado del caso" />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {Object.entries(STATUS_LABEL).map(([key, lbl]) => (
-                    <button key={key} onClick={() => handleStatusChange(activeHistCase.id, key)} style={{
-                      padding: '5px 12px', fontSize: 11, borderRadius: 3, cursor: 'pointer',
-                      border: '1px solid var(--lumen-border)',
-                      background: activeHistCase.status === key ? 'rgba(255,255,255,0.08)' : 'transparent',
-                      color: activeHistCase.status === key ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
-                    }}>{lbl}</button>
-                  ))}
-                </div></>
+                <>
+                  <SectionDivider label="Estado del caso" />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {Object.entries(STATUS_LABEL).map(([key, lbl]) => (
+                      <button key={key} onClick={() => handleStatusChange(activeHistCase.id, key)} style={{
+                        padding: '5px 12px', fontSize: 11, borderRadius: 3, cursor: 'pointer',
+                        border: '1px solid var(--lumen-border)',
+                        background: activeHistCase.status === key ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        color: activeHistCase.status === key ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
+                      }}>{lbl}</button>
+                    ))}
+                  </div>
+                </>
               )}
 
               {/* Action buttons (triage mode only) */}
