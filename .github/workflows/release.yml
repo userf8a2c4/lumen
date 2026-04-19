@@ -40,7 +40,18 @@ jobs:
       - name: Build Vite (renderer)
         run: npm run build
 
-      - name: Build and Publish
+      - name: Build with electron-builder
+        run: npx electron-builder --win --dir
+
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish always
+        shell: pwsh
+        run: |
+          $exeFile = Get-ChildItem -Path "release" -Name "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($exeFile) {
+            gh release create $env:GITHUB_REF_NAME "release/$exeFile" --generate-notes --draft=false
+          } else {
+            Write-Error "No .exe file found in release directory"
+            exit 1
+          }
