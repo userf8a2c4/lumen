@@ -25,6 +25,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Inject Google OAuth credentials
+        env:
+          GCID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GCSE: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        shell: pwsh
+        run: |
+          $content = "module.exports = { GOOGLE_CLIENT_ID: '$env:GCID', GOOGLE_CLIENT_SECRET: '$env:GCSE' };"
+          Set-Content -Path src/main/gcal-config.js -Value $content -Encoding UTF8
+
       - name: Build Vite (renderer)
         run: npm run build
 

@@ -7,3 +7,4 @@ release/
 *.log
 thumbs.db
 .DS_Store
+src/main/gcal-config.js

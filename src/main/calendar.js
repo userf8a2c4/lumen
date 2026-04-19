@@ -15,13 +15,13 @@ const OAUTH_SCOPES = 'https://www.googleapis.com/auth/calendar';
 const CAL_HOST     = 'www.googleapis.com';
 const TOKEN_HOST   = 'oauth2.googleapis.com';
 
-// ─── OAuth App Credentials (embedded — set once by the app owner) ─────────────
-// 1. Ve a console.cloud.google.com → APIs → Credenciales → OAuth 2.0
-// 2. Tipo: Aplicación de escritorio
-// 3. Habilita: Google Calendar API
-// 4. Copia Client ID y Client Secret aqui
-const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || '';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+// ─── OAuth App Credentials ────────────────────────────────────────────────────
+// Loaded from gcal-config.js (gitignored, injected at build time via CI secrets)
+// or from environment variables if set.
+let _gcalCfg = {};
+try { _gcalCfg = require('./gcal-config'); } catch { /* no local config — use env */ }
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || _gcalCfg.GOOGLE_CLIENT_ID     || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || _gcalCfg.GOOGLE_CLIENT_SECRET || '';
 
 // ─── Token persistence ───────────────────────────────────────────────────────
 
