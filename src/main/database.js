@@ -203,13 +203,18 @@ async function initDatabase() {
     db.run('ALTER TABLE contacts ADD COLUMN notes TEXT NOT NULL DEFAULT ""');
   } catch {}
 
-  // Default settings
-  const existing = queryOne('SELECT key FROM settings WHERE key = ?', ['model']);
-  if (!existing) {
-    db.run('INSERT INTO settings (key, value) VALUES (?, ?)', ['model', 'gemini-1.5-flash']);
-  } else if (existing && (existing.value || '').includes('claude')) {
-    // Migrate from Anthropic to Gemini
-    db.run("UPDATE settings SET value = 'gemini-1.5-flash' WHERE key = 'model'");
+  // ac3_cases: add new columns if upgrading from older schema
+  try { db.run('ALTER TABLE ac3_cases ADD COLUMN image_path TEXT'); } catch {}
+  try { db.run('ALTER TABLE ac3_cases ADD COLUMN calendar_event_id TEXT'); } catch {}
+
+  // Default settings — always use gemini-2.0-flash as default
+  const existingModel = queryOne('SELECT value FROM settings WHERE key = ?', ['model']);
+  if (!existingModel) {
+    db.run('INSERT INTO settings (key, value) VALUES (?, ?)', ['model', 'gemini-2.0-flash']);
+  } else if (existingModel.value && existingModel.value.includes('gemini-1.')) {
+    // Migrate from deprecated gemini-1.5 models
+    const newModel = existingModel.value.includes('pro') ? 'gemini-2.5-pro' : 'gemini-2.0-flash';
+    db.run('UPDATE settings SET value = ? WHERE key = ?', [newModel, 'model']);
   }
 
   save();
@@ -589,8 +594,8 @@ function createAC3Case(data) {
     `INSERT INTO ac3_cases
       (case_description, categoria, confianza, tipo_decision, urgencia, resumen_ejecutivo,
        dri, plazo_horas, politica_aplicable, pasos_accion, criterio_escalacion,
-       contacto_sugerido, resultado_deseado, notas_internas)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       contacto_sugerido, resultado_deseado, notas_internas, image_path, calendar_event_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.case_description,
       data.categoria || 'amenidades',
@@ -606,12 +611,22 @@ function createAC3Case(data) {
       data.contacto_sugerido || null,
       data.resultado_deseado || '',
       data.notas_internas || '',
+      data.image_path || null,
+      data.calendar_event_id || null,
     ]
   );
   const id = getLastId();
   const row = queryOne('SELECT * FROM ac3_cases WHERE id = ?', [id]);
   if (row) row.pasos_accion = JSON.parse(row.pasos_accion || '[]');
   return row;
+}
+
+function updateAC3CalendarId(id, calendarEventId) {
+  runAndSave('UPDATE ac3_cases SET calendar_event_id = ? WHERE id = ?', [calendarEventId, id]);
+}
+
+function updateAC3ImagePath(id, imagePath) {
+  runAndSave('UPDATE ac3_cases SET image_path = ? WHERE id = ?', [imagePath, id]);
 }
 
 function getAllAC3Cases() {
@@ -680,5 +695,7 @@ module.exports = {
   createAC3Case,
   getAllAC3Cases,
   updateAC3CaseStatus,
+  updateAC3CalendarId,
+  updateAC3ImagePath,
   deleteAC3Case,
 };

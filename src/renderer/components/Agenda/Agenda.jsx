@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   CalendarDays, Plus, RefreshCw, Wifi, WifiOff, ChevronRight,
-  Clock, Pencil, Trash2, X, Check, StickyNote, AlertCircle,
+  Clock, Pencil, Trash2, X, Check, StickyNote, AlertCircle, Image,
 } from 'lucide-react';
 import Modal from '../Modal';
 
@@ -145,51 +145,83 @@ function EventForm({ initial, onSave, onCancel }) {
 // ─── Event card ───────────────────────────────────────────────────────────────
 
 function EventCard({ event, onEdit, onDelete, onCreateNote }) {
-  const op    = isOperational(event);
-  const time  = formatTime(event.start);
+  const op       = isOperational(event);
+  const time     = formatTime(event.start);
+  const isAC3    = event.extendedProperties?.private?.lumenAC3 === 'true'
+                || (event.summary || '').startsWith('[AC3]');
+  const ac3Img   = event.extendedProperties?.private?.lumenImagePath || '';
+  const [imgOpen, setImgOpen] = React.useState(false);
 
   return (
     <div
-      className="flex items-start gap-3 px-4 py-3 rounded-2xl group transition-all"
+      className="rounded-2xl group transition-all"
       style={{
         background: 'var(--lumen-surface)',
-        border: `1px solid ${op ? 'rgba(255,255,255,0.06)' : 'var(--lumen-border)'}`,
-        borderLeft: op ? `3px solid ${ACCENT}` : undefined,
+        border: `1px solid ${isAC3 ? 'rgba(255,255,255,0.14)' : op ? 'rgba(255,255,255,0.06)' : 'var(--lumen-border)'}`,
+        borderLeft: isAC3 ? '2px solid rgba(255,255,255,0.45)' : op ? `2px solid ${ACCENT}` : undefined,
       }}
     >
-      {/* Time */}
-      <div className="flex items-center gap-1 shrink-0 mt-0.5" style={{ color: 'var(--lumen-text-muted)' }}>
-        <Clock size={11} />
-        <span className="text-[11px] font-mono w-[52px]">{time}</span>
+      <div className="flex items-start gap-3 px-4 py-3">
+        {/* Time */}
+        <div className="flex items-center gap-1 shrink-0 mt-0.5" style={{ color: 'var(--lumen-text-muted)' }}>
+          <Clock size={11} />
+          <span className="text-[11px] font-mono w-[52px]">{time}</span>
+        </div>
+
+        {/* Title + description */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-[13px] font-medium truncate" style={{ color: isAC3 ? 'var(--lumen-text)' : op ? ACCENT : 'var(--lumen-text)' }}>
+              {event.summary || '(Sin título)'}
+            </p>
+            {isAC3 && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase',
+                padding: '1px 6px', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 2,
+                color: 'var(--lumen-text-secondary)',
+              }}>AC3</span>
+            )}
+          </div>
+          {event.description && (
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--lumen-text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {event.description}
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {isAC3 && ac3Img && (
+            <button onClick={() => setImgOpen(!imgOpen)} title="Ver imagen adjunta"
+              className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--lumen-text-muted)' }}>
+              <ChevronRight size={12} style={{ transform: imgOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+            </button>
+          )}
+          <button onClick={() => onCreateNote(event)} title="Crear nota de junta"
+            className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--lumen-text-muted)' }}>
+            <StickyNote size={12} />
+          </button>
+          <button onClick={() => onEdit(event)} className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--lumen-text-muted)' }}>
+            <Pencil size={12} />
+          </button>
+          <button onClick={() => onDelete(event)} className="p-1.5 rounded-lg transition-colors"
+            style={{ color: '#f87171' }}>
+            <Trash2 size={12} />
+          </button>
+        </div>
       </div>
 
-      {/* Title + description */}
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium truncate" style={{ color: op ? ACCENT : 'var(--lumen-text)' }}>
-          {event.summary || '(Sin título)'}
-        </p>
-        {event.description && (
-          <p className="text-[11px] mt-0.5 line-clamp-1" style={{ color: 'var(--lumen-text-muted)' }}>
-            {event.description}
-          </p>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <button onClick={() => onCreateNote(event)} title="Crear nota de junta"
-          className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--lumen-text-muted)' }}>
-          <StickyNote size={12} />
-        </button>
-        <button onClick={() => onEdit(event)} className="p-1.5 rounded-lg transition-colors"
-          style={{ color: 'var(--lumen-text-muted)' }}>
-          <Pencil size={12} />
-        </button>
-        <button onClick={() => onDelete(event)} className="p-1.5 rounded-lg transition-colors"
-          style={{ color: '#f87171' }}>
-          <Trash2 size={12} />
-        </button>
-      </div>
+      {/* AC3 image preview — expands on click */}
+      {isAC3 && ac3Img && imgOpen && (
+        <div style={{ padding: '0 16px 14px', borderTop: '1px solid var(--lumen-border)' }}>
+          <img
+            src={`lumen://${ac3Img}`}
+            alt="Imagen del caso AC3"
+            style={{ width: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 3, marginTop: 10, border: '1px solid var(--lumen-border)', background: 'rgba(0,0,0,0.4)' }}
+          />
+        </div>
+      )}
     </div>
   );
 }

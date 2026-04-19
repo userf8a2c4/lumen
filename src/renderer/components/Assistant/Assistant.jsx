@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 
 const GEMINI_MODELS = [
-  { id: 'gemini-1.5-flash', label: 'Balanceado', sublabel: 'Pro' },
-  { id: 'gemini-1.5-pro', label: 'Maximo Rendimiento', sublabel: 'Ultra' },
+  { id: 'gemini-2.0-flash', label: 'Balanceado', sublabel: 'Pro' },
+  { id: 'gemini-2.5-pro', label: 'Maximo Rendimiento', sublabel: 'Ultra' },
 ];
 
 function AccordionSection({ title, icon: Icon, count, color, defaultOpen = true, glow = false, children }) {
@@ -58,7 +58,7 @@ export default function Assistant({ userName = 'Lu' }) {
   const [emailContext, setEmailContext] = useState('');
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [generatingEmail, setGeneratingEmail] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
   const [searchMode, setSearchMode] = useState('local'); // 'local' | 'expanded'
   const [attachment, setAttachment] = useState(null); // { name, mimeType, data (base64) }
   const [dragOver, setDragOver] = useState(false);

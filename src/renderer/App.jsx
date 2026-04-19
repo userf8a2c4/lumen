@@ -45,7 +45,7 @@ export default function App() {
   const [update, setUpdate] = useState(null);
   const [syncStatus, setSyncStatus] = useState('idle');
   const [version, setVersion] = useState('1.0.0');
-  const [model, setModel] = useState('gemini-1.5-flash');
+  const [model, setModel] = useState('gemini-2.0-flash');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [userName, setUserName] = useState('Lu');

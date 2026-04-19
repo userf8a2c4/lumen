@@ -118,7 +118,7 @@ async function analyzeCase(caseDescription, options = {}) {
   if (!apiKey) {
     throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
   }
-  const modelId = options.model || db.getSetting('model') || 'gemini-1.5-flash';
+  const modelId = options.model || db.getSetting('model') || 'gemini-2.0-flash';
 
   let policiesContext = '';
   if (policies.length > 0) {
@@ -265,7 +265,7 @@ async function triageCase(caseDescription, options = {}) {
   const departments = [...new Set(policies.map((p) => p.department))];
   const contacts    = db.getContactsByDepartments(departments.length > 0 ? departments : ['General']);
   const notes       = db.searchNotesForAI(caseDescription);
-  const modelId     = options.model || db.getSetting('model') || 'gemini-1.5-flash';
+  const modelId     = options.model || db.getSetting('model') || 'gemini-2.0-flash';
 
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -337,7 +337,7 @@ async function generateEmail(context, options = {}) {
     throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
   }
 
-  const modelId = options.model || db.getSetting('model') || 'gemini-1.5-flash';
+  const modelId = options.model || db.getSetting('model') || 'gemini-2.0-flash';
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const geminiModel = genAI.getGenerativeModel({
@@ -430,7 +430,7 @@ function registerHandlers() {
     return key.slice(0, 7) + '...' + key.slice(-4);
   });
   ipcMain.handle('settings:setApiKey', (_e, key) => saveApiKey(key));
-  ipcMain.handle('settings:getModel', () => db.getSetting('model') || 'gemini-1.5-flash');
+  ipcMain.handle('settings:getModel', () => db.getSetting('model') || 'gemini-2.0-flash');
   ipcMain.handle('settings:setModel', (_e, model) => db.setSetting('model', model));
   ipcMain.handle('settings:getTheme', () => db.getSetting('theme') || 'dark');
   ipcMain.handle('settings:setTheme', (_e, theme) => db.setSetting('theme', theme));
@@ -533,9 +533,62 @@ function registerHandlers() {
   ipcMain.handle('ac3:saveCase', (_e, caseDesc, decision) => {
     return db.createAC3Case({ case_description: caseDesc, ...decision });
   });
-  ipcMain.handle('ac3:getCases',       ()           => db.getAllAC3Cases());
-  ipcMain.handle('ac3:updateStatus',   (_e, id, st) => db.updateAC3CaseStatus(id, st));
-  ipcMain.handle('ac3:deleteCase',     (_e, id)     => db.deleteAC3Case(id));
+  ipcMain.handle('ac3:getCases',        ()            => db.getAllAC3Cases());
+  ipcMain.handle('ac3:updateStatus',    (_e, id, st)  => db.updateAC3CaseStatus(id, st));
+  ipcMain.handle('ac3:deleteCase',      (_e, id)      => db.deleteAC3Case(id));
+
+  // AC3: image + calendar
+  ipcMain.handle('ac3:saveImage', (_e, fileName, base64Data) => {
+    const ext      = path.extname(fileName) || '.jpg';
+    const safeName = `ac3_${Date.now()}${ext}`;
+    const filePath = path.join(ATTACHMENTS_DIR, safeName);
+    fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+    return `attachments/${safeName}`;
+  });
+  ipcMain.handle('ac3:updateImagePath',   (_e, id, p)    => db.updateAC3ImagePath(id, p));
+  ipcMain.handle('ac3:updateCalendarId',  (_e, id, calId)=> db.updateAC3CalendarId(id, calId));
+  ipcMain.handle('ac3:pushToCalendar', async (_e, decision, caseDesc, imagePath) => {
+    const URGENCY_COLOR = { critica: '11', alta: '6', media: '9', baja: '2' };
+    const CAT_LABEL     = { finanzas: 'FINANZAS', legal: 'LEGAL', tecnico: 'TÉCNICO', amenidades: 'AMENIDADES' };
+    const now      = new Date();
+    const deadline = new Date(now.getTime() + (decision.plazo_horas || 24) * 3_600_000);
+    const description = [
+      `CATEGORÍA: ${CAT_LABEL[decision.categoria] || decision.categoria} | ${decision.tipo_decision}`,
+      `URGENCIA: ${(decision.urgencia || '').toUpperCase()} | PLAZO: ${decision.plazo_horas}h`,
+      `DRI: ${decision.dri}`,
+      '',
+      `RESUMEN\n${decision.resumen_ejecutivo}`,
+      '',
+      `PASOS DE ACCIÓN\n${(decision.pasos_accion || []).map((s, i) => `${i + 1}. ${s}`).join('\n')}`,
+      '',
+      decision.politica_aplicable  ? `POLÍTICA: ${decision.politica_aplicable}`       : null,
+      decision.criterio_escalacion ? `ESCALAR SI: ${decision.criterio_escalacion}`    : null,
+      decision.resultado_deseado   ? `RESULTADO: ${decision.resultado_deseado}`        : null,
+      decision.contacto_sugerido   ? `CONTACTO: ${decision.contacto_sugerido}`         : null,
+      decision.notas_internas      ? `\nNOTAS\n${decision.notas_internas}`             : null,
+      imagePath                    ? `[IMAGEN: ${imagePath}]`                          : null,
+      '─────────────────',
+      'Registrado por LUMEN AC3',
+      `Caso: ${caseDesc.slice(0, 180)}${caseDesc.length > 180 ? '…' : ''}`,
+    ].filter(Boolean).join('\n');
+
+    const event = {
+      summary:     `[AC3] ${CAT_LABEL[decision.categoria] || 'CASO'} — ${decision.resumen_ejecutivo}`,
+      description,
+      start:       { dateTime: now.toISOString() },
+      end:         { dateTime: deadline.toISOString() },
+      colorId:     URGENCY_COLOR[decision.urgencia] || '9',
+      extendedProperties: {
+        private: {
+          lumenAC3:       'true',
+          lumenCategoria: decision.categoria || '',
+          lumenUrgencia:  decision.urgencia  || '',
+          lumenImagePath: imagePath          || '',
+        },
+      },
+    };
+    return await cal.createEvent(event);
+  });
 
   // Updater
   ipcMain.handle('updater:check', () => checkForUpdates());

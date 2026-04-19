@@ -2,8 +2,8 @@ import React from 'react';
 import { Github, Cpu } from 'lucide-react';
 
 const MODEL_LABELS = {
-  'gemini-1.5-flash': 'Gemini Flash',
-  'gemini-1.5-pro': 'Gemini Pro',
+  'gemini-2.0-flash': 'Gemini Flash',
+  'gemini-2.5-pro': 'Gemini Pro',
 };
 
 const SYNC_CONFIG = {
