@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, Library,
   Users, StickyNote, Settings, Sun, Moon,
-  PanelLeftClose, PanelLeftOpen, Cpu, MessageSquare,
+  PanelLeftClose, PanelLeftOpen, Cpu,
 } from 'lucide-react';
 import LumenLogo from './LumenLogo';
 
@@ -40,7 +40,7 @@ function NavBtn({ label, icon: Icon, active, collapsed, onClick, muted }) {
   );
 }
 
-export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleCollapse, theme, onToggleTheme, luOpen, onToggleLu, sectionLabels }) {
+export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleCollapse, theme, onToggleTheme, sectionLabels }) {
   // Merge custom labels over defaults
   const label = (id, fallback) => (sectionLabels && sectionLabels[id]) ? sectionLabels[id] : fallback;
 
@@ -76,23 +76,6 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
 
       {/* Bottom controls */}
       <div style={{ borderTop: '1px solid var(--lumen-border)', padding: '8px', display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {/* LU toggle */}
-        <button
-          onClick={onToggleLu}
-          title="LU — Asistente"
-          className={`nav-item w-full flex items-center transition-all duration-100
-            ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2 gap-3'}`}
-          style={{
-            borderRadius: 3,
-            color: luOpen ? 'rgba(255,255,255,0.9)' : 'var(--lumen-text-muted)',
-            fontSize: 12,
-            background: luOpen ? 'rgba(255,255,255,0.06)' : 'transparent',
-          }}
-        >
-          <MessageSquare size={14} strokeWidth={luOpen ? 1.75 : 1.5} style={{ flexShrink: 0 }} />
-          {!collapsed && <span style={{ fontWeight: luOpen ? 500 : 400 }}>LU</span>}
-        </button>
-
         {/* Theme toggle */}
         <button
           onClick={onToggleTheme}

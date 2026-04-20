@@ -60,7 +60,6 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [userName, setUserName] = useState('Lu');
-  const [luOpen, setLuOpen] = useState(false);
   const [sectionLabels, setSectionLabels] = useState(DEFAULT_SECTION_LABELS);
 
   useEffect(() => {
@@ -165,8 +164,6 @@ export default function App() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           theme={theme}
           onToggleTheme={toggleTheme}
-          luOpen={luOpen}
-          onToggleLu={() => setLuOpen(!luOpen)}
           sectionLabels={sectionLabels}
         />
         <main className={`flex-1 ${activeModule === 'ac3' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
@@ -174,13 +171,15 @@ export default function App() {
             <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} sectionLabels={sectionLabels} onSectionLabelsChange={handleSectionLabelsChange} />
           </ErrorBoundary>
         </main>
-        <ErrorBoundary name="LU">
-          <LU open={luOpen} onClose={() => setLuOpen(false)} />
-        </ErrorBoundary>
       </div>
 
       {/* Status bar footer */}
       <StatusBar version={version} syncStatus={syncStatus} model={model} />
+
+      {/* LU — fixed bottom-right chat widget */}
+      <ErrorBoundary name="LU">
+        <LU />
+      </ErrorBoundary>
     </div>
   );
 }
