@@ -25,46 +25,50 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Inject secrets (Google OAuth + Gemini API key)
+      - name: Create config files
         shell: pwsh
         run: |
-          Write-Host "Preparing configuration files..."
+          Write-Host "Creating configuration files..."
 
-          # Google Calendar config (use secrets if available, fallback to empty)
-          $GCID = "${{ secrets.GOOGLE_CLIENT_ID }}"
-          $GCSE = "${{ secrets.GOOGLE_CLIENT_SECRET }}"
-          if ($GCID -and $GCSE) {
-            $cal = "module.exports = { GOOGLE_CLIENT_ID: '$GCID', GOOGLE_CLIENT_SECRET: '$GCSE' };"
-          } else {
-            $cal = "module.exports = { GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' };"
-          }
+          # Google Calendar config
+          $cal = "module.exports = { GOOGLE_CLIENT_ID: '${{ secrets.GOOGLE_CLIENT_ID }}', GOOGLE_CLIENT_SECRET: '${{ secrets.GOOGLE_CLIENT_SECRET }}' };"
           Set-Content -Path src/main/gcal-config.js -Value $cal -Encoding UTF8
+          Write-Host "✓ Google Calendar config created"
 
-          # Gemini API key (use secret if available, fallback to empty)
-          $GAIK = "${{ secrets.GEMINI_API_KEY }}"
-          if ($GAIK) {
-            $gem = "module.exports = { GEMINI_API_KEY: '$GAIK' };"
-          } else {
-            $gem = "module.exports = { GEMINI_API_KEY: '' };"
-          }
+          # Gemini API key
+          $gem = "module.exports = { GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}' };"
           Set-Content -Path src/main/gemini-config.js -Value $gem -Encoding UTF8
+          Write-Host "✓ Gemini API config created"
 
-          Write-Host "Configuration files created"
-
-      - name: Build Vite (renderer)
+      - name: Build Vite renderer
         run: npm run build
 
-      - name: Build with electron-builder
+      - name: Build Windows installer
         shell: pwsh
         run: |
-          Write-Host "Starting electron-builder for Windows..."
+          Write-Host "Starting electron-builder..."
           npx electron-builder --win --publish always
 
-      - name: Upload release artifacts
-        if: success()
+      - name: Check for exe files
+        shell: pwsh
+        run: |
+          $exeFiles = Get-ChildItem -Path "release" -Filter "*.exe" -Recurse
+          if ($exeFiles.Count -eq 0) {
+            Write-Host "ERROR: No .exe files found in release folder!" -ForegroundColor Red
+            Write-Host "Release folder contents:" -ForegroundColor Yellow
+            Get-ChildItem -Path "release" -Recurse
+            exit 1
+          }
+          Write-Host "Found $($exeFiles.Count) .exe file(s):" -ForegroundColor Green
+          foreach ($file in $exeFiles) {
+            Write-Host "  ✓ $($file.Name) ($([math]::Round($file.Length/1MB, 2)) MB)" -ForegroundColor Green
+          }
+
+      - name: Upload to release
         uses: softprops/action-gh-release@v1
+        if: success()
         with:
-          files: release/*.exe
+          files: release/**/*.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
