@@ -3,7 +3,7 @@ import {
   Cpu, Check, Loader2, AlertCircle,
   Save, Trash2, ArrowUpRight, Mail,
   DollarSign, Scale, Wrench, Smile, RefreshCw,
-  ClipboardList, History, CalendarDays, Paperclip, X, Image,
+  ClipboardList, History, CalendarDays, Paperclip, X, Image, ChevronDown,
 } from 'lucide-react';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -126,15 +126,17 @@ export default function AC3() {
   const [savedCases,      setSavedCases]     = useState([]);
   const [activeHistCase,  setActiveHistCase] = useState(null);
   const [saving,          setSaving]         = useState(false);
-  const [savedId,         setSavedId]        = useState(null);   // id of last saved case
+  const [savedId,         setSavedId]        = useState(null);
   const [savedOk,         setSavedOk]        = useState(false);
   const [emailDraft,      setEmailDraft]     = useState('');
   const [generatingEmail, setGeneratingEmail]= useState(false);
   const [calBusy,         setCalBusy]        = useState(false);
   const [calOk,           setCalOk]          = useState(false);
   const [calError,        setCalError]       = useState('');
+  const [calEvents,       setCalEvents]      = useState([]);
+  const [calEventsLoading,setCalEventsLoading]=useState(false);
   // Image attachment
-  const [attachment,      setAttachment]     = useState(null); // { name, base64, preview }
+  const [attachment,      setAttachment]     = useState(null);
   const fileInputRef = useRef(null);
   const textareaRef  = useRef(null);
 
@@ -142,6 +144,17 @@ export default function AC3() {
     window.lumen.settings.getModel().then(setModel).catch(() => {});
     loadCases();
   }, []);
+
+  useEffect(() => {
+    if (tab === 'calendar') loadCalendarEvents();
+  }, [tab]);
+
+  async function loadCalendarEvents() {
+    setCalEventsLoading(true);
+    try { setCalEvents(await window.lumen.calendar.getEvents(14) || []); }
+    catch { setCalEvents([]); }
+    finally { setCalEventsLoading(false); }
+  }
 
   async function loadCases() {
     try { setSavedCases(await window.lumen.ac3.getCases()); } catch {}
@@ -259,18 +272,22 @@ export default function AC3() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Cpu size={15} style={{ color: 'var(--lumen-text-secondary)' }} />
-          <h2 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--lumen-text)' }}>AC3 — Motor de Decisiones</h2>
+          <h2 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--lumen-text)' }}>Centro de Decisiones</h2>
           <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--lumen-text-muted)', letterSpacing: '0.06em' }}>AMAZON-STYLE TRIAGE</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', border: '1px solid var(--lumen-border)', borderRadius: 3, overflow: 'hidden' }}>
-            {[{ id: 'triage', label: 'Triaje', Icon: ClipboardList }, { id: 'history', label: `Historial (${savedCases.length})`, Icon: History }].map(({ id, label, Icon: Ic }) => (
+            {[
+              { id: 'triage',   label: 'Triaje',                       Icon: ClipboardList },
+              { id: 'history',  label: `Historial (${savedCases.length})`, Icon: History },
+              { id: 'calendar', label: 'Calendario',                   Icon: CalendarDays },
+            ].map(({ id, label, Icon: Ic }, idx, arr) => (
               <button key={id} onClick={() => setTab(id)} style={{
                 padding: '5px 12px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, letterSpacing: '0.03em',
                 background: tab === id ? 'rgba(255,255,255,0.07)' : 'transparent',
                 color: tab === id ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
                 border: 'none', cursor: 'pointer',
-                borderRight: id === 'triage' ? '1px solid var(--lumen-border)' : 'none',
+                borderRight: idx < arr.length - 1 ? '1px solid var(--lumen-border)' : 'none',
               }}>
                 <Ic size={11} />{label}
               </button>
@@ -531,6 +548,59 @@ export default function AC3() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', opacity: 0.4 }}>
               <History size={28} style={{ color: 'var(--lumen-text-muted)', marginBottom: 12 }} />
               <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', textAlign: 'center', lineHeight: 1.6 }}>Selecciona un caso del historial.</p>
+            </div>
+          )}
+
+          {/* ── Calendar tab ── */}
+          {tab === 'calendar' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--lumen-text-muted)' }}>
+                  Próximos 14 días
+                </span>
+                <button onClick={loadCalendarEvents} className="btn-ghost" style={{ padding: '3px 8px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <RefreshCw size={9} className={calEventsLoading ? 'animate-spin' : ''} /> Actualizar
+                </button>
+              </div>
+              {calEventsLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, opacity: 0.4 }}>
+                  <Loader2 size={18} className="animate-spin" style={{ color: 'var(--lumen-text-muted)' }} />
+                </div>
+              ) : calEvents.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', opacity: 0.4 }}>
+                  <CalendarDays size={28} style={{ color: 'var(--lumen-text-muted)', marginBottom: 12 }} />
+                  <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', textAlign: 'center' }}>
+                    Sin eventos próximos.<br />Conecta Google Calendar en Configuración.
+                  </p>
+                </div>
+              ) : (
+                calEvents.map((ev, i) => {
+                  const start = ev.start?.dateTime || ev.start?.date;
+                  const d = start ? new Date(start) : null;
+                  const isAC3 = ev.summary?.startsWith('[AC3]');
+                  return (
+                    <div key={i} style={{
+                      padding: '10px 14px',
+                      background: isAC3 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${isAC3 ? 'rgba(255,255,255,0.12)' : 'var(--lumen-border)'}`,
+                      borderLeft: `3px solid ${isAC3 ? 'var(--lumen-accent)' : 'rgba(255,255,255,0.15)'}`,
+                      borderRadius: 4,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                        <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--lumen-text)', margin: '0 0 3px 0', lineHeight: 1.4 }}>
+                          {ev.summary}
+                        </p>
+                        {isAC3 && <span style={{ fontSize: 9, color: 'var(--lumen-accent)', fontWeight: 700, letterSpacing: '0.06em', flexShrink: 0 }}>AC3</span>}
+                      </div>
+                      {d && (
+                        <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', margin: 0 }}>
+                          {d.toLocaleString('es-ES', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </div>

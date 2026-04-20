@@ -50,6 +50,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [userName, setUserName] = useState('Lu');
+  const [luOpen, setLuOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2200);
@@ -143,17 +144,17 @@ export default function App() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           theme={theme}
           onToggleTheme={toggleTheme}
+          luOpen={luOpen}
+          onToggleLu={() => setLuOpen(!luOpen)}
         />
         <main className="flex-1 overflow-y-auto p-6">
           <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} />
         </main>
+        <LU open={luOpen} onClose={() => setLuOpen(false)} />
       </div>
 
       {/* Status bar footer */}
       <StatusBar version={version} syncStatus={syncStatus} model={model} />
-
-      {/* LU Assistant */}
-      <LU />
     </div>
   );
 }

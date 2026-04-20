@@ -144,61 +144,57 @@ export default function Settings({ onModelChange }) {
 
       <div className="bento-card" style={{ padding: '0 20px' }}>
 
-        {/* ── Correo ── */}
-        <Row label="Tu correo" icon={Mail} iconColor="#4285F4"
-          hint="Personaliza tu experiencia. Solo se guarda localmente.">
-          <div className="flex gap-2">
-            <input
-              type="email"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && saveEmail()}
-              onBlur={saveEmail}
-              placeholder="tu.nombre@gmail.com"
-              className="dark-input flex-1"
-            />
-            {saved === 'email' && (
-              <span className="flex items-center gap-1 text-[11px]" style={{ color: '#10b981', paddingRight: 4 }}>
-                <Check size={11} /> Guardado
-              </span>
-            )}
-          </div>
-        </Row>
-
-        {/* ── API Key ── */}
-        <Row label="Google AI — API Key" icon={Key}
-          hint={<>Cifrada con DPAPI. Obtén tu key en <span style={{ color: 'var(--lumen-accent)' }}>aistudio.google.com</span></>}>
-          {apiKey && (
-            <div className="flex items-center gap-2 mb-2 px-3 py-1.5" style={{
-              background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)', borderRadius: 6,
-            }}>
-              <Check size={10} style={{ color: '#10b981' }} />
-              <code style={{ fontSize: 11, color: '#10b981', fontFamily: 'monospace' }}>{apiKey}</code>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
+        {/* ── Correo — solo si no hay Google Calendar conectado ── */}
+        {!calConnected && (
+          <Row label="Tu correo" icon={Mail} iconColor="#4285F4"
+            hint="Personaliza tu experiencia. Solo se guarda localmente.">
+            <div className="flex gap-2">
               <input
-                type={showKey ? 'text' : 'password'}
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && saveKey()}
-                placeholder="AIza…"
-                className="dark-input !font-mono !pr-9"
-                style={{ fontSize: 12 }}
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveEmail()}
+                onBlur={saveEmail}
+                placeholder="tu.nombre@gmail.com"
+                className="dark-input flex-1"
               />
-              <button onClick={() => setShowKey(!showKey)}
-                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                {showKey
-                  ? <EyeOff size={12} style={{ color: 'var(--lumen-text-muted)' }} />
-                  : <Eye size={12} style={{ color: 'var(--lumen-text-muted)' }} />}
+              {saved === 'email' && (
+                <span className="flex items-center gap-1 text-[11px]" style={{ color: '#10b981', paddingRight: 4 }}>
+                  <Check size={11} /> Guardado
+                </span>
+              )}
+            </div>
+          </Row>
+        )}
+
+        {/* ── API Key — solo si no hay key configurada ── */}
+        {!apiKey && (
+          <Row label="Google AI — API Key" icon={Key}
+            hint={<>Cifrada con DPAPI. Obtén tu key en <span style={{ color: 'var(--lumen-accent)' }}>aistudio.google.com</span></>}>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveKey()}
+                  placeholder="AIza…"
+                  className="dark-input !font-mono !pr-9"
+                  style={{ fontSize: 12 }}
+                />
+                <button onClick={() => setShowKey(!showKey)}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                  {showKey
+                    ? <EyeOff size={12} style={{ color: 'var(--lumen-text-muted)' }} />
+                    : <Eye size={12} style={{ color: 'var(--lumen-text-muted)' }} />}
+                </button>
+              </div>
+              <button onClick={saveKey} disabled={!apiKeyInput.trim()} className="btn-accent !py-2 !px-4">
+                {saved === 'key' ? <><Check size={11} /> OK</> : 'Guardar'}
               </button>
             </div>
-            <button onClick={saveKey} disabled={!apiKeyInput.trim()} className="btn-accent !py-2 !px-4">
-              {saved === 'key' ? <><Check size={11} /> OK</> : 'Guardar'}
-            </button>
-          </div>
-        </Row>
+          </Row>
+        )}
 
         {/* ── Modelo ── */}
         <Row label="Motor Gemini" icon={Cpu}>
