@@ -27,17 +27,26 @@ function extractNameFromEmail(email) {
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
+const DEFAULT_SECTION_LABELS = {
+  dashboard: 'Dashboard',
+  ac3:       'Decisiones',
+  knowledge: 'Biblioteca',
+  contacts:  'Directorio',
+  notes:     'Notas',
+  settings:  'Configuración',
+};
+
 const MODULES = {
-  dashboard: { label: 'Inicio',              component: Dashboard },
-  agenda:    { label: 'Agenda',              component: Agenda },
-  ac3:       { label: 'AC3 Decisiones',      component: AC3 },
-  assistant: { label: 'Laboratorio',         component: Assistant },
-  knowledge: { label: 'Biblioteca',    component: KnowledgeBase },
-  contacts:  { label: 'Directorio',    component: Contacts },
-  notes:     { label: 'Notas',         component: Notes },
-  evidence:  { label: 'Evidencias',    component: EvidenceVault },
-  logic:     { label: 'Diseñador',     component: LogicDesigner },
-  settings:  { label: 'Configuracion', component: Settings },
+  dashboard: { label: 'Inicio',         component: Dashboard },
+  agenda:    { label: 'Agenda',         component: Agenda },
+  ac3:       { label: 'AC3 Decisiones', component: AC3 },
+  assistant: { label: 'Laboratorio',    component: Assistant },
+  knowledge: { label: 'Biblioteca',     component: KnowledgeBase },
+  contacts:  { label: 'Directorio',     component: Contacts },
+  notes:     { label: 'Notas',          component: Notes },
+  evidence:  { label: 'Evidencias',     component: EvidenceVault },
+  logic:     { label: 'Diseñador',      component: LogicDesigner },
+  settings:  { label: 'Configuración',  component: Settings },
 };
 
 export default function App() {
@@ -52,6 +61,7 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const [userName, setUserName] = useState('Lu');
   const [luOpen, setLuOpen] = useState(false);
+  const [sectionLabels, setSectionLabels] = useState(DEFAULT_SECTION_LABELS);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2200);
@@ -61,6 +71,11 @@ export default function App() {
   useEffect(() => {
     window.lumen.app.getVersion().then(setVersion).catch(() => {});
     window.lumen.settings.getModel().then(setModel).catch(() => {});
+    window.lumen.settings.getSectionLabels().then((json) => {
+      if (json) {
+        try { setSectionLabels((prev) => ({ ...prev, ...JSON.parse(json) })); } catch {}
+      }
+    }).catch(() => {});
     window.lumen.settings.getTheme().then((t) => {
       if (t) {
         setTheme(t);
@@ -117,6 +132,11 @@ export default function App() {
     setModel(m);
   };
 
+  const handleSectionLabelsChange = async (newLabels) => {
+    setSectionLabels(newLabels);
+    await window.lumen.settings.setSectionLabels(JSON.stringify(newLabels)).catch(() => {});
+  };
+
   if (loading) return <LoadingScreen />;
 
   const ActiveComponent = MODULES[activeModule].component;
@@ -147,10 +167,11 @@ export default function App() {
           onToggleTheme={toggleTheme}
           luOpen={luOpen}
           onToggleLu={() => setLuOpen(!luOpen)}
+          sectionLabels={sectionLabels}
         />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className={`flex-1 ${activeModule === 'ac3' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
           <ErrorBoundary name={activeModule}>
-            <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} />
+            <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} sectionLabels={sectionLabels} onSectionLabelsChange={handleSectionLabelsChange} />
           </ErrorBoundary>
         </main>
         <ErrorBoundary name="LU">

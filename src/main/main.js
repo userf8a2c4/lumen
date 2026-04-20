@@ -446,8 +446,10 @@ function registerHandlers() {
   ipcMain.handle('settings:setUserEmail', (_e, email) => db.setSetting('user_email', email));
   ipcMain.handle('settings:getCseId', () => db.getSetting('cse_id') || '');
   ipcMain.handle('settings:setCseId', (_e, id) => db.setSetting('cse_id', id));
-  ipcMain.handle('settings:getAccentColor', () => db.getSetting('accent_color') || '#7E3FF2');
-  ipcMain.handle('settings:setAccentColor', (_e, color) => db.setSetting('accent_color', color));
+  ipcMain.handle('settings:getAccentColor',    () => db.getSetting('accent_color') || '#7E3FF2');
+  ipcMain.handle('settings:setAccentColor',    (_e, color) => db.setSetting('accent_color', color));
+  ipcMain.handle('settings:getSectionLabels',  () => db.getSetting('section_labels') || null);
+  ipcMain.handle('settings:setSectionLabels',  (_e, json) => db.setSetting('section_labels', json));
 
   // Logic Flows
   ipcMain.handle('logic:getAll',    () => db.getAllFlows());
@@ -597,6 +599,25 @@ function registerHandlers() {
     };
     return await cal.createEvent(event);
   });
+
+  // AC3 Branches
+  ipcMain.handle('ac3:branches:getAll',    ()            => db.getAllAC3Branches());
+  ipcMain.handle('ac3:branches:create',    (_e, data)    => db.createAC3Branch(data));
+  ipcMain.handle('ac3:branches:update',    (_e, id, data)=> db.updateAC3Branch(id, data));
+  ipcMain.handle('ac3:branches:delete',    (_e, id)      => db.deleteAC3Branch(id));
+
+  // AC3 Text Templates
+  ipcMain.handle('ac3:textTemplates:getAll',   ()            => db.getAllAC3TextTemplates());
+  ipcMain.handle('ac3:textTemplates:create',   (_e, data)    => db.createAC3TextTemplate(data));
+  ipcMain.handle('ac3:textTemplates:update',   (_e, id, data)=> db.updateAC3TextTemplate(id, data));
+  ipcMain.handle('ac3:textTemplates:delete',   (_e, id)      => db.deleteAC3TextTemplate(id));
+
+  // AC3 Email Templates
+  ipcMain.handle('ac3:emailTemplates:getAll',        ()            => db.getAC3EmailTemplates(null));
+  ipcMain.handle('ac3:emailTemplates:getByBranch',   (_e, bId)     => db.getAC3EmailTemplates(bId));
+  ipcMain.handle('ac3:emailTemplates:create',        (_e, data)    => db.createAC3EmailTemplate(data));
+  ipcMain.handle('ac3:emailTemplates:update',        (_e, id, data)=> db.updateAC3EmailTemplate(id, data));
+  ipcMain.handle('ac3:emailTemplates:delete',        (_e, id)      => db.deleteAC3EmailTemplate(id));
 
   // Updater
   ipcMain.handle('updater:check', () => checkForUpdates());

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Settings as SettingsIcon, Key, Cpu, Check, Eye, EyeOff,
   Mail, CalendarDays, Wifi, WifiOff, Palette, LogOut,
-  RefreshCw, Info,
+  RefreshCw, Info, Tag, RotateCcw,
 } from 'lucide-react';
 
 const MODELS = [
@@ -11,6 +11,15 @@ const MODELS = [
 ];
 
 const ACCENT_PRESETS = ['#ffffff', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
+
+const NAV_LABEL_DEFS = [
+  { id: 'dashboard', default: 'Dashboard',     hint: 'Pantalla de inicio' },
+  { id: 'ac3',       default: 'Decisiones',    hint: 'Centro de decisiones AC3' },
+  { id: 'knowledge', default: 'Biblioteca',    hint: 'Base de conocimiento / políticas' },
+  { id: 'contacts',  default: 'Directorio',    hint: 'Contactos y directorio' },
+  { id: 'notes',     default: 'Notas',         hint: 'Notas personales' },
+  { id: 'settings',  default: 'Configuración', hint: 'Esta sección' },
+];
 
 // ─── Row wrapper ──────────────────────────────────────────────────────────────
 function Row({ label, icon: Icon, iconColor = 'var(--lumen-accent)', children, hint }) {
@@ -31,7 +40,7 @@ function Row({ label, icon: Icon, iconColor = 'var(--lumen-accent)', children, h
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
-export default function Settings({ onModelChange }) {
+export default function Settings({ onModelChange, sectionLabels, onSectionLabelsChange }) {
   const [apiKey,       setApiKey]       = useState('');
   const [apiKeyInput,  setApiKeyInput]  = useState('');
   const [showKey,      setShowKey]      = useState(false);
@@ -44,8 +53,21 @@ export default function Settings({ onModelChange }) {
   const [version,      setVersion]      = useState('');
   const [checking,     setChecking]     = useState(false);
   const [saved,        setSaved]        = useState(''); // 'key' | 'email' | 'cal'
+  const [labelInputs,  setLabelInputs]  = useState(() => {
+    const defaults = {};
+    NAV_LABEL_DEFS.forEach((d) => { defaults[d.id] = d.default; });
+    return defaults;
+  });
+  const [labelSaved,   setLabelSaved]   = useState(false);
 
   const flash = (tag) => { setSaved(tag); setTimeout(() => setSaved(''), 2000); };
+
+  // Sync label inputs whenever parent passes updated labels
+  useEffect(() => {
+    if (sectionLabels) {
+      setLabelInputs((prev) => ({ ...prev, ...sectionLabels }));
+    }
+  }, [sectionLabels]);
 
   useEffect(() => {
     Promise.all([
@@ -114,6 +136,25 @@ export default function Settings({ onModelChange }) {
     if (!confirm('¿Desconectar Google Calendar?')) return;
     await window.lumen.calendar.disconnect();
     setCalConnected(false);
+  };
+
+  const saveLabelInput = (id, value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return; // don't save empty
+    const newLabels = { ...(sectionLabels || {}), ...labelInputs, [id]: trimmed };
+    setLabelInputs((p) => ({ ...p, [id]: trimmed }));
+    onSectionLabelsChange?.(newLabels);
+    setLabelSaved(true);
+    setTimeout(() => setLabelSaved(false), 2000);
+  };
+
+  const resetLabels = () => {
+    const defaults = {};
+    NAV_LABEL_DEFS.forEach((d) => { defaults[d.id] = d.default; });
+    setLabelInputs(defaults);
+    onSectionLabelsChange?.(defaults);
+    setLabelSaved(true);
+    setTimeout(() => setLabelSaved(false), 2000);
   };
 
   const checkUpdate = async () => {
@@ -276,6 +317,54 @@ export default function Settings({ onModelChange }) {
               style={{ fontSize: 11, color: 'var(--lumen-text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
               Reset
             </button>
+          </div>
+        </Row>
+
+        {/* ── Personalización de nombres ── */}
+        <Row
+          label="Nombres de secciones"
+          icon={Tag}
+          iconColor="#a78bfa"
+          hint="Renombra cada sección a tu gusto. Los cambios se guardan automáticamente y persisten en todas las actualizaciones."
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {NAV_LABEL_DEFS.map((def) => (
+              <div key={def.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)', minWidth: 90, letterSpacing: '0.04em' }}>
+                  {def.hint}
+                </span>
+                <input
+                  type="text"
+                  value={labelInputs[def.id] ?? def.default}
+                  onChange={(e) => setLabelInputs((p) => ({ ...p, [def.id]: e.target.value }))}
+                  onBlur={(e) => saveLabelInput(def.id, e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveLabelInput(def.id, e.target.value)}
+                  placeholder={def.default}
+                  style={{
+                    flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)',
+                    borderRadius: 5, padding: '6px 10px', color: 'var(--lumen-text)', fontSize: 12,
+                    outline: 'none', transition: 'border-color 0.15s',
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(167,139,250,0.4)'; }}
+                />
+              </div>
+            ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <button
+                onClick={resetLabels}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 5, fontSize: 11,
+                  background: 'none', border: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)', cursor: 'pointer',
+                }}
+              >
+                <RotateCcw size={11} /> Restablecer nombres
+              </button>
+              {labelSaved && (
+                <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Check size={11} /> Guardado
+                </span>
+              )}
+            </div>
           </div>
         </Row>
 

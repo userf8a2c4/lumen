@@ -203,9 +203,77 @@ async function initDatabase() {
     db.run('ALTER TABLE contacts ADD COLUMN notes TEXT NOT NULL DEFAULT ""');
   } catch {}
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ac3_branches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL DEFAULT 'Rama sin nombre',
+      color TEXT NOT NULL DEFAULT '#7E3FF2',
+      description TEXT NOT NULL DEFAULT '',
+      nodes TEXT NOT NULL DEFAULT '[]',
+      order_idx INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ac3_text_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      order_idx INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ac3_email_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      branch_id INTEGER,
+      label TEXT NOT NULL DEFAULT 'Template de email',
+      subject TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      FOREIGN KEY (branch_id) REFERENCES ac3_branches(id) ON DELETE SET NULL
+    )
+  `);
+
   // ac3_cases: add new columns if upgrading from older schema
   try { db.run('ALTER TABLE ac3_cases ADD COLUMN image_path TEXT'); } catch {}
   try { db.run('ALTER TABLE ac3_cases ADD COLUMN calendar_event_id TEXT'); } catch {}
+
+  // Seed text templates if empty
+  const tmplCount = queryOne('SELECT COUNT(*) as n FROM ac3_text_templates');
+  if (!tmplCount || tmplCount.n === 0) {
+    const defaults = [
+      ['saludo',        'Saludo estándar',            'Buenos días/tardes, ¡bienvenido(a)! Mi nombre es [Nombre]. ¿En qué le puedo ayudar hoy?',                                                                              1],
+      ['saludo',        'Saludo de seguimiento',       'Hola [Nombre del cliente], le contacto para dar seguimiento a su caso. ¿Cómo se encuentra?',                                                                           2],
+      ['preguntas',     'Sondeo inicial',              '¿Podría indicarme su número de reservación o contrato?',                                                                                                               1],
+      ['preguntas',     'Verificación de identidad',   'Para asistirle correctamente, ¿podría confirmarme su nombre completo y correo registrado?',                                                                            2],
+      ['preguntas',     'Sondeo de detalle',           '¿Desde cuándo presenta esta situación? ¿Ha tenido contacto previo con nosotros al respecto?',                                                                         3],
+      ['confirmacion',  'Confirmación de acción',      'He registrado su solicitud. Le confirmo que en [X horas/días] recibirá respuesta por [correo/teléfono].',                                                              1],
+      ['confirmacion',  'Confirmación de resolución',  'Con mucho gusto confirmo que su caso ha sido resuelto. El ajuste quedará reflejado en [X tiempo].',                                                                    2],
+      ['disculpa',      'Disculpa estándar',           'Lamentamos los inconvenientes causados. Comprendemos su molestia y trabajaremos para resolverlo de inmediato.',                                                        1],
+      ['disculpa',      'Disculpa por demora',         'Le pedimos disculpas por el tiempo de espera. Su caso es nuestra prioridad.',                                                                                          2],
+      ['agradecimiento','Agradecimiento estándar',     'Muchas gracias por comunicarse con nosotros y por su paciencia durante este proceso.',                                                                                  1],
+      ['agradecimiento','Agradecimiento por feedback', 'Agradecemos su retroalimentación. Nos ayuda a mejorar continuamente nuestro servicio.',                                                                                2],
+      ['ausencia',      'Fuera de oficina',            'En este momento no estoy disponible. Su caso ha sido registrado y un agente le atenderá a la brevedad.',                                                               1],
+      ['ausencia',      'Horario limitado',            'Nuestro horario de atención es de [hora inicio] a [hora fin], [días]. Gracias por su comprensión.',                                                                    2],
+      ['tarjeta',       'Solicitud de tarjeta',        'Para gestionar su tarjeta de acceso necesito: nombre completo, número de unidad y fecha de ingreso.',                                                                  1],
+      ['tarjeta',       'Activación de tarjeta',       'Su tarjeta de acceso ha sido activada. Puede utilizarla de inmediato en todos los accesos autorizados.',                                                              2],
+      ['reembolso',     'Proceso de reembolso',        'He iniciado el proceso de reembolso por $[monto]. El tiempo estimado de acreditación es de [X días hábiles].',                                                        1],
+      ['reembolso',     'Negativa de reembolso',       'Tras revisar su caso, lamentablemente no es posible el reembolso debido a [razón]. Sin embargo, podemos ofrecerle [alternativa].',                                    2],
+      ['configuraciones','Cambio de configuración',    'He procesado el cambio solicitado. Los nuevos ajustes estarán activos en [X minutos/horas].',                                                                          1],
+      ['configuraciones','Acceso al sistema',          'Le hemos otorgado acceso al sistema. Sus credenciales llegarán a [correo] en los próximos [X minutos].',                                                               2],
+      ['despedida',     'Despedida estándar',          'Ha sido un placer atenderle. Quedo a sus órdenes para cualquier consulta adicional. ¡Que tenga un excelente día!',                                                    1],
+      ['despedida',     'Despedida con seguimiento',   'Pronto recibirá un correo de confirmación. No dude en contactarnos si necesita más información. ¡Hasta pronto!',                                                      2],
+    ];
+    defaults.forEach(([category, title, content, order_idx]) => {
+      db.run(
+        'INSERT INTO ac3_text_templates (category, title, content, order_idx) VALUES (?, ?, ?, ?)',
+        [category, title, content, order_idx]
+      );
+    });
+  }
 
   // Default settings — always use gemini-2.0-flash as default
   const existingModel = queryOne('SELECT value FROM settings WHERE key = ?', ['model']);
@@ -642,6 +710,94 @@ function deleteAC3Case(id) {
   runAndSave('DELETE FROM ac3_cases WHERE id = ?', [id]);
 }
 
+// --- AC3 Branches ---
+
+function getAllAC3Branches() {
+  const rows = queryAll('SELECT * FROM ac3_branches ORDER BY order_idx ASC, id ASC');
+  return rows.map((r) => ({ ...r, nodes: JSON.parse(r.nodes || '[]') }));
+}
+
+function getAC3BranchById(id) {
+  const r = queryOne('SELECT * FROM ac3_branches WHERE id = ?', [id]);
+  if (!r) return null;
+  return { ...r, nodes: JSON.parse(r.nodes || '[]') };
+}
+
+function createAC3Branch({ name, color, description, nodes, order_idx }) {
+  runAndSave(
+    'INSERT INTO ac3_branches (name, color, description, nodes, order_idx) VALUES (?, ?, ?, ?, ?)',
+    [name || 'Nueva rama', color || '#7E3FF2', description || '', JSON.stringify(nodes || []), order_idx || 0]
+  );
+  return getAC3BranchById(getLastId());
+}
+
+function updateAC3Branch(id, { name, color, description, nodes, order_idx }) {
+  runAndSave(
+    'UPDATE ac3_branches SET name=?, color=?, description=?, nodes=?, order_idx=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    [name, color || '#7E3FF2', description || '', JSON.stringify(nodes || []), order_idx ?? 0, id]
+  );
+  return getAC3BranchById(id);
+}
+
+function deleteAC3Branch(id) {
+  runAndSave('DELETE FROM ac3_branches WHERE id = ?', [id]);
+}
+
+// --- AC3 Text Templates ---
+
+function getAllAC3TextTemplates() {
+  return queryAll('SELECT * FROM ac3_text_templates ORDER BY category ASC, order_idx ASC');
+}
+
+function createAC3TextTemplate({ category, title, content, order_idx }) {
+  runAndSave(
+    'INSERT INTO ac3_text_templates (category, title, content, order_idx) VALUES (?, ?, ?, ?)',
+    [category, title, content || '', order_idx || 0]
+  );
+  return queryOne('SELECT * FROM ac3_text_templates WHERE id = ?', [getLastId()]);
+}
+
+function updateAC3TextTemplate(id, { category, title, content, order_idx }) {
+  runAndSave(
+    'UPDATE ac3_text_templates SET category=?, title=?, content=?, order_idx=? WHERE id=?',
+    [category, title, content || '', order_idx ?? 0, id]
+  );
+  return queryOne('SELECT * FROM ac3_text_templates WHERE id = ?', [id]);
+}
+
+function deleteAC3TextTemplate(id) {
+  runAndSave('DELETE FROM ac3_text_templates WHERE id = ?', [id]);
+}
+
+// --- AC3 Email Templates ---
+
+function getAC3EmailTemplates(branchId) {
+  if (branchId) {
+    return queryAll('SELECT * FROM ac3_email_templates WHERE branch_id = ? ORDER BY id ASC', [branchId]);
+  }
+  return queryAll('SELECT * FROM ac3_email_templates ORDER BY branch_id ASC, id ASC');
+}
+
+function createAC3EmailTemplate({ branch_id, label, subject, body }) {
+  runAndSave(
+    'INSERT INTO ac3_email_templates (branch_id, label, subject, body) VALUES (?, ?, ?, ?)',
+    [branch_id || null, label || 'Email template', subject || '', body || '']
+  );
+  return queryOne('SELECT * FROM ac3_email_templates WHERE id = ?', [getLastId()]);
+}
+
+function updateAC3EmailTemplate(id, { branch_id, label, subject, body }) {
+  runAndSave(
+    'UPDATE ac3_email_templates SET branch_id=?, label=?, subject=?, body=? WHERE id=?',
+    [branch_id || null, label || 'Email template', subject || '', body || '', id]
+  );
+  return queryOne('SELECT * FROM ac3_email_templates WHERE id = ?', [id]);
+}
+
+function deleteAC3EmailTemplate(id) {
+  runAndSave('DELETE FROM ac3_email_templates WHERE id = ?', [id]);
+}
+
 function closeDatabase() {
   if (db) {
     save();
@@ -698,4 +854,17 @@ module.exports = {
   updateAC3CalendarId,
   updateAC3ImagePath,
   deleteAC3Case,
+  getAllAC3Branches,
+  getAC3BranchById,
+  createAC3Branch,
+  updateAC3Branch,
+  deleteAC3Branch,
+  getAllAC3TextTemplates,
+  createAC3TextTemplate,
+  updateAC3TextTemplate,
+  deleteAC3TextTemplate,
+  getAC3EmailTemplates,
+  createAC3EmailTemplate,
+  updateAC3EmailTemplate,
+  deleteAC3EmailTemplate,
 };

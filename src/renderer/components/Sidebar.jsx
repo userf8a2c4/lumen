@@ -40,7 +40,10 @@ function NavBtn({ label, icon: Icon, active, collapsed, onClick, muted }) {
   );
 }
 
-export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleCollapse, theme, onToggleTheme, luOpen, onToggleLu }) {
+export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleCollapse, theme, onToggleTheme, luOpen, onToggleLu, sectionLabels }) {
+  // Merge custom labels over defaults
+  const label = (id, fallback) => (sectionLabels && sectionLabels[id]) ? sectionLabels[id] : fallback;
+
   return (
     <aside
       className={`glass-sidebar flex flex-col shrink-0 transition-all duration-300 ${collapsed ? 'w-[52px]' : 'w-[190px]'}`}
@@ -63,6 +66,7 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
           <NavBtn
             key={item.id}
             {...item}
+            label={label(item.id, item.label)}
             active={activeModule === item.id}
             collapsed={collapsed}
             onClick={() => onNavigate(item.id)}
@@ -103,7 +107,7 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
 
         {/* Settings */}
         <NavBtn
-          label="Configuración"
+          label={label('settings', 'Configuración')}
           icon={Settings}
           active={activeModule === 'settings'}
           collapsed={collapsed}
