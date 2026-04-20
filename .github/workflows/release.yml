@@ -23,41 +23,48 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --verbose
+        run: npm ci
 
       - name: Inject secrets (Google OAuth + Gemini API key)
-        env:
-          GCID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GCSE: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GAIK: ${{ secrets.GEMINI_API_KEY }}
         shell: pwsh
         run: |
-          Write-Host "Injecting secrets for Google OAuth and Gemini API..."
-          $cal = "module.exports = { GOOGLE_CLIENT_ID: '$env:GCID', GOOGLE_CLIENT_SECRET: '$env:GCSE' };"
+          Write-Host "Preparing configuration files..."
+
+          # Google Calendar config (use secrets if available, fallback to empty)
+          $GCID = "${{ secrets.GOOGLE_CLIENT_ID }}"
+          $GCSE = "${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          if ($GCID -and $GCSE) {
+            $cal = "module.exports = { GOOGLE_CLIENT_ID: '$GCID', GOOGLE_CLIENT_SECRET: '$GCSE' };"
+          } else {
+            $cal = "module.exports = { GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' };"
+          }
           Set-Content -Path src/main/gcal-config.js -Value $cal -Encoding UTF8
-          Write-Host "Google Calendar config created"
 
-          $gem = "module.exports = { GEMINI_API_KEY: '$env:GAIK' };"
+          # Gemini API key (use secret if available, fallback to empty)
+          $GAIK = "${{ secrets.GEMINI_API_KEY }}"
+          if ($GAIK) {
+            $gem = "module.exports = { GEMINI_API_KEY: '$GAIK' };"
+          } else {
+            $gem = "module.exports = { GEMINI_API_KEY: '' };"
+          }
           Set-Content -Path src/main/gemini-config.js -Value $gem -Encoding UTF8
-          Write-Host "Gemini API config created"
 
-          Write-Host "Secrets injected successfully"
+          Write-Host "Configuration files created"
 
       - name: Build Vite (renderer)
         run: npm run build
 
       - name: Build with electron-builder
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
         run: |
-          Write-Host "Starting electron-builder..."
-          npx electron-builder --win --publish always -c.nsis.certificateFile="" -c.nsis.certificatePassword=""
-          Write-Host "Build complete"
+          Write-Host "Starting electron-builder for Windows..."
+          npx electron-builder --win --publish always
 
-      - name: Upload artifacts to release
+      - name: Upload release artifacts
+        if: success()
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: release/*.exe
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
