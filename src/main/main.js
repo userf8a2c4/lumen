@@ -81,14 +81,14 @@ function buildLocalAnalysis(policies, contacts, notes, examples, caseDescription
   }
   if (examples.length > 0) {
     steps.push('\nCasos similares previamente resueltos:');
-    examples.forEach((e) => steps.push(`- **${e.policy_name}**: ${e.response_used.slice(0, 150)}`));
+    examples.forEach((e) => steps.push(`- **${e.policy_name}**: ${(e.response_used || '').slice(0, 150)}`));
   }
 
   parts.push('## Analisis y pasos a seguir\n' + (steps.length > 0 ? steps.join('\n') : 'Revisa las politicas identificadas para determinar los pasos correctos.'));
 
   if (policies.length > 0) {
     const p = policies[0];
-    parts.push(`## Borrador de respuesta para el cliente\nEstimado/a cliente,\n\nGracias por comunicarse. He revisado su solicitud relacionada con "${caseDescription.slice(0, 80)}..." y me complace informarle que contamos con una politica especifica para este caso.\n\n[Personalizar respuesta con base en: ${p.name}]\n\nQuedo atento/a ante cualquier consulta adicional.\n\nSaludos cordiales.`);
+    parts.push(`## Borrador de respuesta para el cliente\nEstimado/a cliente,\n\nGracias por comunicarse. He revisado su solicitud relacionada con "${(caseDescription || '').slice(0, 80)}..." y me complace informarle que contamos con una politica especifica para este caso.\n\n[Personalizar respuesta con base en: ${p.name}]\n\nQuedo atento/a ante cualquier consulta adicional.\n\nSaludos cordiales.`);
   } else {
     parts.push('## Borrador de respuesta para el cliente\nEstimado/a cliente,\n\nGracias por su contacto. Hemos recibido su solicitud y la estamos revisando para brindarle la mejor solucion posible. En breve nos pondremos en contacto con usted.\n\nSaludos cordiales.');
   }
@@ -154,7 +154,7 @@ async function analyzeCase(caseDescription, options = {}) {
   let notesContext = '';
   if (notes.length > 0) {
     notesContext = '\n\n## Notas relevantes del agente en LUMEN:\n' + notes
-      .map((n) => `- **${n.title}:** ${n.content.slice(0, 500)}`)
+      .map((n) => `- **${n.title}:** ${(n.content || '').slice(0, 500)}`)
       .join('\n\n');
   }
 
@@ -325,7 +325,7 @@ Usa solo datos de las políticas y contactos de LUMEN proporcionados.
     context += `CONTACTOS DISPONIBLES:\n${contacts.map((c) => `- ${c.name} ${c.last_name || ''} (${c.department}): ${c.when_to_contact}`).join('\n')}\n\n`;
   }
   if (notes.length > 0) {
-    context += `NOTAS DEL AGENTE:\n${notes.map((n) => `- ${n.title}: ${n.content.slice(0, 200)}`).join('\n')}`;
+    context += `NOTAS DEL AGENTE:\n${notes.map((n) => `- ${n.title}: ${(n.content || '').slice(0, 200)}`).join('\n')}`;
   }
 
   const genAI        = new GoogleGenerativeAI(apiKey);
@@ -579,7 +579,7 @@ function registerHandlers() {
       imagePath                    ? `[IMAGEN: ${imagePath}]`                          : null,
       '─────────────────',
       'Registrado por LUMEN AC3',
-      `Caso: ${caseDesc.slice(0, 180)}${caseDesc.length > 180 ? '…' : ''}`,
+      `Caso: ${(caseDesc || '').slice(0, 180)}${(caseDesc || '').length > 180 ? '…' : ''}`,
     ].filter(Boolean).join('\n');
 
     const event = {

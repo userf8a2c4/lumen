@@ -308,7 +308,7 @@ export default function Notes() {
 
                 <p className="text-xs line-clamp-3 mb-3 leading-relaxed"
                   style={{ color: 'var(--lumen-text-secondary)' }}>
-                  {stripHtml(note.content).slice(0, 150)}
+                  {(stripHtml(note.content || '') || '').slice(0, 150)}
                 </p>
 
                 {tags.length > 0 && (
