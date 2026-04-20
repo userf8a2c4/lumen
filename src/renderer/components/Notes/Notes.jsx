@@ -81,20 +81,37 @@ function NotePreview({ note, onEdit, onDelete, onClose }) {
       {/* Attachments */}
       {attachments.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest mb-2"
+          <p className="text-[10px] font-semibold uppercase tracking-widest mb-3"
             style={{ color: 'var(--lumen-text-muted)' }}>
             Archivos adjuntos
           </p>
-          <div className="space-y-1.5">
-            {attachments.map((att, i) => (
-              <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-                style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
-                <Paperclip size={12} style={{ color: 'var(--lumen-text-muted)' }} />
-                <span className="text-[12px]" style={{ color: 'var(--lumen-text-secondary)' }}>
-                  {typeof att === 'string' ? att : att.name}
-                </span>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {attachments.map((att, i) => {
+              const name = typeof att === 'string' ? att : (att.name || att.path || '');
+              const isImg = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
+              const src = `lumen://${name}`;
+              return isImg ? (
+                <div key={i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--lumen-border)' }}>
+                  <img
+                    src={src}
+                    alt={name}
+                    style={{ width: '100%', display: 'block', maxHeight: 420, objectFit: 'contain', background: 'rgba(0,0,0,0.3)' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                  />
+                  {/* fallback si la imagen no carga */}
+                  <div style={{ display: 'none', padding: '10px 12px', alignItems: 'center', gap: 8 }}>
+                    <Paperclip size={12} style={{ color: 'var(--lumen-text-muted)' }} />
+                    <span className="text-[11px]" style={{ color: 'var(--lumen-text-muted)' }}>{name}</span>
+                  </div>
+                </div>
+              ) : (
+                <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                  style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
+                  <Paperclip size={12} style={{ color: 'var(--lumen-text-muted)' }} />
+                  <span className="text-[12px]" style={{ color: 'var(--lumen-text-secondary)' }}>{name}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -18,10 +18,13 @@ export default function LU({ open, onClose }) {
     setMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
     try {
-      const response = await window.lumen.ai.analyze(userMsg, { model: 'gemini-2.0-flash' });
-      setMessages((prev) => [...prev, { role: 'assistant', text: response }]);
+      const response = await Promise.race([
+        window.lumen.ai.analyze(userMsg, { model: 'gemini-2.0-flash' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo de espera agotado')), 30000)),
+      ]);
+      setMessages((prev) => [...prev, { role: 'assistant', text: String(response || '(sin respuesta)') }]);
     } catch (e) {
-      setMessages((prev) => [...prev, { role: 'assistant', text: `Error: ${e.message}` }]);
+      setMessages((prev) => [...prev, { role: 'assistant', text: `⚠ ${e?.message || 'Error al conectar con Gemini'}` }]);
     } finally {
       setLoading(false);
     }

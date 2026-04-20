@@ -1,21 +1,26 @@
 import React from 'react';
 import { Github, Cpu } from 'lucide-react';
 
-const MODEL_LABELS = {
-  'gemini-2.0-flash': 'Gemini Flash',
-  'gemini-2.5-pro': 'Gemini Pro',
+const VALID_MODELS = {
+  'gemini-2.0-flash':     'Gemini 2.0 Flash',
+  'gemini-2.0-flash-exp': 'Gemini 2.0 Flash',
+  'gemini-2.5-pro':       'Gemini 2.5 Pro',
+  'gemini-2.5-pro-exp':   'Gemini 2.5 Pro',
+  'gemini-1.5-flash':     'Gemini Flash',
+  'gemini-1.5-pro':       'Gemini Pro',
 };
 
 const SYNC_CONFIG = {
-  idle: { dot: 'var(--lumen-text-muted)', label: 'Sin verificar' },
-  synced: { dot: '#10b981', label: 'Actualizado' },
-  update: { dot: '#f59e0b', label: 'Actualizacion disponible' },
-  error: { dot: '#ef4444', label: 'Sin conexion' },
+  idle:    { dot: 'var(--lumen-text-muted)', label: 'Sin verificar' },
+  synced:  { dot: '#10b981',                 label: 'Actualizado'   },
+  update:  { dot: '#f59e0b',                 label: 'Actualización disponible' },
+  error:   { dot: '#ef4444',                 label: 'Sin conexión'  },
 };
 
 export default function StatusBar({ version, syncStatus, model }) {
   const sync = SYNC_CONFIG[syncStatus] || SYNC_CONFIG.idle;
-  const modelLabel = MODEL_LABELS[model] || model;
+  // Only show recognized Gemini models — never expose internal/claude model IDs
+  const modelLabel = VALID_MODELS[model] || 'Google Gemini';
 
   return (
     <footer className="flex items-center justify-between px-5 py-1.5 text-[10px] font-medium select-none"

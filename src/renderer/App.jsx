@@ -15,6 +15,7 @@ import UpdateBanner from './components/UpdateBanner';
 import DailyInsight from './components/DailyInsight';
 import Dashboard from './components/Dashboard/Dashboard';
 import LU from './components/LU';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function extractNameFromEmail(email) {
   if (!email || !email.trim()) return 'Lu';
@@ -148,9 +149,13 @@ export default function App() {
           onToggleLu={() => setLuOpen(!luOpen)}
         />
         <main className="flex-1 overflow-y-auto p-6">
-          <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} />
+          <ErrorBoundary name={activeModule}>
+            <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} />
+          </ErrorBoundary>
         </main>
-        <LU open={luOpen} onClose={() => setLuOpen(false)} />
+        <ErrorBoundary name="LU">
+          <LU open={luOpen} onClose={() => setLuOpen(false)} />
+        </ErrorBoundary>
       </div>
 
       {/* Status bar footer */}
