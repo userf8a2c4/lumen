@@ -9,7 +9,6 @@ import LumenLogo from './LumenLogo';
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard',   icon: LayoutDashboard },
   { id: 'ac3',       label: 'AC3',         icon: Cpu },
-  { id: 'assistant', label: 'Laboratorio', icon: FlaskConical },
   { id: 'knowledge', label: 'Biblioteca',  icon: Library },
   { id: 'contacts',  label: 'Directorio',  icon: Users },
   { id: 'notes',     label: 'Notas',       icon: StickyNote },

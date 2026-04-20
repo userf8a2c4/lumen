@@ -14,6 +14,7 @@ import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
 import DailyInsight from './components/DailyInsight';
 import Dashboard from './components/Dashboard/Dashboard';
+import LU from './components/LU';
 
 function extractNameFromEmail(email) {
   if (!email || !email.trim()) return 'Lu';
@@ -150,6 +151,9 @@ export default function App() {
 
       {/* Status bar footer */}
       <StatusBar version={version} syncStatus={syncStatus} model={model} />
+
+      {/* LU Assistant */}
+      <LU />
     </div>
   );
 }

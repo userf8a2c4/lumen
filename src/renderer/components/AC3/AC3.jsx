@@ -295,23 +295,65 @@ export default function AC3() {
           {/* Case input */}
           {tab === 'triage' && (
             <div className="bento-card !p-0" style={{ flexShrink: 0 }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--lumen-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--lumen-text-muted)' }}>Descripción del caso</span>
-                <span style={{ fontSize: 9, color: 'var(--lumen-text-muted)' }}>Ctrl+Enter para analizar</span>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--lumen-border)' }}>
+                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--lumen-text-muted)' }}>Selecciona ruta de decisión</span>
               </div>
-              <textarea
-                ref={textareaRef}
-                value={caseInput}
-                onChange={(e) => setCaseInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Describe el caso del cliente — tipo de problema, monto, urgencia percibida, historial relevante..."
-                rows={5}
-                style={{
-                  width: '100%', padding: '14px 16px', background: 'transparent', border: 'none', outline: 'none',
-                  color: 'var(--lumen-text)', fontSize: 13, lineHeight: 1.65, resize: 'none',
-                  fontFamily: 'Inter, sans-serif', boxSizing: 'border-box',
-                }}
-              />
+
+              {/* Decision tree options */}
+              <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {['Opción 1', 'Opción 2', 'Opción 3'].map((opt, idx) => (
+                  <div key={idx} style={{
+                    border: '1px solid var(--lumen-border)',
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                  }}>
+                    <button
+                      onClick={() => {
+                        const val = caseInput.startsWith(`[${opt}]`) ? caseInput.slice(`[${opt}] `.length) : caseInput;
+                        setCaseInput(`[${opt}] ${val}`.trim());
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: caseInput.startsWith(`[${opt}]`) ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: 600, color: caseInput.startsWith(`[${opt}]`) ? 'var(--lumen-accent)' : 'var(--lumen-text)' }}>
+                        {opt}
+                      </span>
+                      <ChevronDown size={12} style={{
+                        color: 'var(--lumen-text-muted)',
+                        transform: caseInput.startsWith(`[${opt}]`) ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s',
+                      }} />
+                    </button>
+                    {caseInput.startsWith(`[${opt}]`) && (
+                      <div style={{ padding: '12px', borderTop: '1px solid var(--lumen-border)', background: 'rgba(255,255,255,0.01)' }}>
+                        <textarea
+                          ref={textareaRef}
+                          value={caseInput.slice(`[${opt}] `.length)}
+                          onChange={(e) => setCaseInput(`[${opt}] ${e.target.value}`)}
+                          onKeyDown={handleKeyDown}
+                          placeholder={`Describe el caso para ${opt.toLowerCase()}...`}
+                          rows={4}
+                          style={{
+                            width: '100%', padding: '10px 12px', background: 'transparent', border: '1px solid var(--lumen-border)', outline: 'none',
+                            color: 'var(--lumen-text)', fontSize: 12, lineHeight: 1.6, resize: 'none',
+                            fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', borderRadius: 4,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
 
               {/* Image attachment preview */}
               {attachment && (
