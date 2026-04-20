@@ -32,7 +32,7 @@ export default function PolicyList({ policies, onEdit, onDelete, onViewExamples 
                       {p.source_url && <Globe size={11} style={{ color: 'var(--lumen-text-muted)' }} className="shrink-0" />}
                     </div>
                     {p.description && <p className="text-xs mb-2 line-clamp-1" style={{ color: 'var(--lumen-text-secondary)' }}>{p.description}</p>}
-                    <p className="text-xs line-clamp-2 leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>{p.content.slice(0, 160)}...</p>
+                    <p className="text-xs line-clamp-2 leading-relaxed" style={{ color: 'var(--lumen-text-muted)' }}>{(p.content || '').slice(0, 160)}...</p>
                   </div>
                   <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button onClick={() => onViewExamples(p)} className="p-1.5 rounded-lg transition-colors" title="Ver ejemplos">

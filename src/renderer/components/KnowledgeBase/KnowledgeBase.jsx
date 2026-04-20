@@ -15,7 +15,7 @@ export default function KnowledgeBase({ navigateTo }) {
 
   const loadPolicies = async () => {
     setLoading(true);
-    try { setPolicies(await window.lumen.policies.getAll()); }
+    try { const d = await window.lumen.policies.getAll(); setPolicies(Array.isArray(d) ? d : []); }
     catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

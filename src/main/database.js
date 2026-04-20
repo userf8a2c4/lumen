@@ -202,6 +202,12 @@ async function initDatabase() {
   try {
     db.run('ALTER TABLE contacts ADD COLUMN notes TEXT NOT NULL DEFAULT ""');
   } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN contact_method TEXT NOT NULL DEFAULT ""');
+  } catch {}
+  try {
+    db.run('ALTER TABLE contacts ADD COLUMN when_to_contact TEXT NOT NULL DEFAULT ""');
+  } catch {}
 
   db.run(`
     CREATE TABLE IF NOT EXISTS ac3_branches (

@@ -151,7 +151,7 @@ export default function Notes() {
       const data = searchQuery.trim()
         ? await window.lumen.notes.search(searchQuery.trim())
         : await window.lumen.notes.getAll();
-      setNotes(data);
+      setNotes(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

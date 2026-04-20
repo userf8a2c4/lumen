@@ -150,7 +150,7 @@ export default function Contacts() {
       const data = searchQuery.trim()
         ? await window.lumen.contacts.search(searchQuery.trim())
         : await window.lumen.contacts.getAll();
-      setContacts(data);
+      setContacts(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
