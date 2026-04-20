@@ -23,7 +23,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --verbose
 
       - name: Inject secrets (Google OAuth + Gemini API key)
         env:
@@ -32,10 +32,16 @@ jobs:
           GAIK: ${{ secrets.GEMINI_API_KEY }}
         shell: pwsh
         run: |
+          Write-Host "Injecting secrets for Google OAuth and Gemini API..."
           $cal = "module.exports = { GOOGLE_CLIENT_ID: '$env:GCID', GOOGLE_CLIENT_SECRET: '$env:GCSE' };"
           Set-Content -Path src/main/gcal-config.js -Value $cal -Encoding UTF8
+          Write-Host "Google Calendar config created"
+
           $gem = "module.exports = { GEMINI_API_KEY: '$env:GAIK' };"
           Set-Content -Path src/main/gemini-config.js -Value $gem -Encoding UTF8
+          Write-Host "Gemini API config created"
+
+          Write-Host "Secrets injected successfully"
 
       - name: Build Vite (renderer)
         run: npm run build
@@ -43,4 +49,15 @@ jobs:
       - name: Build with electron-builder
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish always
+        run: |
+          Write-Host "Starting electron-builder..."
+          npx electron-builder --win --publish always -c.nsis.certificateFile="" -c.nsis.certificatePassword=""
+          Write-Host "Build complete"
+
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
