@@ -215,7 +215,8 @@ async function getEvents(daysAhead = 14) {
     timeMin: tMin, timeMax: tMax,
     singleEvents: 'true', orderBy: 'startTime', maxResults: '100',
   }).toString();
-  return apiReq('GET', `/calendar/v3/calendars/primary/events?${params}`, token);
+  const res = await apiReq('GET', `/calendar/v3/calendars/primary/events?${params}`, token);
+  return Array.isArray(res) ? res : (res?.items || []);
 }
 
 async function createEvent(eventData) {

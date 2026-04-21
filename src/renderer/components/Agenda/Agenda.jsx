@@ -248,7 +248,7 @@ export default function Agenda({ navigateTo }) {
     setError('');
     try {
       const data = await window.lumen.calendar.getEvents(14);
-      setEvents(data.items || []);
+      setEvents(Array.isArray(data) ? data : (data?.items || []));
     } catch (e) {
       setError(e.message);
     } finally {

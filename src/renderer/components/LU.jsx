@@ -44,8 +44,8 @@ export default function LU() {
       overflow: 'hidden',
       border: '1px solid var(--lumen-border)',
       borderBottom: 'none',
-      boxShadow: open ? '0 -8px 40px rgba(0,0,0,0.28), 0 2px 12px rgba(0,0,0,0.12)' : '0 -2px 12px rgba(0,0,0,0.12)',
-      background: 'var(--lumen-surface)',
+      boxShadow: open ? '0 -8px 40px rgba(0,0,0,0.4), 0 2px 16px rgba(0,0,0,0.2)' : '0 -2px 12px rgba(0,0,0,0.2)',
+      background: '#1a1a1f',
     }}>
 
       {/* Messages area — only when open */}
@@ -108,7 +108,7 @@ export default function LU() {
           display: 'flex',
           gap: 6,
           borderBottom: '1px solid var(--lumen-border)',
-          background: 'var(--lumen-surface)',
+          background: '#1a1a1f',
         }}>
           <input
             type="text"
@@ -157,7 +157,7 @@ export default function LU() {
           justifyContent: 'space-between',
           cursor: 'pointer',
           userSelect: 'none',
-          background: open ? 'rgba(255,255,255,0.04)' : 'var(--lumen-surface)',
+          background: open ? '#1e1e24' : '#1a1a1f',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
