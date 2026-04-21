@@ -535,7 +535,8 @@ function registerHandlers() {
     try {
       const apiKey = getApiKey();
       if (!apiKey) throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
-      const modelId = db.getSetting('model') || 'gemini-2.0-flash';
+      const stored = db.getSetting('model') || '';
+      const modelId = stored.startsWith('gemini-') ? stored : 'gemini-2.0-flash';
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: modelId,

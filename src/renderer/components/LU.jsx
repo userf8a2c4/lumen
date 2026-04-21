@@ -51,7 +51,7 @@ export default function LU() {
       zIndex: 200,
       display: 'flex',
       flexDirection: 'column',
-      borderRadius: 10,
+      borderRadius: 0,
       overflow: 'hidden',
       border: '1px solid var(--lumen-border)',
       boxShadow: open ? '0 -8px 40px rgba(0,0,0,0.4), 0 2px 16px rgba(0,0,0,0.2)' : '0 -2px 12px rgba(0,0,0,0.2)',
