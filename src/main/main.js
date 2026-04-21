@@ -531,6 +531,23 @@ function registerHandlers() {
       throw new Error(err.message);
     }
   });
+  ipcMain.handle('ai:chat', async (_e, message, history) => {
+    try {
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
+      const modelId = db.getSetting('model') || 'gemini-2.0-flash';
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: modelId,
+        systemInstruction: 'Eres LU, el asistente inteligente de LUMEN. Tu nombre es LU (tambien puedes ser llamado Lu o lu). Eres un asistente util, claro y conciso. Responde siempre en espanol a menos que el usuario hable otro idioma.',
+      });
+      const chat = model.startChat({ history: history || [] });
+      const result = await chat.sendMessage(message);
+      return result.response.text();
+    } catch (err) {
+      throw new Error(err.message);
+    }
+  });
 
   // AC3 — Motor de Decisiones
   ipcMain.handle('ac3:triage', async (_e, caseDesc, options) => {

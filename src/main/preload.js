@@ -79,6 +79,7 @@ contextBridge.exposeInMainWorld('lumen', {
   ai: {
     analyze:       (caseDescription, options) => ipcRenderer.invoke('ai:analyze', caseDescription, options),
     generateEmail: (context, options)          => ipcRenderer.invoke('ai:generateEmail', context, options),
+    chat:          (message, history)          => ipcRenderer.invoke('ai:chat', message, history),
   },
   ac3: {
     triage:           (caseDesc, options)          => ipcRenderer.invoke('ac3:triage', caseDesc, options),
