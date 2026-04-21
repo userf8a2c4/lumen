@@ -537,10 +537,49 @@ function registerHandlers() {
       if (!apiKey) throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
       const stored = db.getSetting('model') || '';
       const modelId = stored.startsWith('gemini-') ? stored : 'gemini-2.0-flash';
+
+      // Build LUMEN knowledge context from local DB
+      let lumenContext = '';
+      try {
+        const policies = db.searchPoliciesForAI(message);
+        const notes    = db.searchNotesForAI(message);
+        const depts    = [...new Set(policies.map((p) => p.department))];
+        const contacts = depts.length > 0 ? db.getContactsByDepartments(depts) : [];
+        if (policies.length > 0) {
+          lumenContext += '\n\n--- BASE DE CONOCIMIENTO LUMEN (politicas relevantes) ---\n';
+          lumenContext += policies.slice(0, 5).map((p) =>
+            `[${p.name}] ${p.description}\n${(p.content || '').slice(0, 600)}`
+          ).join('\n\n');
+        }
+        if (notes.length > 0) {
+          lumenContext += '\n\n--- NOTAS INTERNAS RELEVANTES ---\n';
+          lumenContext += notes.slice(0, 3).map((n) =>
+            `${n.title}: ${(n.content || '').slice(0, 300)}`
+          ).join('\n');
+        }
+        if (contacts.length > 0) {
+          lumenContext += '\n\n--- CONTACTOS RELEVANTES ---\n';
+          lumenContext += contacts.slice(0, 5).map((c) =>
+            `${c.name} (${c.department || ''})${c.email ? ' — ' + c.email : ''}`
+          ).join('\n');
+        }
+      } catch { /* DB may be empty — continue without context */ }
+
+      const systemInstruction =
+        'Eres LU, el asistente inteligente de LUMEN. Tu nombre es LU (tambien puedes ser llamado Lu o lu).\n' +
+        'Reglas:\n' +
+        '1. Si hay informacion relevante en la BASE DE CONOCIMIENTO LUMEN, usala como fuente primaria y priorizala.\n' +
+        '2. Complementa con busqueda en internet cuando sea necesario o cuando LUMEN no tenga el dato.\n' +
+        '3. Nunca inventes datos. Si no lo sabes, dilo.\n' +
+        '4. Responde siempre en espanol a menos que el usuario hable otro idioma.\n' +
+        '5. Se conciso y claro.' +
+        lumenContext;
+
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: modelId,
-        systemInstruction: 'Eres LU, el asistente inteligente de LUMEN. Tu nombre es LU (tambien puedes ser llamado Lu o lu). Eres un asistente util, claro y conciso. Responde siempre en espanol a menos que el usuario hable otro idioma.',
+        systemInstruction,
+        tools: [{ googleSearch: {} }],
       });
       const chat = model.startChat({ history: history || [] });
       const result = await chat.sendMessage(message);
