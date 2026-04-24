@@ -87,24 +87,48 @@ function NotePreview({ note, onEdit, onDelete, onClose }) {
           </p>
           <div className="space-y-3">
             {attachments.map((att, i) => {
-              const name = typeof att === 'string' ? att : (att.name || att.path || '');
-              const isImg = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
-              const src = `lumen://${name}`;
-              return isImg ? (
+              // Display name (original filename for readability)
+              const name     = typeof att === 'string' ? att : (att.name || att.path || '');
+              // Saved path (safeName with timestamp prefix) — must point into attachments/
+              const filePath = typeof att === 'string' ? att : (att.path || att.name || '');
+              const src      = filePath.startsWith('attachments/')
+                ? `lumen://${filePath}`
+                : `lumen://attachments/${filePath}`;
+              const isImg   = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
+              const isPdf   = /\.pdf$/i.test(name);
+              const isAudio = /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(name);
+              if (isImg) return (
                 <div key={i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--lumen-border)' }}>
                   <img
-                    src={src}
-                    alt={name}
+                    src={src} alt={name}
                     style={{ width: '100%', display: 'block', maxHeight: 420, objectFit: 'contain', background: 'rgba(0,0,0,0.3)' }}
                     onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
                   />
-                  {/* fallback si la imagen no carga */}
                   <div style={{ display: 'none', padding: '10px 12px', alignItems: 'center', gap: 8 }}>
                     <Paperclip size={12} style={{ color: 'var(--lumen-text-muted)' }} />
                     <span className="text-[11px]" style={{ color: 'var(--lumen-text-muted)' }}>{name}</span>
                   </div>
                 </div>
-              ) : (
+              );
+              if (isPdf) return (
+                <div key={i} style={{ border: '1px solid var(--lumen-border)', borderRadius: 8, overflow: 'hidden', background: 'rgba(0,0,0,0.3)' }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid var(--lumen-border)', background: 'rgba(255,255,255,0.02)' }}>
+                    <Paperclip size={11} style={{ color: 'var(--lumen-text-muted)' }} />
+                    <span className="text-[11px]" style={{ color: 'var(--lumen-text-muted)' }}>{name}</span>
+                  </div>
+                  <embed src={src} type="application/pdf" width="100%" height="380px" style={{ display: 'block' }} />
+                </div>
+              );
+              if (isAudio) return (
+                <div key={i} style={{ padding: '10px 14px', background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)', borderRadius: 8 }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Paperclip size={11} style={{ color: 'var(--lumen-text-muted)' }} />
+                    <span className="text-[11px]" style={{ color: 'var(--lumen-text-muted)' }}>{name}</span>
+                  </div>
+                  <audio controls src={src} style={{ width: '100%', height: 36, accentColor: 'var(--lumen-accent)' }} />
+                </div>
+              );
+              return (
                 <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
                   style={{ background: 'var(--lumen-surface)', border: '1px solid var(--lumen-border)' }}>
                   <Paperclip size={12} style={{ color: 'var(--lumen-text-muted)' }} />

@@ -88,16 +88,6 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
           {!collapsed && <span>{theme === 'dark' ? 'Modo día' : 'Modo noche'}</span>}
         </button>
 
-        {/* Settings */}
-        <NavBtn
-          label={label('settings', 'Configuración')}
-          icon={Settings}
-          active={activeModule === 'settings'}
-          collapsed={collapsed}
-          onClick={() => onNavigate('settings')}
-          muted
-        />
-
         {/* Collapse toggle */}
         <button
           onClick={onToggleCollapse}
@@ -111,6 +101,16 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
             : <PanelLeftClose size={14} strokeWidth={1.5} />}
           {!collapsed && <span style={{ opacity: 0.5 }}>Colapsar</span>}
         </button>
+
+        {/* Settings */}
+        <NavBtn
+          label={label('settings', 'Configuración')}
+          icon={Settings}
+          active={activeModule === 'settings'}
+          collapsed={collapsed}
+          onClick={() => onNavigate('settings')}
+          muted
+        />
       </div>
     </aside>
   );
