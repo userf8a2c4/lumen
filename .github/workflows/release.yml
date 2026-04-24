@@ -55,7 +55,13 @@ jobs:
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*.exe
+          # .exe for the installer,
+          # latest.yml + .blockmap needed by electron-updater for
+          # auto-update checks and differential (delta) downloads.
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
           generate_release_notes: false
           tag_name: ${{ github.ref_name }}
         env:

@@ -1,6 +1,6 @@
 {
   "name": "lumen-app",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "LUMEN — Motor de Conocimiento Personal (SpaceX Stealth Edition)",
   "main": "src/main/main.js",
   "author": "LUMEN Team",
@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "cheerio": "^1.0.0",
+    "electron-updater": "^6.8.3",
     "sql.js": "^1.12.0"
   },
   "build": {
