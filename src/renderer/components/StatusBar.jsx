@@ -2,12 +2,14 @@ import React from 'react';
 import { Github, Cpu } from 'lucide-react';
 
 const VALID_MODELS = {
-  'gemini-2.0-flash':     'Gemini 2.0 Flash',
-  'gemini-2.0-flash-exp': 'Gemini 2.0 Flash',
-  'gemini-2.5-pro':       'Gemini 2.5 Pro',
-  'gemini-2.5-pro-exp':   'Gemini 2.5 Pro',
-  'gemini-1.5-flash':     'Gemini Flash',
-  'gemini-1.5-pro':       'Gemini Pro',
+  'gemini-2.5-flash':      'Gemini 2.5 Flash',
+  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
+  'gemini-2.5-pro':        'Gemini 2.5 Pro',
+  'gemini-2.5-pro-exp':    'Gemini 2.5 Pro',
+  'gemini-2.0-flash':      'Gemini 2.0 Flash',
+  'gemini-2.0-flash-exp':  'Gemini 2.0 Flash',
+  'gemini-1.5-flash':      'Gemini Flash',
+  'gemini-1.5-pro':        'Gemini Pro',
 };
 
 const SYNC_CONFIG = {

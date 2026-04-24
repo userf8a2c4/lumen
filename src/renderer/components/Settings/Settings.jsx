@@ -10,8 +10,8 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MODELS = [
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Rápido · Recomendado' },
-  { id: 'gemini-2.5-pro',   label: 'Gemini 2.5 Pro',   desc: 'Máximo rendimiento' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', desc: 'Rápido · Recomendado' },
+  { id: 'gemini-2.5-pro',   label: 'Gemini 2.5 Pro',   desc: 'Máximo rendimiento · Requiere billing' },
 ];
 
 const ACCENT_PRESETS = ['#ffffff', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
@@ -563,7 +563,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
   const [apiKey,       setApiKey]       = useState('');
   const [apiKeyInput,  setApiKeyInput]  = useState('');
   const [showKey,      setShowKey]      = useState(false);
-  const [model,        setModel]        = useState('gemini-2.0-flash');
+  const [model,        setModel]        = useState('gemini-2.5-flash');
   const [email,        setEmail]        = useState('');
   const [emailInput,   setEmailInput]   = useState('');
   const [accentColor,  setAccentColor]  = useState('#ffffff');
@@ -595,7 +595,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       window.lumen.calendar.isAuthenticated(),
     ]).then(([k, m, em, ac, v, conn]) => {
       setApiKey(k ? k.slice(0, 7) + '…' + k.slice(-4) : '');
-      setModel(MODELS.find((x) => x.id === m) ? m : 'gemini-2.0-flash');
+      setModel(MODELS.find((x) => x.id === m) ? m : 'gemini-2.5-flash');
       setEmail(em || ''); setEmailInput(em || '');
       if (ac) { setAccentColor(ac); document.documentElement.style.setProperty('--lumen-accent', ac); }
       setVersion(v || '');

@@ -281,14 +281,13 @@ async function initDatabase() {
     });
   }
 
-  // Default settings — always use gemini-2.0-flash as default
+  // Default settings — gemini-2.5-flash (only model with free tier quota)
   const existingModel = queryOne('SELECT value FROM settings WHERE key = ?', ['model']);
   if (!existingModel) {
-    db.run('INSERT INTO settings (key, value) VALUES (?, ?)', ['model', 'gemini-2.0-flash']);
-  } else if (existingModel.value && existingModel.value.includes('gemini-1.')) {
-    // Migrate from deprecated gemini-1.5 models
-    const newModel = existingModel.value.includes('pro') ? 'gemini-2.5-pro' : 'gemini-2.0-flash';
-    db.run('UPDATE settings SET value = ? WHERE key = ?', [newModel, 'model']);
+    db.run('INSERT INTO settings (key, value) VALUES (?, ?)', ['model', 'gemini-2.5-flash']);
+  } else if (existingModel.value && (existingModel.value.includes('gemini-1.') || existingModel.value === 'gemini-2.0-flash' || existingModel.value === 'gemini-2.0-flash-lite')) {
+    // Migrate: gemini-1.x is deprecated, gemini-2.0-flash has no free-tier quota
+    db.run('UPDATE settings SET value = ? WHERE key = ?', ['gemini-2.5-flash', 'model']);
   }
 
   save();

@@ -112,13 +112,13 @@ async function testGeminiConnection() {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent('Responde solo con la palabra "ok".');
     const text = (result.response.text() || '').trim().toLowerCase();
     return {
       ok: true,
       stage: 'ok',
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       sample: text.slice(0, 40),
       keyPreview: apiKey.slice(0, 7) + '...' + apiKey.slice(-4),
     };
@@ -207,7 +207,7 @@ async function analyzeCase(caseDescription, options = {}) {
   if (!apiKey) {
     throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
   }
-  const modelId = options.model || db.getSetting('model') || 'gemini-2.0-flash';
+  const modelId = options.model || db.getSetting('model') || 'gemini-2.5-flash';
 
   let policiesContext = '';
   if (policies.length > 0) {
@@ -354,7 +354,7 @@ async function triageCase(caseDescription, options = {}) {
   const departments = [...new Set(policies.map((p) => p.department))];
   const contacts    = db.getContactsByDepartments(departments.length > 0 ? departments : ['General']);
   const notes       = db.searchNotesForAI(caseDescription);
-  const modelId     = options.model || db.getSetting('model') || 'gemini-2.0-flash';
+  const modelId     = options.model || db.getSetting('model') || 'gemini-2.5-flash';
 
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -426,7 +426,7 @@ async function generateEmail(context, options = {}) {
     throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
   }
 
-  const modelId = options.model || db.getSetting('model') || 'gemini-2.0-flash';
+  const modelId = options.model || db.getSetting('model') || 'gemini-2.5-flash';
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const geminiModel = genAI.getGenerativeModel({
@@ -519,7 +519,7 @@ function registerHandlers() {
     return key.slice(0, 7) + '...' + key.slice(-4);
   });
   ipcMain.handle('settings:setApiKey', (_e, key) => saveApiKey(key));
-  ipcMain.handle('settings:getModel', () => db.getSetting('model') || 'gemini-2.0-flash');
+  ipcMain.handle('settings:getModel', () => db.getSetting('model') || 'gemini-2.5-flash');
   ipcMain.handle('settings:setModel', (_e, model) => db.setSetting('model', model));
   ipcMain.handle('settings:getTheme', () => db.getSetting('theme') || 'dark');
   ipcMain.handle('settings:setTheme', (_e, theme) => db.setSetting('theme', theme));
@@ -618,7 +618,7 @@ function registerHandlers() {
       const apiKey = getApiKey();
       if (!apiKey) throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
       const stored = db.getSetting('model') || '';
-      const modelId = stored.startsWith('gemini-') ? stored : 'gemini-2.0-flash';
+      const modelId = stored.startsWith('gemini-') ? stored : 'gemini-2.5-flash';
 
       // Build LUMEN knowledge context from local DB
       let lumenContext = '';
