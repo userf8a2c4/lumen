@@ -52,6 +52,87 @@ function getApiKey() {
   return embedded || null;
 }
 
+// --- Gemini error humanizer ---
+// Translates cryptic Gemini SDK errors into actionable Spanish messages
+function humanizeGeminiError(err) {
+  const msg = (err && err.message) ? err.message : String(err);
+  const lower = msg.toLowerCase();
+
+  // 429 — Quota exhausted / rate limit
+  if (/429|too many requests|quota/i.test(msg)) {
+    // Detect "limit: 0" which means the project has no free tier allocated
+    if (/limit:\s*0/i.test(msg)) {
+      return 'La API Key de Google AI tiene cuota agotada (limit: 0). El proyecto de Google Cloud asociado no tiene free tier disponible o la facturación no está activa. Genera una nueva API Key en https://aistudio.google.com/apikey con un proyecto nuevo, o habilita facturación en el actual.';
+    }
+    const retryMatch = msg.match(/retry in ([\d.]+)s/i);
+    const retry = retryMatch ? ` Reintenta en ~${Math.ceil(parseFloat(retryMatch[1]))}s.` : '';
+    return `Límite de peticiones excedido (429).${retry} Espera unos segundos o usa una API Key con cuota disponible.`;
+  }
+
+  // 400 — Bad request
+  if (/400|invalid argument|bad request/i.test(msg)) {
+    if (/api key not valid|api_key_invalid/i.test(msg)) {
+      return 'La API Key de Google AI no es válida. Verifica que esté correctamente copiada desde https://aistudio.google.com/apikey';
+    }
+    if (/model.*not found|not supported/i.test(msg)) {
+      return 'El modelo seleccionado no está disponible. Cambia a Gemini 2.0 Flash en Configuración.';
+    }
+    return `Petición inválida a Gemini: ${msg.slice(0, 200)}`;
+  }
+
+  // 403 — Forbidden / API not enabled
+  if (/403|permission denied|api.*not.*enabled|forbidden/i.test(msg)) {
+    return 'Acceso denegado. Habilita la "Generative Language API" en https://console.cloud.google.com/ para el proyecto de tu API Key.';
+  }
+
+  // 401 — Unauthorized
+  if (/401|unauthenticated|unauthorized/i.test(msg)) {
+    return 'API Key inválida o revocada. Genera una nueva en https://aistudio.google.com/apikey';
+  }
+
+  // 5xx — Server errors
+  if (/5\d\d|internal|unavailable|service.*error/i.test(msg)) {
+    return 'El servicio de Gemini está temporalmente no disponible. Reintenta en unos minutos.';
+  }
+
+  // Network
+  if (/fetch failed|network|enotfound|etimedout|econnreset/i.test(lower)) {
+    return 'Error de red al contactar con Gemini. Verifica tu conexión a internet.';
+  }
+
+  return `Error de Gemini: ${msg.slice(0, 250)}`;
+}
+
+// --- Gemini connection test ---
+async function testGeminiConnection() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return { ok: false, stage: 'no-key', message: 'No hay API Key configurada ni embebida.' };
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const result = await model.generateContent('Responde solo con la palabra "ok".');
+    const text = (result.response.text() || '').trim().toLowerCase();
+    return {
+      ok: true,
+      stage: 'ok',
+      model: 'gemini-2.0-flash',
+      sample: text.slice(0, 40),
+      keyPreview: apiKey.slice(0, 7) + '...' + apiKey.slice(-4),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      stage: 'api-error',
+      message: humanizeGeminiError(err),
+      raw: (err && err.message) ? err.message.slice(0, 400) : String(err).slice(0, 400),
+      keyPreview: apiKey.slice(0, 7) + '...' + apiKey.slice(-4),
+    };
+  }
+}
+
 // --- Local-first analysis (no API needed) ---
 
 function buildLocalAnalysis(policies, contacts, notes, examples, caseDescription) {
@@ -517,18 +598,19 @@ function registerHandlers() {
   });
 
   // AI
+  ipcMain.handle('ai:testConnection', async () => testGeminiConnection());
   ipcMain.handle('ai:analyze', async (_e, caseDescription, options) => {
     try {
       return await analyzeCase(caseDescription, options || {});
     } catch (err) {
-      throw new Error(err.message);
+      throw new Error(humanizeGeminiError(err));
     }
   });
   ipcMain.handle('ai:generateEmail', async (_e, context, options) => {
     try {
       return await generateEmail(context, options || {});
     } catch (err) {
-      throw new Error(err.message);
+      throw new Error(humanizeGeminiError(err));
     }
   });
   ipcMain.handle('ai:chat', async (_e, message, history) => {
@@ -585,7 +667,7 @@ function registerHandlers() {
       const result = await chat.sendMessage(message);
       return result.response.text();
     } catch (err) {
-      throw new Error(err.message);
+      throw new Error(humanizeGeminiError(err));
     }
   });
 
@@ -594,7 +676,7 @@ function registerHandlers() {
     try {
       return await triageCase(caseDesc, options || {});
     } catch (err) {
-      throw new Error(err.message);
+      throw new Error(humanizeGeminiError(err));
     }
   });
   ipcMain.handle('ac3:saveCase', (_e, caseDesc, decision) => {

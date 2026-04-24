@@ -4,6 +4,7 @@ import {
   Mail, CalendarDays, Wifi, WifiOff, Palette, LogOut,
   RefreshCw, Info, Tag, RotateCcw, Plus, Trash2, X,
   GitBranch, ChevronDown, ChevronUp, Save, Loader2,
+  Zap, AlertTriangle,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -575,6 +576,8 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
     const d = {}; NAV_LABEL_DEFS.forEach((x) => { d[x.id] = x.default; }); return d;
   });
   const [labelSaved,   setLabelSaved]   = useState(false);
+  const [testingAi,    setTestingAi]    = useState(false);
+  const [aiTestResult, setAiTestResult] = useState(null); // { ok, message, ... }
 
   const flash = (tag) => { setSaved(tag); setTimeout(() => setSaved(''), 2000); };
 
@@ -660,6 +663,19 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
     try { await window.lumen.updater.check(); }
     catch {}
     finally { setTimeout(() => setChecking(false), 1500); }
+  };
+
+  const testAiConnection = async () => {
+    setTestingAi(true);
+    setAiTestResult(null);
+    try {
+      const res = await window.lumen.ai.testConnection();
+      setAiTestResult(res);
+    } catch (e) {
+      setAiTestResult({ ok: false, message: e?.message || 'Error desconocido' });
+    } finally {
+      setTestingAi(false);
+    }
   };
 
   return (
@@ -802,6 +818,80 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
         <Row label="Árbol de decisiones" icon={GitBranch} iconColor="#a78bfa" collapsible
           hint="Crea ramas y define los pasos del proceso. Cada paso tiene un speech (qué decir) y opciones de selección para el agente.">
           <DecisionTreeEditor />
+        </Row>
+
+        {/* Diagnóstico de IA */}
+        <Row label="Diagnóstico de Gemini" icon={Zap} iconColor="#fbbf24"
+          hint="Verifica que la API Key actual puede generar respuestas. Útil si LU o el análisis AC3 no responden.">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                onClick={testAiConnection}
+                disabled={testingAi}
+                className="btn-accent"
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {testingAi
+                  ? <><Loader2 size={12} className="animate-spin" /> Probando…</>
+                  : <><Zap size={12} /> Probar conexión</>}
+              </button>
+              {aiTestResult && aiTestResult.keyPreview && (
+                <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)', fontFamily: 'monospace' }}>
+                  Key: {aiTestResult.keyPreview}
+                </span>
+              )}
+            </div>
+
+            {aiTestResult && (
+              <div style={{
+                padding: '10px 12px',
+                borderRadius: 6,
+                background: aiTestResult.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.06)',
+                border: `1px solid ${aiTestResult.ok ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  {aiTestResult.ok
+                    ? <Check size={14} style={{ color: '#10b981', marginTop: 1, flexShrink: 0 }} />
+                    : <AlertTriangle size={14} style={{ color: '#f87171', marginTop: 1, flexShrink: 0 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontSize: 11, fontWeight: 600,
+                      color: aiTestResult.ok ? '#10b981' : '#f87171',
+                      marginBottom: 4,
+                    }}>
+                      {aiTestResult.ok
+                        ? `Conexión OK · ${aiTestResult.model || 'gemini'}`
+                        : 'Fallo de conexión'}
+                    </p>
+                    {aiTestResult.ok ? (
+                      <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.5 }}>
+                        Respuesta recibida: "{aiTestResult.sample}"
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: 11, color: 'var(--lumen-text)', lineHeight: 1.55 }}>
+                        {aiTestResult.message}
+                      </p>
+                    )}
+                    {!aiTestResult.ok && aiTestResult.raw && (
+                      <details style={{ marginTop: 6 }}>
+                        <summary style={{ fontSize: 10, color: 'var(--lumen-text-muted)', cursor: 'pointer' }}>
+                          Ver error técnico
+                        </summary>
+                        <pre style={{
+                          fontSize: 9, color: 'var(--lumen-text-muted)',
+                          background: 'rgba(0,0,0,0.3)', padding: 6, marginTop: 4,
+                          borderRadius: 3, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                          maxHeight: 120, overflowY: 'auto',
+                        }}>
+                          {aiTestResult.raw}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </Row>
 
         {/* Sistema */}
