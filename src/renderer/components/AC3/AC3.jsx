@@ -234,75 +234,57 @@ function DecisionWizard({ branch, onBack }) {
           </div>
         ) : (
           <div style={{ width: '100%', maxWidth: 540 }}>
-            {/* Node ID badge */}
-            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: accent, textTransform: 'uppercase', marginBottom: 8, fontFamily: 'monospace' }}>
-              NODO {currentNode?.id || stepNum}
-            </p>
 
-            {/* Central question */}
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--lumen-text)', marginBottom: 18, lineHeight: 1.3 }}>
+            {/* Sugerencia (speech) — shown first, like images 2-4 */}
+            {currentNode?.speech && (
+              <p style={{ fontSize: 12, color: 'var(--lumen-text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
+                <span style={{ fontWeight: 600, color: 'var(--lumen-text-secondary)' }}>Sugerencia: </span>
+                {currentNode.speech}
+              </p>
+            )}
+
+            {/* Central question — bold heading */}
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--lumen-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14, lineHeight: 1.3 }}>
               {currentNode?.question || ''}
-            </h3>
+            </p>
 
             {/* Instructions — internal guide for Lucila */}
             {currentNode?.instructions && (
               <div style={{
-                marginBottom: 16, padding: '10px 14px',
-                background: 'rgba(96,165,250,0.07)',
-                border: '1px solid rgba(96,165,250,0.2)',
+                marginBottom: 18, padding: '9px 12px',
+                background: 'rgba(96,165,250,0.06)',
+                border: '1px solid rgba(96,165,250,0.18)',
                 borderLeft: '3px solid #60a5fa',
-                borderRadius: '0 6px 6px 0',
+                borderRadius: '0 5px 5px 0',
               }}>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', color: '#60a5fa', marginBottom: 6, textTransform: 'uppercase' }}>
-                  Para ti:
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--lumen-text-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                <p style={{ fontSize: 11, color: 'rgba(96,165,250,0.9)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                   {currentNode.instructions}
                 </p>
               </div>
             )}
 
-            {/* Speech — copy-paste for client */}
-            {currentNode?.speech && (
-              <div style={{
-                marginBottom: 26, padding: '14px 18px',
-                background: `${accent}0d`,
-                border: `1px solid ${accent}30`,
-                borderLeft: `3px solid ${accent}`,
-                borderRadius: '0 8px 8px 0',
-              }}>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', color: 'var(--lumen-text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>
-                  Decirle al cliente:
-                </p>
-                <p style={{ fontSize: 13, color: 'var(--lumen-text)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
-                  {currentNode.speech}
-                </p>
-              </div>
-            )}
-
-            {/* Options */}
+            {/* Options — radio button style */}
             {currentNode?.options && currentNode.options.length > 0 ? (
-              <div>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>
-                  Selecciona una opción:
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {currentNode.options.map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => advance(opt.next_node_id)}
-                      style={{
-                        padding: '11px 16px', borderRadius: 6, textAlign: 'left', cursor: 'pointer',
-                        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--lumen-border)',
-                        color: 'var(--lumen-text)', fontSize: 12, fontWeight: 500, transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = `${accent}18`; e.currentTarget.style.borderColor = `${accent}55`; e.currentTarget.style.color = accent; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'var(--lumen-border)'; e.currentTarget.style.color = 'var(--lumen-text)'; }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {currentNode.options.map((opt) => (
+                  <label
+                    key={opt.id || opt.label}
+                    onClick={() => advance(opt.next_node_id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 12px', borderRadius: 5, cursor: 'pointer',
+                      border: '1px solid var(--lumen-border)',
+                      background: 'rgba(255,255,255,0.02)',
+                      transition: 'background 0.12s, border-color 0.12s',
+                      userSelect: 'none',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.borderColor = `${accent}40`; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = 'var(--lumen-border)'; }}
+                  >
+                    <span style={{ width: 14, height: 14, borderRadius: '50%', border: `1.5px solid var(--lumen-text-muted)`, flexShrink: 0, display: 'inline-block' }} />
+                    <span style={{ fontSize: 12, color: 'var(--lumen-text)' }}>{opt.label}</span>
+                  </label>
+                ))}
               </div>
             ) : (
               <button

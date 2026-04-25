@@ -4,8 +4,9 @@ import {
   Mail, CalendarDays, Wifi, WifiOff, Palette, LogOut,
   RefreshCw, Info, Tag, RotateCcw, Plus, Trash2, X,
   GitBranch, ChevronDown, ChevronUp, Save, Loader2,
-  Zap, AlertTriangle,
+  Zap, AlertTriangle, Pencil,
 } from 'lucide-react';
+import BranchCanvas from './BranchCanvas';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -489,12 +490,12 @@ function BranchNodeEditor({ branch: initialBranch, onSaved, onDeleted }) {
 }
 
 function DecisionTreeEditor() {
-  const [branches,   setBranches]   = useState([]);
-  const [expanded,   setExpanded]   = useState(null); // branch id
-  const [newName,    setNewName]    = useState('');
-  const [newColor,   setNewColor]   = useState('#7E3FF2');
-  const [addingBr,   setAddingBr]   = useState(false);
-  const [creating,   setCreating]   = useState(false);
+  const [branches,    setBranches]    = useState([]);
+  const [newName,     setNewName]     = useState('');
+  const [newColor,    setNewColor]    = useState('#7E3FF2');
+  const [addingBr,    setAddingBr]    = useState(false);
+  const [creating,    setCreating]    = useState(false);
+  const [canvasBranch, setCanvasBranch] = useState(null); // branch open in canvas
 
   useEffect(() => {
     window.lumen.ac3.branches.getAll().then(setBranches).catch(() => {});
@@ -506,42 +507,57 @@ function DecisionTreeEditor() {
     try {
       const br = await window.lumen.ac3.branches.create({ name: newName.trim(), color: newColor, nodes: [], order_idx: branches.length });
       setBranches((p) => [...p, br]);
-      setExpanded(br.id);
       setAddingBr(false); setNewName(''); setNewColor('#7E3FF2');
+      setCanvasBranch(br); // open canvas right away
     } catch {} finally { setCreating(false); }
+  };
+
+  const handleBranchSaved = (updated) => {
+    setBranches(p => p.map(b => b.id === updated.id ? updated : b));
+    if (canvasBranch?.id === updated.id) setCanvasBranch(updated);
+  };
+
+  const handleBranchDelete = async (br) => {
+    if (!confirm(`¿Eliminar la rama "${br.name}"? Esta acción no se puede deshacer.`)) return;
+    await window.lumen.ac3.branches.delete(br.id);
+    setBranches(p => p.filter(b => b.id !== br.id));
+    if (canvasBranch?.id === br.id) setCanvasBranch(null);
   };
 
   return (
     <div>
+      {canvasBranch && (
+        <BranchCanvas
+          branch={canvasBranch}
+          onClose={() => setCanvasBranch(null)}
+          onSaved={handleBranchSaved}
+        />
+      )}
+
       {branches.length === 0 && !addingBr && (
         <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', marginBottom: 10 }}>Sin ramas aún. Crea la primera.</p>
       )}
 
       {branches.map((br) => (
-        <div key={br.id} style={{ marginBottom: 8, border: '1px solid var(--lumen-border)', borderRadius: 6, overflow: 'hidden' }}>
-          <button
-            onClick={() => setExpanded((v) => v === br.id ? null : br.id)}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'rgba(255,255,255,0.02)', border: 'none', cursor: 'pointer', borderLeft: `3px solid ${br.color || '#7E3FF2'}` }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--lumen-text)', flex: 1, textAlign: 'left' }}>{br.name}</span>
+        <div key={br.id} style={{ marginBottom: 8, border: '1px solid var(--lumen-border)', borderRadius: 6, overflow: 'hidden', borderLeft: `3px solid ${br.color || '#7E3FF2'}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'rgba(255,255,255,0.02)' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--lumen-text)', flex: 1 }}>{br.name}</span>
             <span style={{ fontSize: 9, color: 'var(--lumen-text-muted)', fontFamily: 'monospace' }}>
-              {Array.isArray(br.nodes) ? br.nodes.length : 0} pasos
+              {Array.isArray(br.nodes) ? br.nodes.length : 0} nodos
             </span>
-            {expanded === br.id
-              ? <ChevronUp size={12} style={{ color: 'var(--lumen-text-muted)' }} />
-              : <ChevronDown size={12} style={{ color: 'var(--lumen-text-muted)' }} />}
-          </button>
-
-          {expanded === br.id && (
-            <div style={{ padding: '0 12px 12px', background: 'rgba(255,255,255,0.01)' }}>
-              <BranchNodeEditor
-                key={br.id}
-                branch={br}
-                onSaved={(updated) => setBranches((p) => p.map((x) => x.id === updated.id ? updated : x))}
-                onDeleted={(id) => { setBranches((p) => p.filter((x) => x.id !== id)); setExpanded(null); }}
-              />
-            </div>
-          )}
+            <button
+              onClick={() => setCanvasBranch(br)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4, background: 'rgba(126,63,242,0.10)', border: '1px solid rgba(126,63,242,0.3)', color: '#a78bfa', fontSize: 10, cursor: 'pointer', fontWeight: 600 }}
+            >
+              <Pencil size={10} /> Editar árbol
+            </button>
+            <button
+              onClick={() => handleBranchDelete(br)}
+              style={{ padding: '4px 6px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239,68,68,0.45)', borderRadius: 3 }}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
         </div>
       ))}
 
