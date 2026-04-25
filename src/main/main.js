@@ -527,10 +527,12 @@ function registerHandlers() {
   ipcMain.handle('settings:setUserEmail', (_e, email) => db.setSetting('user_email', email));
   ipcMain.handle('settings:getCseId', () => db.getSetting('cse_id') || '');
   ipcMain.handle('settings:setCseId', (_e, id) => db.setSetting('cse_id', id));
-  ipcMain.handle('settings:getAccentColor',    () => db.getSetting('accent_color') || '#7E3FF2');
-  ipcMain.handle('settings:setAccentColor',    (_e, color) => db.setSetting('accent_color', color));
-  ipcMain.handle('settings:getSectionLabels',  () => db.getSetting('section_labels') || null);
-  ipcMain.handle('settings:setSectionLabels',  (_e, json) => db.setSetting('section_labels', json));
+  ipcMain.handle('settings:getAccentColor',        () => db.getSetting('accent_color') || '#7E3FF2');
+  ipcMain.handle('settings:setAccentColor',        (_e, color) => db.setSetting('accent_color', color));
+  ipcMain.handle('settings:getSectionLabels',      () => db.getSetting('section_labels') || null);
+  ipcMain.handle('settings:setSectionLabels',      (_e, json) => db.setSetting('section_labels', json));
+  ipcMain.handle('settings:getAppearanceSettings', () => db.getSetting('appearance_settings') || null);
+  ipcMain.handle('settings:setAppearanceSettings', (_e, json) => db.setSetting('appearance_settings', json));
 
   // Logic Flows
   ipcMain.handle('logic:getAll',    () => db.getAllFlows());

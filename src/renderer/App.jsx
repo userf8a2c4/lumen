@@ -36,6 +36,30 @@ const DEFAULT_SECTION_LABELS = {
   settings:  'Configuración',
 };
 
+export const DEFAULT_APPEARANCE = {
+  darkPrimary:    '#ffffff',
+  darkSecondary:  '#7E3FF2',
+  lightPrimary:   '#000000',
+  lightSecondary: '#7E3FF2',
+  fontFamily:     'Inter',
+};
+
+const FONT_STACKS = {
+  'Inter':          "'Inter', -apple-system, system-ui, sans-serif",
+  'Roboto':         "'Roboto', -apple-system, system-ui, sans-serif",
+  'IBM Plex Sans':  "'IBM Plex Sans', -apple-system, system-ui, sans-serif",
+  'JetBrains Mono': "'JetBrains Mono', 'Courier New', monospace",
+  'system-ui':      "-apple-system, system-ui, BlinkMacSystemFont, sans-serif",
+};
+
+function applyAppearance(appearance, currentTheme) {
+  const isDark = currentTheme !== 'light';
+  document.documentElement.style.setProperty('--lumen-accent', isDark ? appearance.darkPrimary : appearance.lightPrimary);
+  document.documentElement.style.setProperty('--lumen-accent-secondary', isDark ? appearance.darkSecondary : appearance.lightSecondary);
+  const stack = FONT_STACKS[appearance.fontFamily] || FONT_STACKS['Inter'];
+  document.documentElement.style.setProperty('--lumen-font', stack);
+}
+
 const MODULES = {
   dashboard: { label: 'Inicio',         component: Dashboard },
   agenda:    { label: 'Agenda',         component: Agenda },
@@ -61,6 +85,7 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const [userName, setUserName] = useState('Lu');
   const [sectionLabels, setSectionLabels] = useState(DEFAULT_SECTION_LABELS);
+  const [appearance, setAppearance] = useState(DEFAULT_APPEARANCE);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2200);
@@ -76,10 +101,26 @@ export default function App() {
       }
     }).catch(() => {});
     window.lumen.settings.getTheme().then((t) => {
-      if (t) {
-        setTheme(t);
-        document.documentElement.className = t === 'light' ? 'light-theme' : '';
-      }
+      const resolvedTheme = t || 'dark';
+      setTheme(resolvedTheme);
+      document.documentElement.className = resolvedTheme === 'light' ? 'light-theme' : '';
+      window.lumen.settings.getAppearanceSettings().then((json) => {
+        let app = DEFAULT_APPEARANCE;
+        if (json) {
+          try { app = { ...DEFAULT_APPEARANCE, ...JSON.parse(json) }; } catch {}
+        } else {
+          window.lumen.settings.getAccentColor().then((ac) => {
+            if (ac) {
+              app = { ...DEFAULT_APPEARANCE, darkPrimary: ac };
+            }
+            setAppearance(app);
+            applyAppearance(app, resolvedTheme);
+          }).catch(() => {});
+          return;
+        }
+        setAppearance(app);
+        applyAppearance(app, resolvedTheme);
+      }).catch(() => {});
     }).catch(() => {});
     window.lumen.settings.getUserEmail().then((email) => {
       // Full first name (e.g. "Lucila" not "Lu") — formal address
@@ -120,6 +161,13 @@ export default function App() {
     setTheme(next);
     document.documentElement.className = next === 'light' ? 'light-theme' : '';
     window.lumen.settings.setTheme(next).catch(() => {});
+    applyAppearance(appearance, next);
+  };
+
+  const handleAppearanceChange = async (newAppearance) => {
+    setAppearance(newAppearance);
+    applyAppearance(newAppearance, theme);
+    await window.lumen.settings.setAppearanceSettings(JSON.stringify(newAppearance)).catch(() => {});
   };
 
   const navigateTo = (module, props = {}) => {
@@ -168,7 +216,7 @@ export default function App() {
         />
         <main className={`flex-1 ${activeModule === 'ac3' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
           <ErrorBoundary name={activeModule}>
-            <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} sectionLabels={sectionLabels} onSectionLabelsChange={handleSectionLabelsChange} />
+            <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} sectionLabels={sectionLabels} onSectionLabelsChange={handleSectionLabelsChange} appearance={appearance} onAppearanceChange={handleAppearanceChange} theme={theme} />
           </ErrorBoundary>
         </main>
       </div>

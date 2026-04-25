@@ -14,7 +14,25 @@ const MODELS = [
   { id: 'gemini-2.5-pro',   label: 'Gemini 2.5 Pro',   desc: 'Máximo rendimiento · Requiere billing' },
 ];
 
-const ACCENT_PRESETS = ['#ffffff', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
+const DEFAULT_APPEARANCE = {
+  darkPrimary:    '#ffffff',
+  darkSecondary:  '#7E3FF2',
+  lightPrimary:   '#000000',
+  lightSecondary: '#7E3FF2',
+  fontFamily:     'Inter',
+};
+
+const PRIMARY_PRESETS_DARK  = ['#ffffff', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
+const PRIMARY_PRESETS_LIGHT = ['#000000', '#1d4ed8', '#059669', '#d97706', '#db2777', '#dc2626', '#0891b2'];
+const SECONDARY_PRESETS     = ['#7E3FF2', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#f97316'];
+
+const FONT_OPTIONS = [
+  { id: 'Inter',          label: 'Inter' },
+  { id: 'Roboto',         label: 'Roboto' },
+  { id: 'IBM Plex Sans',  label: 'IBM Plex' },
+  { id: 'JetBrains Mono', label: 'JetBrains' },
+  { id: 'system-ui',      label: 'Sistema' },
+];
 
 const NAV_LABEL_DEFS = [
   { id: 'dashboard', default: 'Dashboard',     hint: 'Pantalla de inicio' },
@@ -557,16 +575,146 @@ function DecisionTreeEditor() {
   );
 }
 
+// ─── Appearance Editor ────────────────────────────────────────────────────────
+
+function ColorDot({ color, selected, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: 20, height: 20, borderRadius: '50%', background: color,
+        border: 'none', cursor: 'pointer', flexShrink: 0,
+        outline: selected ? '2px solid rgba(255,255,255,0.8)' : '2px solid transparent',
+        outlineOffset: 2,
+        transform: selected ? 'scale(1.2)' : 'scale(1)',
+        transition: 'outline 0.12s, transform 0.12s',
+      }}
+    />
+  );
+}
+
+function AppearanceEditor({ appearance, onAppearanceChange, theme }) {
+  const [editingTheme, setEditingTheme] = useState(theme || 'dark');
+
+  const isDark       = editingTheme === 'dark';
+  const primaryKey   = isDark ? 'darkPrimary'   : 'lightPrimary';
+  const secondaryKey = isDark ? 'darkSecondary'  : 'lightSecondary';
+  const primaryPresets = isDark ? PRIMARY_PRESETS_DARK : PRIMARY_PRESETS_LIGHT;
+
+  const update = (key, value) => onAppearanceChange({ ...appearance, [key]: value });
+
+  const labelStyle = {
+    fontSize: 10, fontWeight: 600, letterSpacing: '0.07em',
+    textTransform: 'uppercase', color: 'var(--lumen-text-muted)', marginBottom: 8,
+  };
+
+  return (
+    <div>
+      {/* Theme tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
+        {[['dark', 'Noche'], ['light', 'Día']].map(([t, label]) => (
+          <button
+            key={t}
+            onClick={() => setEditingTheme(t)}
+            style={{
+              padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+              border: `1px solid ${editingTheme === t ? 'var(--lumen-border-light)' : 'var(--lumen-border)'}`,
+              cursor: 'pointer',
+              background: editingTheme === t ? 'rgba(255,255,255,0.06)' : 'transparent',
+              color: editingTheme === t ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Color principal */}
+      <div style={{ marginBottom: 16 }}>
+        <p style={labelStyle}>Color principal</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {primaryPresets.map((c) => (
+            <ColorDot key={c} color={c} selected={appearance[primaryKey] === c} onClick={() => update(primaryKey, c)} />
+          ))}
+          <input
+            type="color"
+            value={appearance[primaryKey]}
+            onChange={(e) => update(primaryKey, e.target.value)}
+            title="Color personalizado"
+            style={{ width: 26, height: 26, borderRadius: 4, border: '1px solid var(--lumen-border)', background: 'none', cursor: 'pointer', padding: 2 }}
+          />
+        </div>
+      </div>
+
+      {/* Color secundario */}
+      <div style={{ marginBottom: 16 }}>
+        <p style={labelStyle}>Color secundario</p>
+        <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', marginBottom: 8, marginTop: -4, lineHeight: 1.4 }}>
+          Indicador de sección activa y acentos decorativos.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {SECONDARY_PRESETS.map((c) => (
+            <ColorDot key={c} color={c} selected={appearance[secondaryKey] === c} onClick={() => update(secondaryKey, c)} />
+          ))}
+          <input
+            type="color"
+            value={appearance[secondaryKey]}
+            onChange={(e) => update(secondaryKey, e.target.value)}
+            title="Color personalizado"
+            style={{ width: 26, height: 26, borderRadius: 4, border: '1px solid var(--lumen-border)', background: 'none', cursor: 'pointer', padding: 2 }}
+          />
+        </div>
+      </div>
+
+      {/* Tipografía */}
+      <div style={{ marginBottom: 16 }}>
+        <p style={labelStyle}>Tipografía</p>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {FONT_OPTIONS.map(({ id, label }) => {
+            const active = appearance.fontFamily === id;
+            const fontStack = id === 'system-ui' ? 'system-ui' : `'${id}', sans-serif`;
+            return (
+              <button
+                key={id}
+                onClick={() => update('fontFamily', id)}
+                style={{
+                  padding: '5px 12px', borderRadius: 4, fontSize: 12,
+                  border: `1px solid ${active ? 'var(--lumen-border-light)' : 'var(--lumen-border)'}`,
+                  cursor: 'pointer',
+                  background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  color: active ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
+                  fontFamily: fontStack,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Reset */}
+      <button
+        onClick={() => onAppearanceChange(DEFAULT_APPEARANCE)}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 5, fontSize: 11, background: 'none', border: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)', cursor: 'pointer' }}
+      >
+        <RotateCcw size={11} /> Restablecer apariencia
+      </button>
+    </div>
+  );
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
-export default function Settings({ onModelChange, sectionLabels, onSectionLabelsChange }) {
+export default function Settings({ onModelChange, sectionLabels, onSectionLabelsChange, appearance, onAppearanceChange, theme }) {
   const [apiKey,       setApiKey]       = useState('');
   const [apiKeyInput,  setApiKeyInput]  = useState('');
   const [showKey,      setShowKey]      = useState(false);
   const [model,        setModel]        = useState('gemini-2.5-flash');
   const [email,        setEmail]        = useState('');
   const [emailInput,   setEmailInput]   = useState('');
-  const [accentColor,  setAccentColor]  = useState('#ffffff');
   const [calConnected, setCalConnected] = useState(false);
   const [calBusy,      setCalBusy]      = useState(false);
   const [version,      setVersion]      = useState('');
@@ -590,14 +738,12 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       window.lumen.settings.getApiKey(),
       window.lumen.settings.getModel(),
       window.lumen.settings.getUserEmail(),
-      window.lumen.settings.getAccentColor(),
       window.lumen.app.getVersion(),
       window.lumen.calendar.isAuthenticated(),
-    ]).then(([k, m, em, ac, v, conn]) => {
+    ]).then(([k, m, em, v, conn]) => {
       setApiKey(k ? k.slice(0, 7) + '…' + k.slice(-4) : '');
       setModel(MODELS.find((x) => x.id === m) ? m : 'gemini-2.5-flash');
       setEmail(em || ''); setEmailInput(em || '');
-      if (ac) { setAccentColor(ac); document.documentElement.style.setProperty('--lumen-accent', ac); }
       setVersion(v || '');
       setCalConnected(conn);
     }).catch(() => {});
@@ -621,12 +767,6 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
     setModel(id);
     await window.lumen.settings.setModel(id);
     onModelChange?.(id);
-  };
-
-  const saveAccent = async (color) => {
-    setAccentColor(color);
-    document.documentElement.style.setProperty('--lumen-accent', color);
-    await window.lumen.settings.setAccentColor(color).catch(() => {});
   };
 
   const connectCal = async () => {
@@ -765,17 +905,13 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           </div>
         </Row>
 
-        {/* Color acento */}
-        <Row label="Color de acento" icon={Palette} iconColor={accentColor}>
-          <div className="flex items-center gap-3">
-            <div className="flex gap-2">
-              {ACCENT_PRESETS.map((c) => (
-                <button key={c} onClick={() => saveAccent(c)} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: 'none', cursor: 'pointer', outline: accentColor === c ? '2px solid white' : '2px solid transparent', outlineOffset: 2, transition: 'outline 0.15s, transform 0.15s', transform: accentColor === c ? 'scale(1.2)' : 'scale(1)' }} />
-              ))}
-            </div>
-            <input type="color" value={accentColor} onChange={(e) => saveAccent(e.target.value)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'none', cursor: 'pointer', padding: 2 }} />
-            <button onClick={() => saveAccent('#ffffff')} style={{ fontSize: 11, color: 'var(--lumen-text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Reset</button>
-          </div>
+        {/* Apariencia */}
+        <Row label="Apariencia" icon={Palette} iconColor="var(--lumen-accent-secondary)">
+          <AppearanceEditor
+            appearance={appearance || DEFAULT_APPEARANCE}
+            onAppearanceChange={onAppearanceChange}
+            theme={theme}
+          />
         </Row>
 
         {/* Nombres secciones */}
