@@ -91,7 +91,7 @@ export default function LU() {
           size={13}
           style={{
             color: 'var(--lumen-text-muted)',
-            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transform: open ? 'rotate(0deg)' : 'rotate(180deg)',
             transition: 'transform 0.2s ease',
           }}
         />
