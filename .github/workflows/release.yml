@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag/version to release (e.g. v0.1.3)'
+        required: true
 
 permissions:
   contents: write
@@ -15,6 +22,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -30,15 +40,38 @@ jobs:
         run: |
           Write-Host "Creating configuration files..."
 
-          # Google Calendar config
           $cal = "module.exports = { GOOGLE_CLIENT_ID: '${{ secrets.GOOGLE_CLIENT_ID }}', GOOGLE_CLIENT_SECRET: '${{ secrets.GOOGLE_CLIENT_SECRET }}' };"
           Set-Content -Path src/main/gcal-config.js -Value $cal -Encoding UTF8
-          Write-Host "✓ Google Calendar config created"
+          Write-Host "OK Google Calendar config"
 
-          # Gemini API key
           $gem = "module.exports = { GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}' };"
           Set-Content -Path src/main/gemini-config.js -Value $gem -Encoding UTF8
-          Write-Host "✓ Gemini API config created"
+          Write-Host "OK Gemini API config"
+
+      - name: Resolve release tag
+        id: get_tag
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $tag = '${{ github.event.inputs.tag }}'
+          } elseif ('${{ github.ref_type }}' -eq 'tag') {
+            $tag = '${{ github.ref_name }}'
+          } else {
+            $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+            $tag = "v$version"
+            $exists = git tag -l $tag
+            if (-not $exists) {
+              git config user.email "actions@github.com"
+              git config user.name "GitHub Actions"
+              git tag $tag
+              git push origin $tag
+              Write-Host "Created and pushed tag $tag"
+            } else {
+              Write-Host "Tag $tag already exists, skipping creation"
+            }
+          }
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Release tag: $tag"
 
       - name: Build Vite renderer
         run: npm run build
@@ -55,14 +88,14 @@ jobs:
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          # .exe for the installer,
-          # latest.yml + .blockmap needed by electron-updater for
-          # auto-update checks and differential (delta) downloads.
+          tag_name: ${{ steps.get_tag.outputs.TAG }}
+          name: LUMEN ${{ steps.get_tag.outputs.TAG }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
           files: |
             release/*.exe
             release/*.blockmap
             release/latest.yml
-          generate_release_notes: false
-          tag_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
