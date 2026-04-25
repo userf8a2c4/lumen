@@ -82,6 +82,7 @@ contextBridge.exposeInMainWorld('lumen', {
     analyze:        (caseDescription, options) => ipcRenderer.invoke('ai:analyze', caseDescription, options),
     generateEmail:  (context, options)         => ipcRenderer.invoke('ai:generateEmail', context, options),
     chat:           (message, history)         => ipcRenderer.invoke('ai:chat', message, history),
+    adminEdit:      (instruction)              => ipcRenderer.invoke('ai:adminEdit', instruction),
     testConnection: ()                          => ipcRenderer.invoke('ai:testConnection'),
   },
   ac3: {

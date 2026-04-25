@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FlaskConical, Library, Users, BookOpen, StickyNote, Zap, Globe, Shield } from 'lucide-react';
+import { FlaskConical, Library, Users, BookOpen, StickyNote, Zap, Globe, Shield, Terminal } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
 
 function StatCard({ icon: Icon, value, label, loading }) {
@@ -139,6 +139,57 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
                 <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
               </div>
               <p style={{ fontSize: 11, lineHeight: 1.55, color: 'var(--lumen-text-muted)' }}>{text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* System keywords */}
+      <div className="bento-card bento-span-full mt-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Terminal size={13} style={{ color: 'var(--lumen-accent-secondary)' }} />
+          <h3 style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--lumen-text-secondary)' }}>
+            Palabras clave en chat con LU
+          </h3>
+        </div>
+
+        <div className="bento-grid bento-grid-2 !gap-3">
+          {[
+            {
+              keyword: '/admin',
+              label: 'Modo administración',
+              desc: 'Permite a Lu modificar el árbol de decisiones AC3 (crear, actualizar o eliminar ramas) bajo tus instrucciones en lenguaje natural. Lu propone el cambio y tú decides si aplicar o descartar.',
+              example: '/admin crea una rama Reembolsos con un paso que pregunte si tiene factura',
+            },
+          ].map(({ keyword, label, desc, example }) => (
+            <div key={keyword} style={{
+              padding: '12px 14px', borderRadius: 3,
+              borderLeft: '2px solid var(--lumen-accent-secondary)',
+            }}>
+              <div className="flex items-center gap-2 mb-2">
+                <code style={{
+                  fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+                  color: 'var(--lumen-accent-secondary)',
+                  background: 'rgba(126,63,242,0.10)',
+                  padding: '2px 6px', borderRadius: 3,
+                }}>
+                  {keyword}
+                </code>
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {label}
+                </span>
+              </div>
+              <p style={{ fontSize: 11, lineHeight: 1.55, color: 'var(--lumen-text-muted)', marginBottom: 6 }}>{desc}</p>
+              <code style={{
+                display: 'block',
+                fontFamily: 'monospace', fontSize: 10,
+                color: 'var(--lumen-text-secondary)',
+                background: 'rgba(0,0,0,0.3)',
+                padding: '6px 8px', borderRadius: 3,
+                lineHeight: 1.5, wordBreak: 'break-word',
+              }}>
+                {example}
+              </code>
             </div>
           ))}
         </div>
