@@ -37,11 +37,9 @@ const DEFAULT_SECTION_LABELS = {
 };
 
 export const DEFAULT_APPEARANCE = {
-  darkPrimary:    '#ffffff',
-  darkSecondary:  '#7E3FF2',
-  lightPrimary:   '#000000',
-  lightSecondary: '#7E3FF2',
-  fontFamily:     'Inter',
+  primary:    '#ffffff',
+  secondary:  '#7E3FF2',
+  fontFamily: 'Inter',
 };
 
 const FONT_STACKS = {
@@ -52,10 +50,9 @@ const FONT_STACKS = {
   'system-ui':      "-apple-system, system-ui, BlinkMacSystemFont, sans-serif",
 };
 
-function applyAppearance(appearance, currentTheme) {
-  const isDark = currentTheme !== 'light';
-  document.documentElement.style.setProperty('--lumen-accent', isDark ? appearance.darkPrimary : appearance.lightPrimary);
-  document.documentElement.style.setProperty('--lumen-accent-secondary', isDark ? appearance.darkSecondary : appearance.lightSecondary);
+function applyAppearance(appearance) {
+  document.documentElement.style.setProperty('--lumen-accent', appearance.primary);
+  document.documentElement.style.setProperty('--lumen-accent-secondary', appearance.secondary);
   const stack = FONT_STACKS[appearance.fontFamily] || FONT_STACKS['Inter'];
   document.documentElement.style.setProperty('--lumen-font', stack);
 }
@@ -110,16 +107,14 @@ export default function App() {
           try { app = { ...DEFAULT_APPEARANCE, ...JSON.parse(json) }; } catch {}
         } else {
           window.lumen.settings.getAccentColor().then((ac) => {
-            if (ac) {
-              app = { ...DEFAULT_APPEARANCE, darkPrimary: ac };
-            }
+            if (ac) app = { ...DEFAULT_APPEARANCE, primary: ac };
             setAppearance(app);
-            applyAppearance(app, resolvedTheme);
+            applyAppearance(app);
           }).catch(() => {});
           return;
         }
         setAppearance(app);
-        applyAppearance(app, resolvedTheme);
+        applyAppearance(app);
       }).catch(() => {});
     }).catch(() => {});
     window.lumen.settings.getUserEmail().then((email) => {
@@ -161,12 +156,12 @@ export default function App() {
     setTheme(next);
     document.documentElement.className = next === 'light' ? 'light-theme' : '';
     window.lumen.settings.setTheme(next).catch(() => {});
-    applyAppearance(appearance, next);
+    applyAppearance(appearance);
   };
 
   const handleAppearanceChange = async (newAppearance) => {
     setAppearance(newAppearance);
-    applyAppearance(newAppearance, theme);
+    applyAppearance(newAppearance);
     await window.lumen.settings.setAppearanceSettings(JSON.stringify(newAppearance)).catch(() => {});
   };
 

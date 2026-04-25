@@ -15,16 +15,13 @@ const MODELS = [
 ];
 
 const DEFAULT_APPEARANCE = {
-  darkPrimary:    '#ffffff',
-  darkSecondary:  '#7E3FF2',
-  lightPrimary:   '#000000',
-  lightSecondary: '#7E3FF2',
-  fontFamily:     'Inter',
+  primary:    '#ffffff',
+  secondary:  '#7E3FF2',
+  fontFamily: 'Inter',
 };
 
-const PRIMARY_PRESETS_DARK  = ['#ffffff', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
-const PRIMARY_PRESETS_LIGHT = ['#000000', '#1d4ed8', '#059669', '#d97706', '#db2777', '#dc2626', '#0891b2'];
-const SECONDARY_PRESETS     = ['#7E3FF2', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#f97316'];
+const PRIMARY_PRESETS  = ['#ffffff', '#000000', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#06b6d4'];
+const SECONDARY_PRESETS = ['#7E3FF2', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#f97316'];
 
 const FONT_OPTIONS = [
   { id: 'Inter',          label: 'Inter' },
@@ -593,14 +590,7 @@ function ColorDot({ color, selected, onClick }) {
   );
 }
 
-function AppearanceEditor({ appearance, onAppearanceChange, theme }) {
-  const [editingTheme, setEditingTheme] = useState(theme || 'dark');
-
-  const isDark       = editingTheme === 'dark';
-  const primaryKey   = isDark ? 'darkPrimary'   : 'lightPrimary';
-  const secondaryKey = isDark ? 'darkSecondary'  : 'lightSecondary';
-  const primaryPresets = isDark ? PRIMARY_PRESETS_DARK : PRIMARY_PRESETS_LIGHT;
-
+function AppearanceEditor({ appearance, onAppearanceChange }) {
   const update = (key, value) => onAppearanceChange({ ...appearance, [key]: value });
 
   const labelStyle = {
@@ -610,37 +600,17 @@ function AppearanceEditor({ appearance, onAppearanceChange, theme }) {
 
   return (
     <div>
-      {/* Theme tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
-        {[['dark', 'Noche'], ['light', 'Día']].map(([t, label]) => (
-          <button
-            key={t}
-            onClick={() => setEditingTheme(t)}
-            style={{
-              padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-              border: `1px solid ${editingTheme === t ? 'var(--lumen-border-light)' : 'var(--lumen-border)'}`,
-              cursor: 'pointer',
-              background: editingTheme === t ? 'rgba(255,255,255,0.06)' : 'transparent',
-              color: editingTheme === t ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
-              transition: 'all 0.15s',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       {/* Color principal */}
       <div style={{ marginBottom: 16 }}>
         <p style={labelStyle}>Color principal</p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {primaryPresets.map((c) => (
-            <ColorDot key={c} color={c} selected={appearance[primaryKey] === c} onClick={() => update(primaryKey, c)} />
+          {PRIMARY_PRESETS.map((c) => (
+            <ColorDot key={c} color={c} selected={appearance.primary === c} onClick={() => update('primary', c)} />
           ))}
           <input
             type="color"
-            value={appearance[primaryKey]}
-            onChange={(e) => update(primaryKey, e.target.value)}
+            value={appearance.primary}
+            onChange={(e) => update('primary', e.target.value)}
             title="Color personalizado"
             style={{ width: 26, height: 26, borderRadius: 4, border: '1px solid var(--lumen-border)', background: 'none', cursor: 'pointer', padding: 2 }}
           />
@@ -655,12 +625,12 @@ function AppearanceEditor({ appearance, onAppearanceChange, theme }) {
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {SECONDARY_PRESETS.map((c) => (
-            <ColorDot key={c} color={c} selected={appearance[secondaryKey] === c} onClick={() => update(secondaryKey, c)} />
+            <ColorDot key={c} color={c} selected={appearance.secondary === c} onClick={() => update('secondary', c)} />
           ))}
           <input
             type="color"
-            value={appearance[secondaryKey]}
-            onChange={(e) => update(secondaryKey, e.target.value)}
+            value={appearance.secondary}
+            onChange={(e) => update('secondary', e.target.value)}
             title="Color personalizado"
             style={{ width: 26, height: 26, borderRadius: 4, border: '1px solid var(--lumen-border)', background: 'none', cursor: 'pointer', padding: 2 }}
           />
@@ -910,7 +880,6 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           <AppearanceEditor
             appearance={appearance || DEFAULT_APPEARANCE}
             onAppearanceChange={onAppearanceChange}
-            theme={theme}
           />
         </Row>
 
