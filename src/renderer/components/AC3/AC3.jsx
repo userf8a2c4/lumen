@@ -20,16 +20,24 @@ const TEMPLATE_CATEGORIES = [
   { id: 'despedida',       label: 'DESPEDIDA',           color: '#38bdf8' },
 ];
 
-// ─── Node format migration (old linear format → new decision format) ──────────
+// ─── Node format migration (legacy formats → current format) ─────────────────
 
 function normalizeNode(node) {
-  if (Array.isArray(node.options)) return node; // already new format
-  const options = [];
-  if (node.type === 'decision') {
-    options.push({ id: `${node.id}_y`, label: node.yes_label || 'Sí',  next_node_id: null });
-    options.push({ id: `${node.id}_n`, label: node.no_label  || 'No',  next_node_id: null });
-  }
-  return { id: node.id, title: node.title || '', speech: node.note || '', options };
+  const options = Array.isArray(node.options) ? node.options : (() => {
+    const opts = [];
+    if (node.type === 'decision') {
+      opts.push({ label: node.yes_label || 'Sí', next_node_id: null });
+      opts.push({ label: node.no_label  || 'No', next_node_id: null });
+    }
+    return opts;
+  })();
+  return {
+    id:           node.id,
+    question:     node.question || node.title || '',
+    instructions: node.instructions || '',
+    speech:       node.speech || node.note || '',
+    options,
+  };
 }
 
 // ─── Templates Panel — read-only, copy only ──────────────────────────────────
@@ -225,18 +233,36 @@ function DecisionWizard({ branch, onBack }) {
             </button>
           </div>
         ) : (
-          <div style={{ width: '100%', maxWidth: 520 }}>
-            {/* Step label */}
-            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: accent, textTransform: 'uppercase', marginBottom: 8 }}>
-              Paso {stepNum} de {totalSteps}
+          <div style={{ width: '100%', maxWidth: 540 }}>
+            {/* Node ID badge */}
+            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: accent, textTransform: 'uppercase', marginBottom: 8, fontFamily: 'monospace' }}>
+              NODO {currentNode?.id || stepNum}
             </p>
 
-            {/* Node title */}
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--lumen-text)', marginBottom: currentNode?.speech ? 18 : 22, lineHeight: 1.3 }}>
-              {currentNode?.title || ''}
+            {/* Central question */}
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--lumen-text)', marginBottom: 18, lineHeight: 1.3 }}>
+              {currentNode?.question || ''}
             </h3>
 
-            {/* Speech */}
+            {/* Instructions — internal guide for Lucila */}
+            {currentNode?.instructions && (
+              <div style={{
+                marginBottom: 16, padding: '10px 14px',
+                background: 'rgba(96,165,250,0.07)',
+                border: '1px solid rgba(96,165,250,0.2)',
+                borderLeft: '3px solid #60a5fa',
+                borderRadius: '0 6px 6px 0',
+              }}>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', color: '#60a5fa', marginBottom: 6, textTransform: 'uppercase' }}>
+                  Para ti:
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--lumen-text-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                  {currentNode.instructions}
+                </p>
+              </div>
+            )}
+
+            {/* Speech — copy-paste for client */}
             {currentNode?.speech && (
               <div style={{
                 marginBottom: 26, padding: '14px 18px',
@@ -246,7 +272,7 @@ function DecisionWizard({ branch, onBack }) {
                 borderRadius: '0 8px 8px 0',
               }}>
                 <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', color: 'var(--lumen-text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>
-                  Qué decir:
+                  Decirle al cliente:
                 </p>
                 <p style={{ fontSize: 13, color: 'var(--lumen-text)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
                   {currentNode.speech}
@@ -325,7 +351,7 @@ function BranchCard({ branch, index, onClick }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
         <GitBranch size={9} style={{ color: 'var(--lumen-text-muted)' }} />
         <span style={{ fontSize: 9, color: 'var(--lumen-text-muted)' }}>
-          {Array.isArray(branch.nodes) ? branch.nodes.length : 0} paso{branch.nodes?.length !== 1 ? 's' : ''}
+          {Array.isArray(branch.nodes) ? branch.nodes.length : 0} nodo{branch.nodes?.length !== 1 ? 's' : ''}
         </span>
       </div>
     </button>

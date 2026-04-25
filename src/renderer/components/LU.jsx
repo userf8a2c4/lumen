@@ -7,6 +7,14 @@ function isAdminCommand(text) {
   return text.trim().toLowerCase().startsWith(ADMIN_PREFIX);
 }
 
+function isAjusteCommand(text) {
+  return /\bajuste\b/i.test(text) && !isAdminCommand(text);
+}
+
+function isAdminLike(text) {
+  return isAdminCommand(text) || isAjusteCommand(text);
+}
+
 function stripAdminPrefix(text) {
   return text.trim().replace(/^\/admin\s*/i, '').trim();
 }
@@ -31,12 +39,12 @@ export default function LU() {
     setMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
     try {
-      if (isAdminCommand(userMsg)) {
-        const instruction = stripAdminPrefix(userMsg);
-        if (!instruction) {
+      if (isAdminLike(userMsg)) {
+        const instruction = isAdminCommand(userMsg) ? stripAdminPrefix(userMsg) : userMsg;
+        if (!instruction || instruction === '/admin') {
           setMessages((prev) => [...prev, {
             role: 'model',
-            text: 'Modo /admin: dame una instrucción concreta. Ej: "/admin crea una rama Reembolsos con un paso que pregunte si tiene factura".',
+            text: 'Modo admin: dame una instrucción concreta. Ej: "/admin crea una rama Reembolsos" o escribe "AJUSTE agrega un paso de verificación de factura".',
           }]);
         } else {
           const proposal = await Promise.race([
@@ -154,18 +162,24 @@ export default function LU() {
               </p>
             )}
             {Array.isArray(p.branch.nodes) && p.branch.nodes.map((n, i) => (
-              <div key={n.id || i} style={{ marginTop: 4, paddingLeft: 6, borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
-                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 1 }}>
-                  {i + 1}. {n.title || '(sin título)'}
+              <div key={n.id || i} style={{ marginTop: 6, paddingLeft: 8, borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--lumen-text)', marginBottom: 2 }}>
+                  <span style={{ fontFamily: 'monospace', color: p.branch.color || '#7E3FF2', marginRight: 5 }}>{n.id}</span>
+                  {n.question || n.title || '(sin pregunta)'}
                 </p>
+                {n.instructions && (
+                  <p style={{ fontSize: 9, color: '#60a5fa', lineHeight: 1.4, marginBottom: 2, fontStyle: 'italic' }}>
+                    ↳ {n.instructions}
+                  </p>
+                )}
                 {n.speech && (
-                  <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.4, marginBottom: 2 }}>
-                    “{n.speech}”
+                  <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', lineHeight: 1.4, marginBottom: 2 }}>
+                    “{n.speech.slice(0, 80)}{n.speech.length > 80 ? '…' : ''}”
                   </p>
                 )}
                 {Array.isArray(n.options) && n.options.length > 0 && (
-                  <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)' }}>
-                    Opciones: {n.options.map((o) => o.label).join(' · ')}
+                  <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', opacity: 0.7 }}>
+                    {n.options.map((o) => o.label).join(' · ')}
                   </p>
                 )}
               </div>
@@ -303,7 +317,7 @@ export default function LU() {
                 Hola, soy LU.<br />¿En qué puedo ayudarte?
               </p>
               <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, opacity: 0.7 }}>
-                Tip: usa <code style={{ fontFamily: 'monospace', color: 'var(--lumen-accent-secondary)' }}>/admin</code> para editar el árbol AC3
+                Tip: usa <code style={{ fontFamily: 'monospace', color: 'var(--lumen-accent-secondary)' }}>/admin</code> o escribe <code style={{ fontFamily: 'monospace', color: 'var(--lumen-accent-secondary)' }}>AJUSTE</code> para editar el árbol AC3
               </p>
             </div>
           )}
@@ -350,12 +364,12 @@ export default function LU() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            placeholder={isAdminCommand(input) ? 'Modo admin: describe el cambio…' : 'Pregunta… (usa /admin para editar)'}
+            placeholder={isAdminLike(input) ? 'Modo admin: describe el cambio…' : 'Pregunta… o escribe AJUSTE para editar AC3'}
             autoFocus
             style={{
               flex: 1,
-              background: isAdminCommand(input) ? 'rgba(126,63,242,0.08)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${isAdminCommand(input) ? 'var(--lumen-accent-secondary)' : 'var(--lumen-border)'}`,
+              background: isAdminLike(input) ? 'rgba(126,63,242,0.08)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${isAdminLike(input) ? 'var(--lumen-accent-secondary)' : 'var(--lumen-border)'}`,
               borderRadius: 6,
               padding: '6px 9px',
               fontSize: 12,

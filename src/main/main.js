@@ -711,8 +711,8 @@ function registerHandlers() {
         ? '(no hay ramas todavía)'
         : branches.map((b) => {
             const nodes = Array.isArray(b.nodes) ? b.nodes : [];
-            const nodesPreview = nodes.map((n, i) =>
-              `  ${i + 1}. ${n.title || '(sin título)'} — speech: "${(n.speech || n.note || '').slice(0, 120)}" — opciones: ${Array.isArray(n.options) ? n.options.length : 0}`
+            const nodesPreview = nodes.map((n) =>
+              `  [${n.id}] ${n.question || n.title || '(sin pregunta)'} — speech: "${(n.speech || n.note || '').slice(0, 100)}" — opciones: ${Array.isArray(n.options) ? n.options.map((o) => o.label).join(', ') : 'ninguna'}`
             ).join('\n');
             return `BRANCH id=${b.id} name="${b.name}" color=${b.color}\n${nodesPreview || '  (sin pasos)'}`;
           }).join('\n\n');
@@ -731,28 +731,35 @@ function registerHandlers() {
         '  "intent": "CREATE_BRANCH" | "UPDATE_BRANCH" | "DELETE_BRANCH" | "NONE",\n' +
         '  "summary": "Resumen humano breve de qué cambio propones",\n' +
         '  "explanation": "Si intent=NONE, explica por qué no aplica; si no, omite o deja vacío",\n' +
-        '  "branchId": <number|null>,  // requerido para UPDATE_BRANCH y DELETE_BRANCH; null para CREATE\n' +
-        '  "branch": {  // requerido para CREATE y UPDATE; omitir para DELETE\n' +
+        '  "branchId": <number|null>,\n' +
+        '  "branch": {\n' +
         '    "name": "string",\n' +
         '    "color": "#RRGGBB",\n' +
         '    "description": "string corto",\n' +
         '    "nodes": [\n' +
         '      {\n' +
-        '        "id": "n_<unique>",\n' +
-        '        "title": "Título del paso",\n' +
-        '        "speech": "Qué decir al cliente en este paso",\n' +
-        '        "options": [ { "id": "o_<unique>", "label": "Texto botón", "next_node_id": "n_<otro>"|null } ]\n' +
+        '        "id": "A",\n' +
+        '        "question": "Pregunta central que guía este paso — qué evalúas aquí",\n' +
+        '        "instructions": "Guía interna para Lucila: qué verificar, en qué fijarse, qué NO hacer",\n' +
+        '        "speech": "Texto exacto listo para copiar y enviar al cliente",\n' +
+        '        "options": [ { "label": "Texto del botón", "next_node_id": "A.1" } ]\n' +
         '      }\n' +
         '    ]\n' +
         '  }\n' +
         '}\n\n' +
+        'PROTOCOLO DE IDs JERÁRQUICOS:\n' +
+        '- El nodo raíz de la rama lleva una letra mayúscula: A, B, C…\n' +
+        '- Sus hijos directos: A.1, A.2, A.3…\n' +
+        '- Niveles más profundos: A.1.1, A.1.2, A.2.1…\n' +
+        '- Los IDs deben reflejar la posición real en el árbol.\n' +
+        '- next_node_id apunta al ID exacto del nodo destino, o null si es terminal.\n\n' +
         'Reglas estrictas:\n' +
-        '1. Diseña la lógica BASÁNDOTE en el contexto local (políticas, notas, directorio). Si una política dicta cómo manejar un escenario, refléjalo fiel.\n' +
+        '1. Diseña la lógica BASÁNDOTE en el contexto local (políticas, notas, directorio).\n' +
         '2. Si la instrucción no es relevante a edición de ramas, devuelve {"intent":"NONE","summary":"","explanation":"..."}.\n' +
-        '3. Si falta información crítica, marca [CONFIRMAR CON LUCILA] en el speech en vez de inventar.\n' +
+        '3. Si falta información crítica, marca [CONFIRMAR CON LUCILA] en speech o instructions.\n' +
         '4. Para UPDATE, incluye el branch COMPLETO (no diff) — los nodos faltantes se eliminan.\n' +
-        '5. IDs de nodos y opciones deben empezar con "n_" y "o_" respectivamente y ser únicos dentro de la rama.\n' +
-        '6. Colors válidos: #7E3FF2, #3B82F6, #10B981, #F59E0B, #EF4444, #EC4899, #06B6D4, #84CC16. Elige uno coherente.\n' +
+        '5. "instructions" es para Lucila (interno). "speech" es para el cliente (copiable).\n' +
+        '6. Colors válidos: #7E3FF2, #3B82F6, #10B981, #F59E0B, #EF4444, #EC4899, #06B6D4, #84CC16.\n' +
         '7. NUNCA escribas nada fuera del JSON.';
 
       const userPrompt =

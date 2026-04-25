@@ -158,8 +158,14 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
             {
               keyword: '/admin',
               label: 'Modo administración',
-              desc: 'Permite a Lu modificar el árbol de decisiones AC3 (crear, actualizar o eliminar ramas) bajo tus instrucciones en lenguaje natural. Lu propone el cambio y tú decides si aplicar o descartar.',
+              desc: 'Permite a Lu modificar el árbol de decisiones AC3 (crear, actualizar o eliminar ramas). Lu propone el cambio completo y tú decides si aplicar o descartar.',
               example: '/admin crea una rama Reembolsos con un paso que pregunte si tiene factura',
+            },
+            {
+              keyword: 'AJUSTE',
+              label: 'Edición en lenguaje natural',
+              desc: 'Escribe AJUSTE en cualquier parte del mensaje para que Lu lo interprete como instrucción de modificación del árbol AC3, sin necesidad de prefijo de comando.',
+              example: 'AJUSTE quiero que la rama Tarjetas tenga un paso que verifique si el acceso está activo',
             },
           ].map(({ keyword, label, desc, example }) => (
             <div key={keyword} style={{
