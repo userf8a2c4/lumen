@@ -54,6 +54,29 @@ function getApiKey() {
 
 // --- Gemini error humanizer ---
 // Translates cryptic Gemini SDK errors into actionable Spanish messages
+// Auto-retry wrapper for Gemini calls — handles 429 transparently
+async function withGeminiRetry(fn, maxAttempts = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const msg = (err && err.message) ? err.message : String(err);
+      // Retry only on 429 / rate-limit
+      if (!/429|too many requests|quota/i.test(msg)) throw err;
+      // If quota is exhausted (limit: 0), no point retrying
+      if (/limit:\s*0/i.test(msg)) throw err;
+      if (attempt === maxAttempts) throw err;
+      // Use server-suggested retry delay if present, else exponential backoff
+      const retryMatch = msg.match(/retry in ([\d.]+)s/i);
+      const waitSec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : (attempt * 4);
+      await new Promise(r => setTimeout(r, Math.min(waitSec, 30) * 1000));
+    }
+  }
+  throw lastErr;
+}
+
 function humanizeGeminiError(err) {
   const msg = (err && err.message) ? err.message : String(err);
   const lower = msg.toLowerCase();
@@ -675,7 +698,7 @@ function registerHandlers() {
       } else {
         msgParts = message;
       }
-      const result = await chat.sendMessage(msgParts);
+      const result = await withGeminiRetry(() => chat.sendMessage(msgParts));
       return result.response.text();
     } catch (err) {
       throw new Error(humanizeGeminiError(err));
@@ -699,29 +722,40 @@ function registerHandlers() {
         const notes    = db.searchNotesForAI(instruction);
         const depts    = [...new Set(policies.map((p) => p.department))];
         const contacts = depts.length > 0 ? db.getContactsByDepartments(depts) : (db.getAllContacts ? db.getAllContacts() : []);
+        // Slimmed: only top 2 policies, 200 chars each (admin needs little context)
         if (policies.length > 0) {
-          policiesCtx = policies.slice(0, 5).map((p) =>
-            `[${p.name}] ${p.description}\n${(p.content || '').slice(0, 700)}`
-          ).join('\n\n');
+          policiesCtx = policies.slice(0, 2).map((p) =>
+            `[${p.name}] ${(p.content || p.description || '').slice(0, 200)}`
+          ).join('\n');
         }
         if (notes.length > 0) {
-          notesCtx = notes.slice(0, 4).map((n) =>
-            `${n.title}: ${(n.content || '').slice(0, 400)}`
+          notesCtx = notes.slice(0, 2).map((n) =>
+            `${n.title}: ${(n.content || '').slice(0, 150)}`
           ).join('\n');
         }
         if (contacts.length > 0) {
-          contactsCtx = contacts.slice(0, 12).map((c) =>
-            `${c.name} (${c.department || ''})${c.email ? ' — ' + c.email : ''}`
-          ).join('\n');
+          contactsCtx = contacts.slice(0, 5).map((c) =>
+            `${c.name}${c.department ? ' ('+c.department+')' : ''}`
+          ).join('; ');
         }
       } catch { /* DB may be empty — continue */ }
+
+      // Detect which branch the instruction targets (by name match) → only send full JSON of that one
+      const lowerInstr = (instruction || '').toLowerCase();
+      const targetBranch = branches.find(b => b.name && lowerInstr.includes(b.name.toLowerCase()));
 
       const branchesContext = branches.length === 0
         ? '(no hay ramas todavía)'
         : branches.map((b) => {
-            // Pass full JSON so AI can preserve all node fields when updating
-            return `BRANCH id=${b.id} name="${b.name}" color=${b.color}\nFULL_JSON:\n${JSON.stringify({ id: b.id, name: b.name, color: b.color, description: b.description, nodes: Array.isArray(b.nodes) ? b.nodes : [] }, null, 2)}`;
-          }).join('\n\n---\n\n');
+            const isTarget = targetBranch && b.id === targetBranch.id;
+            if (isTarget) {
+              // Full JSON only for the branch being edited (preserves all fields)
+              return `BRANCH id=${b.id} name="${b.name}" color=${b.color} ⬅ RAMA OBJETIVO\nFULL_JSON:\n${JSON.stringify({ id: b.id, name: b.name, color: b.color, description: b.description, nodes: Array.isArray(b.nodes) ? b.nodes : [] })}`;
+            }
+            // Other branches: just summary (saves tokens)
+            const nodeCount = Array.isArray(b.nodes) ? b.nodes.length : 0;
+            return `BRANCH id=${b.id} name="${b.name}" — ${nodeCount} nodo${nodeCount !== 1 ? 's' : ''}`;
+          }).join('\n');
 
       const localContext = [
         '=== CONTEXTO LOCAL DE LUMEN ===',
@@ -787,7 +821,7 @@ function registerHandlers() {
           temperature: 0.2,
         },
       });
-      const result = await model.generateContent(userPrompt);
+      const result = await withGeminiRetry(() => model.generateContent(userPrompt));
       const text   = result.response.text().trim();
       let proposal;
       try {
