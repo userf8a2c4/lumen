@@ -1,22 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Plus, Save, Check, Loader2 } from 'lucide-react';
+import { X, Plus, Save, Check, Loader2, RefreshCw } from 'lucide-react';
 
-const NODE_W = 256;
-// Approximate y offsets inside a node card for connection source points
-const HDR_H    = 37;  // header height
-const PAD_TOP  = 10;
-const FIELD_H  = 76;  // label (18) + textarea 2-row (58)
-const OPTS_HDR = 22;
-const OPT_ROW  = 30;
-
-function srcPoint(node, optIdx) {
-  return {
-    x: node.x + NODE_W,
-    y: node.y + HDR_H + PAD_TOP + FIELD_H * 3 + OPTS_HDR + optIdx * OPT_ROW + OPT_ROW / 2,
-  };
+const NODE_W  = 256;
+const NODE_H  = 370; // approximate height for connection midpoint calculations
+// Connection: source exits right side of node, enters left side of target
+function srcPoint(node) {
+  return { x: node.x + NODE_W, y: node.y + NODE_H / 2 };
 }
 function dstPoint(node) {
-  return { x: node.x + NODE_W / 2, y: node.y };
+  return { x: node.x, y: node.y + NODE_H / 2 };
 }
 
 let _seq = 0;
@@ -29,46 +21,48 @@ function findRoots(nodes) {
   return nodes.filter(n => !pointed.has(n.id));
 }
 
+// Horizontal tree layout: root left, children right
 function autoLayout(nodes) {
   if (!nodes.length) return [];
   const roots = findRoots(nodes);
   if (!roots.length) {
-    return nodes.map((n, i) => ({ ...n, x: 80 + (i % 3) * 310, y: 80 + Math.floor(i / 3) * 420 }));
+    return nodes.map((n, i) => ({ ...n, x: 80 + Math.floor(i / 3) * 320, y: 80 + (i % 3) * 420 }));
   }
-  const GAP_X = 310, GAP_Y = 400;
+  const GAP_X = 320; // horizontal gap between levels
+  const GAP_Y = 420; // vertical gap between siblings
 
-  function subtreeW(id, seen = new Set()) {
+  function subtreeH(id, seen = new Set()) {
     if (seen.has(id)) return 1;
     seen.add(id);
     const n = nodes.find(x => x.id === id);
     if (!n) return 1;
     const ch = (n.options || []).filter(o => o.next_node_id).map(o => o.next_node_id);
-    return ch.length ? ch.reduce((s, c) => s + subtreeW(c, new Set(seen)), 0) : 1;
+    return ch.length ? ch.reduce((s, c) => s + subtreeH(c, new Set(seen)), 0) : 1;
   }
 
   const pos = {};
-  function place(id, cx, y, seen = new Set()) {
+  function place(id, x, cy, seen = new Set()) {
     if (seen.has(id)) return;
     seen.add(id);
-    pos[id] = { x: cx - NODE_W / 2, y };
+    pos[id] = { x, y: cy - NODE_H / 2 };
     const n = nodes.find(x => x.id === id);
     if (!n) return;
     const ch = (n.options || []).filter(o => o.next_node_id).map(o => o.next_node_id);
     if (!ch.length) return;
-    const tw = ch.reduce((s, c) => s + subtreeW(c) * GAP_X, 0) - GAP_X;
-    let lx = cx - tw / 2;
+    const th = ch.reduce((s, c) => s + subtreeH(c) * GAP_Y, 0) - GAP_Y;
+    let ty = cy - th / 2;
     ch.forEach(c => {
-      const w = subtreeW(c) * GAP_X;
-      place(c, lx + w / 2, y + GAP_Y, new Set(seen));
-      lx += w;
+      const h = subtreeH(c) * GAP_Y;
+      place(c, x + GAP_X, ty + h / 2, new Set(seen));
+      ty += h;
     });
   }
 
-  let rx = 560;
+  let ry = 300;
   roots.forEach(r => {
-    const w = subtreeW(r.id) * GAP_X;
-    place(r.id, rx, 60);
-    rx += w + GAP_X;
+    const h = subtreeH(r.id) * GAP_Y;
+    place(r.id, 60, ry + h / 2);
+    ry += h + GAP_Y;
   });
 
   return nodes.map(n => ({ ...n, x: pos[n.id]?.x ?? (n.x ?? 60), y: pos[n.id]?.y ?? (n.y ?? 60) }));
@@ -114,6 +108,7 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
   const [pan, setPan]               = useState({ x: 0, y: 0 });
+  const [reloading, setReloading]   = useState(false);
 
   const dragRef  = useRef(null); // { nodeId, sx, sy, ox, oy }
   const panRef   = useRef(null); // { sx, sy, ox, oy }
@@ -123,6 +118,29 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
 
   const mark = () => { setDirty(true); setSaved(false); };
+
+  const reloadFromDB = async () => {
+    setReloading(true);
+    try {
+      const all = await window.lumen.ac3.branches.getAll();
+      const fresh = all.find(b => b.id === branch.id);
+      if (fresh) {
+        const freshNodes = (Array.isArray(fresh.nodes) ? fresh.nodes : []).map(n => ({ ...n, x: n.x ?? 80, y: n.y ?? 80 }));
+        setNodes(freshNodes);
+        setDirty(false);
+        onSaved?.(fresh);
+      }
+    } catch { /* silent */ } finally { setReloading(false); }
+  };
+
+  // Listen for /admin apply events from LU chat
+  useEffect(() => {
+    const onBranchUpdated = (e) => {
+      if (e.detail?.id === branch.id) reloadFromDB();
+    };
+    window.addEventListener('lumen:branch-updated', onBranchUpdated);
+    return () => window.removeEventListener('lumen:branch-updated', onBranchUpdated);
+  }, [branch.id]);
 
   // Global mouse + keyboard handlers
   useEffect(() => {
@@ -263,20 +281,20 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
     return n && (n.options || []).every(o => !o.next_node_id);
   };
 
-  // SVG bezier paths for connections
+  // SVG horizontal bezier paths (left → right)
   const paths = useMemo(() => {
     const result = [];
     nodes.forEach(node => {
-      (node.options || []).forEach((opt, oi) => {
+      (node.options || []).forEach((opt) => {
         if (!opt.next_node_id) return;
         const target = nodes.find(n => n.id === opt.next_node_id);
         if (!target) return;
-        const s = srcPoint(node, oi);
+        const s = srcPoint(node);
         const d = dstPoint(target);
-        const dy = Math.max(Math.abs(d.y - s.y) * 0.45, 50);
+        const dx = Math.max(Math.abs(d.x - s.x) * 0.45, 60);
         result.push({
-          key: `${node.id}-${opt.id || oi}`,
-          d: `M${s.x},${s.y} C${s.x + 70},${s.y} ${d.x + 70},${d.y - dy} ${d.x},${d.y}`,
+          key: `${node.id}-${opt.id}`,
+          d: `M${s.x},${s.y} C${s.x + dx},${s.y} ${d.x - dx},${d.y} ${d.x},${d.y}`,
         });
       });
     });
@@ -307,6 +325,14 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
           {nodes.length} nodo{nodes.length !== 1 ? 's' : ''}
         </span>
         <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+        <button
+          onClick={reloadFromDB}
+          disabled={reloading}
+          title="Recargar desde base de datos (útil tras usar /admin en LU)"
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.45)', fontSize: 11, cursor: reloading ? 'wait' : 'pointer' }}
+        >
+          <RefreshCw size={11} className={reloading ? 'animate-spin' : ''} />
+        </button>
         <button
           onClick={handleAutoLayout}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 5, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.55)', fontSize: 11, cursor: 'pointer' }}
@@ -545,7 +571,7 @@ const TA_BASE = {
   border: '1px solid rgba(255,255,255,0.09)',
   borderRadius: 5, padding: '6px 8px',
   color: 'rgba(255,255,255,0.88)', fontSize: 11,
-  resize: 'none', outline: 'none',
+  resize: 'vertical', outline: 'none',
   boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.45,
 };
 

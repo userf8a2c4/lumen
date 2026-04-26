@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FlaskConical, Library, Users, BookOpen, StickyNote, Zap, Globe, Shield, Terminal } from 'lucide-react';
+import { Library, Users, BookOpen, StickyNote, Globe, Shield, Terminal } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
 
 function StatCard({ icon: Icon, value, label, loading }) {
@@ -92,13 +92,7 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
       </div>
 
       {/* Quick actions */}
-      <div className="bento-grid bento-grid-3 mb-4">
-        <QuickAction
-          icon={FlaskConical}
-          title="Laboratorio"
-          desc="Analisis de casos con IA multimodal — texto, imagen, PDF"
-          onClick={() => navigateTo('assistant')}
-        />
+      <div className="bento-grid bento-grid-2 mb-4">
         <QuickAction
           icon={Library}
           title="Biblioteca"
@@ -125,7 +119,6 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
 
         <div className="bento-grid bento-grid-3 !gap-3">
           {[
-            { icon: Zap,     label: 'Laboratorio',    text: 'Análisis multimodal con Gemini Vision. Texto, imágenes y PDFs.' },
             { icon: Library, label: 'Biblioteca',     text: 'Base de conocimiento inamovible. El sistema nunca inventa datos.' },
             { icon: Globe,   label: 'Modo Expandido', text: 'Google Search complementario para consultas externas.' },
           ].map(({ icon: Ic, label, text }) => (

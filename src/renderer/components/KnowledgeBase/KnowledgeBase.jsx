@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, BookOpen, ChevronDown, ChevronRight, FolderOpen, FileText } from 'lucide-react';
+import { Plus, BookOpen, ChevronDown, ChevronRight, FolderOpen, FileText, PenLine, Link } from 'lucide-react';
 import Modal from '../Modal';
 import PolicyForm from './PolicyForm';
 import PolicyList from './PolicyList';
@@ -7,6 +7,7 @@ import PolicyList from './PolicyList';
 export default function KnowledgeBase({ navigateTo }) {
   const [policies, setPolicies] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState('manual');
   const [editingPolicy, setEditingPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showTree, setShowTree] = useState(true);
@@ -135,8 +136,11 @@ export default function KnowledgeBase({ navigateTo }) {
                 <FolderOpen size={14} /> {showTree ? 'Ocultar' : 'Arbol'}
               </button>
             )}
-            <button onClick={() => { setEditingPolicy(null); setShowForm(true); }} className="btn-accent">
-              <Plus size={15} /> Agregar
+            <button onClick={() => { setEditingPolicy(null); setFormMode('url'); setShowForm(true); }} className="btn-ghost">
+              <Link size={14} /> Importar URL
+            </button>
+            <button onClick={() => { setEditingPolicy(null); setFormMode('manual'); setShowForm(true); }} className="btn-accent">
+              <PenLine size={14} /> Redactar
             </button>
           </div>
         </div>
@@ -179,8 +183,17 @@ export default function KnowledgeBase({ navigateTo }) {
         )}
 
         {showForm && (
-          <Modal title={editingPolicy ? 'Editar politica' : 'Nueva politica'} onClose={() => { setShowForm(false); setEditingPolicy(null); }} wide>
-            <PolicyForm policy={editingPolicy} onSave={handleSave} onCancel={() => { setShowForm(false); setEditingPolicy(null); }} />
+          <Modal
+            title={editingPolicy ? 'Editar politica' : (formMode === 'url' ? 'Importar desde URL' : 'Nueva politica')}
+            onClose={() => { setShowForm(false); setEditingPolicy(null); }}
+            wide
+          >
+            <PolicyForm
+              policy={editingPolicy}
+              onSave={handleSave}
+              onCancel={() => { setShowForm(false); setEditingPolicy(null); }}
+              initialMode={editingPolicy ? (editingPolicy.source_url ? 'url' : 'manual') : formMode}
+            />
           </Modal>
         )}
       </div>

@@ -123,7 +123,7 @@ function TemplatesPanel({ templates }) {
 
 // ─── Decision Wizard — interactive step-by-step ───────────────────────────────
 
-function DecisionWizard({ branch, onBack }) {
+function DecisionWizard({ branch, onBack, onNodeChange }) {
   const nodes = useMemo(() => {
     const raw = Array.isArray(branch.nodes) ? branch.nodes : [];
     return raw.map(normalizeNode);
@@ -135,13 +135,15 @@ function DecisionWizard({ branch, onBack }) {
 
   const currentNode = nodes.find((n) => n.id === currentId) ?? null;
 
+  // Notify parent of active node changes for email template filtering
+  useEffect(() => { onNodeChange?.(currentNode); }, [currentId, done]);
+
   const advance = (nextNodeId) => {
     setPath((p) => [...p, currentId]);
     if (nextNodeId) {
       const target = nodes.find((n) => n.id === nextNodeId);
       if (target) { setCurrentId(nextNodeId); return; }
     }
-    // Fall through to next in sequence
     const idx = nodes.findIndex((n) => n.id === currentId);
     if (idx >= 0 && idx < nodes.length - 1) {
       setCurrentId(nodes[idx + 1].id);
@@ -340,6 +342,49 @@ function BranchCard({ branch, index, onClick }) {
   );
 }
 
+// ─── Email Card — copy subject + body ────────────────────────────────────────
+
+function EmailCard({ em }) {
+  const [copiedSubject, setCopiedSubject] = useState(false);
+  const [copiedBody, setCopiedBody]       = useState(false);
+
+  const copyText = async (text, setter) => {
+    try { await navigator.clipboard.writeText(text); } catch {}
+    setter(true);
+    setTimeout(() => setter(false), 1500);
+  };
+
+  return (
+    <div style={{ marginBottom: 5, padding: '7px 8px', border: '1px solid var(--lumen-border)', borderRadius: 5, background: 'rgba(255,255,255,0.02)' }}>
+      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 3 }}>{em.label}</p>
+      {em.subject && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+          <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', flex: 1, lineHeight: 1.3 }} className="line-clamp-1">
+            Asunto: {em.subject}
+          </p>
+          <button
+            onClick={() => copyText(em.subject, setCopiedSubject)}
+            title="Copiar asunto"
+            style={{ padding: '2px 4px', background: 'none', border: 'none', cursor: 'pointer', color: copiedSubject ? '#10b981' : 'var(--lumen-text-muted)', flexShrink: 0 }}
+          >
+            {copiedSubject ? <Check size={9} /> : <Copy size={9} />}
+          </button>
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+        <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', lineHeight: 1.4, flex: 1 }} className="line-clamp-2">{em.body}</p>
+        <button
+          onClick={() => copyText(em.body, setCopiedBody)}
+          title="Copiar cuerpo del email"
+          style={{ padding: '2px 4px', background: 'none', border: 'none', cursor: 'pointer', color: copiedBody ? '#10b981' : 'var(--lumen-text-muted)', flexShrink: 0, marginTop: 1 }}
+        >
+          {copiedBody ? <Check size={9} /> : <Copy size={9} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Right Panel — read-only ──────────────────────────────────────────────────
 
 function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCalRefresh, topPolicies, onNavigate }) {
@@ -432,7 +477,7 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
           )}
         </div>
 
-        {/* Email templates — read-only */}
+        {/* Email templates — with copy buttons */}
         <div>
           <div style={{ padding: '8px 12px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Mail size={10} style={{ color: 'var(--lumen-text-muted)' }} />
@@ -446,11 +491,7 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
                 {activeBranch ? `Sin templates para ${activeBranch.name}.` : 'Sin templates. Agrega en Configuración.'}
               </p>
             ) : emailTemplates.map((em) => (
-              <div key={em.id} style={{ marginBottom: 4, padding: '6px 8px', border: '1px solid var(--lumen-border)', borderRadius: 5, background: 'rgba(255,255,255,0.02)' }}>
-                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 2 }}>{em.label}</p>
-                {em.subject && <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', marginBottom: 1 }}>Asunto: {em.subject}</p>}
-                <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', lineHeight: 1.4 }} className="line-clamp-2">{em.body}</p>
-              </div>
+              <EmailCard key={em.id} em={em} />
             ))}
           </div>
         </div>
@@ -464,6 +505,7 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
 export default function AC3({ navigateTo: onNavigate }) {
   const [branches, setBranches]         = useState([]);
   const [activeBranch, setActiveBranch] = useState(null);
+  const [activeNode, setActiveNode]     = useState(null); // for email context filtering
   const [textTemplates, setTextTemplates]   = useState([]);
   const [emailTemplates, setEmailTemplates] = useState([]);
   const [calEvents, setCalEvents]       = useState([]);
@@ -494,9 +536,19 @@ export default function AC3({ navigateTo: onNavigate }) {
 
   useEffect(() => { loadAll(); loadCalEvents(); }, []);
 
-  const visibleEmails = activeBranch
-    ? emailTemplates.filter((e) => e.branch_id === activeBranch.id || !e.branch_id)
-    : emailTemplates.filter((e) => !e.branch_id);
+  // Filter emails by branch, then rank by relevance to active node question
+  const visibleEmails = (() => {
+    const byBranch = activeBranch
+      ? emailTemplates.filter((e) => e.branch_id === activeBranch.id || !e.branch_id)
+      : emailTemplates.filter((e) => !e.branch_id);
+    if (!activeNode?.question) return byBranch;
+    const words = activeNode.question.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+    return [...byBranch].sort((a, b) => {
+      const scoreA = words.filter(w => (a.label + ' ' + a.subject).toLowerCase().includes(w)).length;
+      const scoreB = words.filter(w => (b.label + ' ' + b.subject).toLowerCase().includes(w)).length;
+      return scoreB - scoreA;
+    });
+  })();
 
   const navigate = onNavigate || (() => {});
 
@@ -525,7 +577,11 @@ export default function AC3({ navigateTo: onNavigate }) {
 
         {activeBranch ? (
           <div style={{ flex: 1, overflow: 'hidden' }}>
-            <DecisionWizard branch={activeBranch} onBack={() => setActiveBranch(null)} />
+            <DecisionWizard
+              branch={activeBranch}
+              onBack={() => { setActiveBranch(null); setActiveNode(null); }}
+              onNodeChange={setActiveNode}
+            />
           </div>
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>

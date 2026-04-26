@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, MessageSquare, ChevronDown, Check, X, Shield, AlertTriangle } from 'lucide-react';
+import { Send, Loader2, MessageSquare, ChevronDown, Check, X, Shield, AlertTriangle, Paperclip } from 'lucide-react';
 
 const ADMIN_PREFIX = '/admin';
 
@@ -20,23 +20,39 @@ function stripAdminPrefix(text) {
 }
 
 export default function LU() {
-  const [open, setOpen]         = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [history, setHistory]   = useState([]);
-  const [input, setInput]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [applying, setApplying] = useState(false);
-  const messagesEndRef          = useRef(null);
+  const [open, setOpen]             = useState(false);
+  const [messages, setMessages]     = useState([]);
+  const [history, setHistory]       = useState([]);
+  const [input, setInput]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [applying, setApplying]     = useState(false);
+  const [attachment, setAttachment] = useState(null);
+  const messagesEndRef               = useRef(null);
+  const fileInputRef                 = useRef(null);
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, open]);
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = ev.target.result.split(',')[1];
+      setAttachment({ name: file.name, mimeType: file.type || 'application/octet-stream', data });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
+    const pendingAttachment = attachment;
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
+    setAttachment(null);
+    setMessages((prev) => [...prev, { role: 'user', text: userMsg, attachment: pendingAttachment ? pendingAttachment.name : null }]);
     setLoading(true);
     try {
       if (isAdminLike(userMsg)) {
@@ -56,7 +72,7 @@ export default function LU() {
       } else {
         const geminiHistory = history.map((h) => ({ role: h.role, parts: [{ text: h.text }] }));
         const reply = await Promise.race([
-          window.lumen.ai.chat(userMsg, geminiHistory),
+          window.lumen.ai.chat(userMsg, geminiHistory, pendingAttachment ? [pendingAttachment] : undefined),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo de espera agotado')), 30000)),
         ]);
         const text = typeof reply === 'string' ? reply : '(sin respuesta)';
@@ -92,6 +108,10 @@ export default function LU() {
       setMessages((prev) => prev.map((m, i) =>
         i === idx ? { ...m, applied: true, applyError: null } : m
       ));
+      const branchId = proposal.intent === 'UPDATE_BRANCH' ? proposal.branchId
+        : proposal.intent === 'DELETE_BRANCH' ? proposal.branchId
+        : result?.id;
+      if (branchId) window.dispatchEvent(new CustomEvent('lumen:branch-updated', { detail: { id: branchId } }));
     } catch (e) {
       setMessages((prev) => prev.map((m, i) =>
         i === idx ? { ...m, applyError: e?.message || 'Error al aplicar' } : m
@@ -147,8 +167,7 @@ export default function LU() {
 
         {!isNone && p.branch && (
           <div style={{
-            marginTop: 6,
-            padding: 8,
+            marginTop: 6, padding: 8,
             background: 'rgba(0,0,0,0.25)',
             borderLeft: `3px solid ${p.branch.color || '#7E3FF2'}`,
             borderRadius: 3,
@@ -174,7 +193,7 @@ export default function LU() {
                 )}
                 {n.speech && (
                   <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', lineHeight: 1.4, marginBottom: 2 }}>
-                    “{n.speech.slice(0, 80)}{n.speech.length > 80 ? '…' : ''}”
+                    "{n.speech.slice(0, 80)}{n.speech.length > 80 ? '…' : ''}"
                   </p>
                 )}
                 {Array.isArray(n.options) && n.options.length > 0 && (
@@ -337,6 +356,11 @@ export default function LU() {
                 wordBreak: 'break-word',
                 whiteSpace: 'pre-wrap',
               }}>
+                {msg.attachment && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4, fontSize: 10, color: 'var(--lumen-text-muted)', opacity: 0.8 }}>
+                    <Paperclip size={9} /> {msg.attachment}
+                  </div>
+                )}
                 {msg.text}
               </div>
             );
@@ -352,48 +376,83 @@ export default function LU() {
 
       {/* Input area */}
       {open && (
-        <div style={{
-          padding: '8px 10px',
-          display: 'flex',
-          gap: 6,
-          borderTop: '1px solid var(--lumen-border)',
-          background: '#1a1a1f',
-        }}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            placeholder={isAdminLike(input) ? 'Modo admin: describe el cambio…' : 'Pregunta… o escribe AJUSTE para editar AC3'}
-            autoFocus
-            style={{
-              flex: 1,
-              background: isAdminLike(input) ? 'rgba(126,63,242,0.08)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${isAdminLike(input) ? 'var(--lumen-accent-secondary)' : 'var(--lumen-border)'}`,
-              borderRadius: 6,
-              padding: '6px 9px',
-              fontSize: 12,
-              color: 'var(--lumen-text)',
-              outline: 'none',
-              transition: 'border-color 0.15s, background 0.15s',
-            }}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={!input.trim() || loading}
-            style={{
-              background: input.trim() && !loading ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
-              border: '1px solid var(--lumen-border)',
-              borderRadius: 6,
-              padding: '6px 10px',
-              cursor: input.trim() && !loading ? 'pointer' : 'default',
-              color: input.trim() && !loading ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Send size={12} />
-          </button>
+        <div style={{ borderTop: '1px solid var(--lumen-border)', background: '#1a1a1f' }}>
+          {attachment && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px 0' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid var(--lumen-border)',
+                borderRadius: 4, padding: '3px 7px',
+                fontSize: 10, color: 'var(--lumen-text-muted)',
+                maxWidth: 220, overflow: 'hidden',
+              }}>
+                <Paperclip size={9} style={{ flexShrink: 0, color: 'var(--lumen-accent)' }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {attachment.name}
+                </span>
+                <button
+                  onClick={() => setAttachment(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lumen-text-muted)', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                >
+                  <X size={9} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ padding: '8px 10px', display: 'flex', gap: 6 }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,.txt,.md"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Adjuntar archivo"
+              style={{
+                background: attachment ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${attachment ? 'var(--lumen-accent)' : 'var(--lumen-border)'}`,
+                borderRadius: 6, padding: '6px 8px', cursor: 'pointer',
+                color: attachment ? 'var(--lumen-accent)' : 'var(--lumen-text-muted)',
+                display: 'flex', alignItems: 'center', flexShrink: 0,
+              }}
+            >
+              <Paperclip size={12} />
+            </button>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+              placeholder={isAdminLike(input) ? 'Modo admin: describe el cambio…' : 'Pregunta… o escribe AJUSTE para editar AC3'}
+              autoFocus
+              style={{
+                flex: 1,
+                background: isAdminLike(input) ? 'rgba(126,63,242,0.08)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${isAdminLike(input) ? 'var(--lumen-accent-secondary)' : 'var(--lumen-border)'}`,
+                borderRadius: 6, padding: '6px 9px', fontSize: 12,
+                color: 'var(--lumen-text)', outline: 'none',
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim() || loading}
+              style={{
+                background: input.trim() && !loading ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--lumen-border)',
+                borderRadius: 6, padding: '6px 10px',
+                cursor: input.trim() && !loading ? 'pointer' : 'default',
+                color: input.trim() && !loading ? 'var(--lumen-text)' : 'var(--lumen-text-muted)',
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              <Send size={12} />
+            </button>
+          </div>
         </div>
       )}
     </div>
