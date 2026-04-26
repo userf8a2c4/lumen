@@ -587,7 +587,12 @@ function registerHandlers() {
   });
   ipcMain.handle('evidence:create', (_e, data) => db.createEvidence(data));
 
-  // Google Calendar — credenciales embebidas en calendar.js, usuario solo autoriza con su cuenta
+  // Google Calendar
+  ipcMain.handle('calendar:getCredentialsStatus', () => cal.getCredsStatus());
+  ipcMain.handle('calendar:saveCredentials', (_e, clientId, clientSecret) => {
+    cal.saveUserCreds(clientId || '', clientSecret || '');
+    return { ok: true };
+  });
   ipcMain.handle('calendar:isAuthenticated', () => cal.isAuthenticated());
   ipcMain.handle('calendar:connect', async () => {
     try {

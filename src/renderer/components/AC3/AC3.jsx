@@ -369,7 +369,7 @@ function BranchCard({ branch, index, onClick }) {
 
 // ─── Email Card — copy subject + body ────────────────────────────────────────
 
-function EmailCard({ em }) {
+function EmailCard({ em, highlight }) {
   const [copiedBody, setCopiedBody] = useState(false);
 
   const copyText = async (text, setter) => {
@@ -379,8 +379,23 @@ function EmailCard({ em }) {
   };
 
   return (
-    <div style={{ marginBottom: 5, padding: '7px 8px', border: '1px solid var(--lumen-border)', borderRadius: 5, background: 'rgba(255,255,255,0.02)' }}>
-      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 3 }}>{em.label}</p>
+    <div style={{
+      marginBottom: 5, padding: '7px 8px', borderRadius: 5,
+      border: highlight ? '1px solid rgba(126,63,242,0.45)' : '1px solid var(--lumen-border)',
+      background: highlight ? 'rgba(126,63,242,0.07)' : 'rgba(255,255,255,0.02)',
+      transition: 'border-color 0.2s, background 0.2s',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+        <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', lineHeight: 1.3 }}>{em.label}</p>
+        {highlight && (
+          <span style={{
+            fontSize: 8, fontWeight: 700, letterSpacing: '0.10em', padding: '1px 5px', borderRadius: 3,
+            background: 'rgba(126,63,242,0.25)', color: '#a78bfa', textTransform: 'uppercase', flexShrink: 0,
+          }}>
+            Sugerido
+          </span>
+        )}
+      </div>
       {em.subject && (
         <div style={{ marginBottom: 3 }}>
           <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', lineHeight: 1.3 }} className="line-clamp-1">
@@ -404,7 +419,7 @@ function EmailCard({ em }) {
 
 // ─── Right Panel — read-only ──────────────────────────────────────────────────
 
-function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCalRefresh, topPolicies, onNavigate, collapsed, onToggle }) {
+function RightPanel({ activeBranch, activeNode, emailTemplates, calEvents, calLoading, onCalRefresh, topPolicies, onNavigate, collapsed, onToggle }) {
   if (collapsed) {
     return (
       <div style={{
@@ -522,19 +537,27 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
 
         {/* Email templates — with copy buttons */}
         <div>
-          <div style={{ padding: '8px 12px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ padding: '8px 12px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Mail size={10} style={{ color: 'var(--lumen-text-muted)' }} />
             <span title="Plantillas filtradas por la rama y nodo activo" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase' }}>
               {activeBranch ? `Emails — ${activeBranch.name}` : 'Templates de email'}
             </span>
           </div>
+          {activeNode?.question && (
+            <div style={{ margin: '0 8px 4px', padding: '4px 7px', borderRadius: 4, background: 'rgba(126,63,242,0.08)', border: '1px solid rgba(126,63,242,0.2)' }}>
+              <p style={{ fontSize: 9, color: '#a78bfa', lineHeight: 1.4 }} className="line-clamp-2">
+                <span style={{ fontWeight: 700, letterSpacing: '0.06em', marginRight: 4 }}>CONTEXTO:</span>
+                {activeNode.question}
+              </p>
+            </div>
+          )}
           <div style={{ padding: '0 8px 8px' }}>
             {emailTemplates.length === 0 ? (
               <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', padding: '2px 4px', lineHeight: 1.4 }}>
                 {activeBranch ? `Sin templates para ${activeBranch.name}.` : 'Sin templates. Agrega en Configuración.'}
               </p>
-            ) : emailTemplates.map((em) => (
-              <EmailCard key={em.id} em={em} />
+            ) : emailTemplates.map((em, i) => (
+              <EmailCard key={em.id} em={em} highlight={i === 0 && (em._score ?? 0) > 0} />
             ))}
           </div>
         </div>
@@ -582,18 +605,21 @@ export default function AC3({ navigateTo: onNavigate }) {
   useEffect(() => { loadAll(); loadCalEvents(); }, []);
 
   // Filter emails by branch, then rank by relevance to active node question
-  const visibleEmails = (() => {
+  const visibleEmails = useMemo(() => {
     const byBranch = activeBranch
       ? emailTemplates.filter((e) => e.branch_id === activeBranch.id || !e.branch_id)
       : emailTemplates.filter((e) => !e.branch_id);
-    if (!activeNode?.question) return byBranch;
-    const words = activeNode.question.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-    return [...byBranch].sort((a, b) => {
-      const scoreA = words.filter(w => (a.label + ' ' + a.subject).toLowerCase().includes(w)).length;
-      const scoreB = words.filter(w => (b.label + ' ' + b.subject).toLowerCase().includes(w)).length;
-      return scoreB - scoreA;
-    });
-  })();
+    if (!activeNode?.question) return byBranch.map((e) => ({ ...e, _score: 0 }));
+    const words = activeNode.question.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+    return [...byBranch]
+      .map((e) => ({
+        ...e,
+        _score: words.filter((w) =>
+          (e.label + ' ' + (e.subject || '') + ' ' + (e.body || '')).toLowerCase().includes(w)
+        ).length,
+      }))
+      .sort((a, b) => b._score - a._score);
+  }, [activeBranch, activeNode, emailTemplates]);
 
   const navigate = onNavigate || (() => {});
 
@@ -658,6 +684,7 @@ export default function AC3({ navigateTo: onNavigate }) {
       {/* RIGHT — Actions + info (read-only) */}
       <RightPanel
         activeBranch={activeBranch}
+        activeNode={activeNode}
         emailTemplates={visibleEmails}
         calEvents={calEvents}
         calLoading={calLoading}

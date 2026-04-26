@@ -11,17 +11,59 @@ const fs    = require('fs');
 const { app, shell, safeStorage } = require('electron');
 
 const TOKENS_PATH  = path.join(app.getPath('userData'), '.gcal-tokens');
+const CREDS_PATH   = path.join(app.getPath('userData'), '.gcal-creds');
 const OAUTH_SCOPES = 'https://www.googleapis.com/auth/calendar';
 const CAL_HOST     = 'www.googleapis.com';
 const TOKEN_HOST   = 'oauth2.googleapis.com';
 
 // ─── OAuth App Credentials ────────────────────────────────────────────────────
-// Loaded from gcal-config.js (gitignored, injected at build time via CI secrets)
-// or from environment variables if set.
+// Priority: user-saved creds (Settings) > env vars > gcal-config.js (CI-injected)
 let _gcalCfg = {};
 try { _gcalCfg = require('./gcal-config'); } catch { /* no local config — use env */ }
-const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || _gcalCfg.GOOGLE_CLIENT_ID     || '';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || _gcalCfg.GOOGLE_CLIENT_SECRET || '';
+const BUILT_IN_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || _gcalCfg.GOOGLE_CLIENT_ID     || '';
+const BUILT_IN_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || _gcalCfg.GOOGLE_CLIENT_SECRET || '';
+
+// ─── User-provided credential storage ────────────────────────────────────────
+
+function saveUserCreds(clientId, clientSecret) {
+  if (!clientId || !clientSecret) {
+    if (fs.existsSync(CREDS_PATH)) fs.unlinkSync(CREDS_PATH);
+    return;
+  }
+  const enc = safeStorage.encryptString(JSON.stringify({ clientId, clientSecret }));
+  fs.writeFileSync(CREDS_PATH, enc);
+}
+
+function loadUserCreds() {
+  if (!fs.existsSync(CREDS_PATH)) return null;
+  try {
+    const enc = fs.readFileSync(CREDS_PATH);
+    return JSON.parse(safeStorage.decryptString(enc));
+  } catch { return null; }
+}
+
+function getEffectiveCreds() {
+  const user = loadUserCreds();
+  if (user?.clientId && user?.clientSecret) {
+    return { clientId: user.clientId, clientSecret: user.clientSecret };
+  }
+  return { clientId: BUILT_IN_CLIENT_ID, clientSecret: BUILT_IN_CLIENT_SECRET };
+}
+
+function getCredsStatus() {
+  const user = loadUserCreds();
+  const hasUser    = !!(user?.clientId && user?.clientSecret);
+  const hasBuiltIn = !!(BUILT_IN_CLIENT_ID && BUILT_IN_CLIENT_SECRET);
+  return {
+    hasUser,
+    hasBuiltIn,
+    hasAny: hasUser || hasBuiltIn,
+    source: hasUser ? 'user' : (hasBuiltIn ? 'builtin' : 'none'),
+    clientIdPreview: hasUser
+      ? user.clientId.slice(0, 12) + '…'
+      : (hasBuiltIn ? BUILT_IN_CLIENT_ID.slice(0, 12) + '…' : null),
+  };
+}
 
 // ─── Token persistence ───────────────────────────────────────────────────────
 
@@ -99,10 +141,11 @@ async function refreshTokens() {
   const tokens = loadTokens();
   if (!tokens?.refresh_token) throw new Error('Sin refresh_token. Reconecta el calendario.');
 
+  const creds = getEffectiveCreds();
   const json = await postForm(TOKEN_HOST, '/token', {
     refresh_token: tokens.refresh_token,
-    client_id: GOOGLE_CLIENT_ID,
-    client_secret: GOOGLE_CLIENT_SECRET,
+    client_id: creds.clientId,
+    client_secret: creds.clientSecret,
     grant_type: 'refresh_token',
   });
 
@@ -130,8 +173,13 @@ async function getAccessToken() {
 // ─── OAuth flow (loopback) ────────────────────────────────────────────────────
 
 function startOAuth() {
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-    return Promise.reject(new Error('Credenciales OAuth no configuradas. Contacta al administrador de LUMEN.'));
+  const creds = getEffectiveCreds();
+  if (!creds.clientId || !creds.clientSecret) {
+    return Promise.reject(new Error(
+      'Credenciales OAuth no configuradas.\n' +
+      'Ve a Configuración → Google Calendar → "Configurar credenciales OAuth" y añade tu Client ID y Client Secret.\n' +
+      'Crea un proyecto en console.cloud.google.com, habilita la Google Calendar API y crea credenciales de tipo "Aplicación de escritorio".'
+    ));
   }
   return new Promise((resolve, reject) => {
     const server = http.createServer();
@@ -142,7 +190,7 @@ function startOAuth() {
       const authUrl =
         'https://accounts.google.com/o/oauth2/v2/auth?' +
         new URLSearchParams({
-          client_id: GOOGLE_CLIENT_ID,
+          client_id: creds.clientId,
           redirect_uri: redirectUri,
           response_type: 'code',
           scope: OAUTH_SCOPES,
@@ -186,8 +234,8 @@ function startOAuth() {
         try {
           const json = await postForm(TOKEN_HOST, '/token', {
             code,
-            client_id: GOOGLE_CLIENT_ID,
-            client_secret: GOOGLE_CLIENT_SECRET,
+            client_id: creds.clientId,
+            client_secret: creds.clientSecret,
             redirect_uri: redirectUri,
             grant_type: 'authorization_code',
           });
@@ -243,4 +291,4 @@ function disconnect() {
   if (fs.existsSync(TOKENS_PATH)) fs.unlinkSync(TOKENS_PATH);
 }
 
-module.exports = { startOAuth, getEvents, createEvent, updateEvent, deleteEvent, isAuthenticated, disconnect };
+module.exports = { startOAuth, getEvents, createEvent, updateEvent, deleteEvent, isAuthenticated, disconnect, saveUserCreds, getCredsStatus };

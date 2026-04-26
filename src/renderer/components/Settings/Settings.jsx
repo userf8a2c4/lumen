@@ -695,23 +695,32 @@ function AppearanceEditor({ appearance, onAppearanceChange }) {
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export default function Settings({ onModelChange, sectionLabels, onSectionLabelsChange, appearance, onAppearanceChange, theme }) {
-  const [apiKey,       setApiKey]       = useState('');
-  const [apiKeyInput,  setApiKeyInput]  = useState('');
-  const [showKey,      setShowKey]      = useState(false);
-  const [model,        setModel]        = useState('gemini-2.5-flash');
-  const [email,        setEmail]        = useState('');
-  const [emailInput,   setEmailInput]   = useState('');
-  const [calConnected, setCalConnected] = useState(false);
-  const [calBusy,      setCalBusy]      = useState(false);
-  const [version,      setVersion]      = useState('');
-  const [checking,     setChecking]     = useState(false);
-  const [saved,        setSaved]        = useState('');
-  const [labelInputs,  setLabelInputs]  = useState(() => {
+  const [apiKey,        setApiKey]        = useState('');
+  const [apiKeyInput,   setApiKeyInput]   = useState('');
+  const [showKey,       setShowKey]       = useState(false);
+  const [model,         setModel]         = useState('gemini-2.5-flash');
+  const [email,         setEmail]         = useState('');
+  const [emailInput,    setEmailInput]    = useState('');
+  const [calConnected,  setCalConnected]  = useState(false);
+  const [calBusy,       setCalBusy]       = useState(false);
+  const [calCredsStatus, setCalCredsStatus] = useState(null);
+  const [calClientId,   setCalClientId]   = useState('');
+  const [calClientSecret, setCalClientSecret] = useState('');
+  const [calCredsSaved, setCalCredsSaved] = useState(false);
+  const [version,       setVersion]       = useState('');
+  const [saved,         setSaved]         = useState('');
+  const [labelInputs,   setLabelInputs]   = useState(() => {
     const d = {}; NAV_LABEL_DEFS.forEach((x) => { d[x.id] = x.default; }); return d;
   });
-  const [labelSaved,   setLabelSaved]   = useState(false);
-  const [testingAi,    setTestingAi]    = useState(false);
-  const [aiTestResult, setAiTestResult] = useState(null); // { ok, message, ... }
+  const [labelSaved,    setLabelSaved]    = useState(false);
+  const [testingAi,     setTestingAi]     = useState(false);
+  const [aiTestResult,  setAiTestResult]  = useState(null);
+
+  // idle | checking | uptodate | available | downloading | ready | error
+  const [updateState,   setUpdateState]   = useState('idle');
+  const [updateVersion, setUpdateVersion] = useState('');
+  const [dlProgress,    setDlProgress]    = useState(0);
+  const [updateErr,     setUpdateErr]     = useState('');
 
   const flash = (tag) => { setSaved(tag); setTimeout(() => setSaved(''), 2000); };
 
@@ -726,13 +735,41 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       window.lumen.settings.getUserEmail(),
       window.lumen.app.getVersion(),
       window.lumen.calendar.isAuthenticated(),
-    ]).then(([k, m, em, v, conn]) => {
+      window.lumen.calendar.getCredentialsStatus(),
+    ]).then(([k, m, em, v, conn, creds]) => {
       setApiKey(k ? k.slice(0, 7) + '…' + k.slice(-4) : '');
       setModel(MODELS.find((x) => x.id === m) ? m : 'gemini-2.5-flash');
       setEmail(em || ''); setEmailInput(em || '');
       setVersion(v || '');
       setCalConnected(conn);
+      setCalCredsStatus(creds);
     }).catch(() => {});
+  }, []);
+
+  // Subscribe to updater IPC events — full state machine
+  useEffect(() => {
+    const u = window.lumen.updater;
+    const offAvail = u.onUpdateAvailable((info) => {
+      setUpdateState('available');
+      setUpdateVersion(info?.version || '');
+    });
+    const offProg = u.onDownloadProgress((info) => {
+      setUpdateState('downloading');
+      setDlProgress(Math.round(info?.percent || 0));
+    });
+    const offReady = u.onUpdateDownloaded((info) => {
+      setUpdateState('ready');
+      setUpdateVersion((v) => info?.version || v);
+    });
+    const offErr = u.onUpdateError((err) => {
+      setUpdateState('error');
+      setUpdateErr(typeof err === 'string' ? err : (err?.message || 'Error desconocido'));
+    });
+    const offNone = u.onUpdateNotAvailable(() => {
+      setUpdateState('uptodate');
+      setTimeout(() => setUpdateState('idle'), 4000);
+    });
+    return () => { offAvail(); offProg(); offReady(); offErr(); offNone(); };
   }, []);
 
   const saveKey = async () => {
@@ -755,10 +792,20 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
     onModelChange?.(id);
   };
 
+  const saveCalCreds = async () => {
+    if (!calClientId.trim() || !calClientSecret.trim()) return;
+    await window.lumen.calendar.saveCredentials(calClientId.trim(), calClientSecret.trim());
+    const status = await window.lumen.calendar.getCredentialsStatus();
+    setCalCredsStatus(status);
+    setCalClientId(''); setCalClientSecret('');
+    setCalCredsSaved(true);
+    setTimeout(() => setCalCredsSaved(false), 3000);
+  };
+
   const connectCal = async () => {
     setCalBusy(true);
     try { await window.lumen.calendar.connect(); setCalConnected(true); flash('cal'); }
-    catch (e) { alert(`Error al conectar Google Calendar:\n${e.message}`); }
+    catch (e) { alert(`Error al conectar Google Calendar:\n\n${e.message}`); }
     finally { setCalBusy(false); }
   };
 
@@ -785,10 +832,9 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
   };
 
   const checkUpdate = async () => {
-    setChecking(true);
+    setUpdateState('checking');
     try { await window.lumen.updater.check(); }
-    catch {}
-    finally { setTimeout(() => setChecking(false), 1500); }
+    catch (e) { setUpdateState('error'); setUpdateErr(e?.message || 'Error al verificar'); }
   };
 
   const testAiConnection = async () => {
@@ -802,6 +848,87 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
     } finally {
       setTestingAi(false);
     }
+  };
+
+  // ── Update section UI ─────────────────────────────────────────────────────
+  const renderUpdateSection = () => {
+    if (updateState === 'ready') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Check size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, color: '#10b981' }}>Actualización lista — v{updateVersion}</p>
+              <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', marginTop: 2 }}>LUMEN se cerrará, instalará y se reabrirá automáticamente.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.lumen.updater.install()}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', cursor: 'pointer', alignSelf: 'flex-start' }}
+          >
+            <RefreshCw size={12} /> Reiniciar y actualizar
+          </button>
+        </div>
+      );
+    }
+    if (updateState === 'downloading') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Loader2 size={12} className="animate-spin" style={{ color: 'var(--lumen-accent)' }} />
+            <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>Descargando{updateVersion ? ` v${updateVersion}` : ''}… {dlProgress}%</span>
+          </div>
+          <div style={{ height: 4, background: 'var(--lumen-border)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: 'var(--lumen-accent)', width: `${dlProgress}%`, transition: 'width 0.4s ease' }} />
+          </div>
+        </div>
+      );
+    }
+    if (updateState === 'available') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Loader2 size={12} className="animate-spin" style={{ color: 'var(--lumen-accent)' }} />
+          <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>Descarga iniciada{updateVersion ? ` · v${updateVersion}` : ''}…</span>
+        </div>
+      );
+    }
+    if (updateState === 'error') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <AlertTriangle size={13} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 11, color: 'var(--lumen-text)', lineHeight: 1.5 }}>{updateErr}</p>
+          </div>
+          <button onClick={checkUpdate} className="btn-ghost !py-1.5 !px-3" style={{ fontSize: 11, alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <RefreshCw size={11} /> Reintentar
+          </button>
+        </div>
+      );
+    }
+    if (updateState === 'uptodate') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Check size={13} style={{ color: '#10b981' }} />
+          <span style={{ fontSize: 11, color: '#10b981' }}>LUMEN está actualizado</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>
+          v{version} · Motor <span style={{ color: '#4285F4' }}>Google Gemini</span>
+        </span>
+        <button
+          onClick={checkUpdate}
+          disabled={updateState === 'checking'}
+          className="btn-ghost !py-1.5 !px-3"
+          style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}
+        >
+          <RefreshCw size={11} className={updateState === 'checking' ? 'animate-spin' : ''} />
+          {updateState === 'checking' ? 'Verificando…' : 'Buscar actualización'}
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -818,9 +945,10 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
         </div>
       </div>
 
-      {/* Two-column grid: cuenta+apariencia (left) | IA+sistema (right) */}
+      {/* Two-column grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: 16, marginBottom: 16 }}>
 
+      {/* ── COLUMNA IZQUIERDA: cuenta + calendario + apariencia ── */}
       <div className="bento-card" style={{ padding: '0 20px' }}>
 
         {/* Correo */}
@@ -877,20 +1005,73 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
 
         {/* Google Calendar */}
         <Row label="Google Calendar" icon={CalendarDays} iconColor="#4285F4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+            {/* Connection status + button */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {calConnected
+                  ? <><Wifi size={13} style={{ color: '#10b981' }} /><span style={{ fontSize: 12, color: '#10b981' }}>Conectado</span></>
+                  : <><WifiOff size={13} style={{ color: 'var(--lumen-text-muted)' }} /><span style={{ fontSize: 12, color: 'var(--lumen-text-muted)' }}>Sin conectar</span></>}
+                {calCredsStatus && !calConnected && (
+                  <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: calCredsStatus.hasAny ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: calCredsStatus.hasAny ? '#10b981' : '#f87171', fontFamily: 'monospace' }}>
+                    {calCredsStatus.hasAny ? (calCredsStatus.source === 'user' ? 'creds propias' : 'creds integradas') : 'sin credenciales'}
+                  </span>
+                )}
+                {saved === 'cal' && <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 3 }}><Check size={10} /> Listo</span>}
+              </div>
               {calConnected
-                ? <><Wifi size={13} style={{ color: '#10b981' }} /><span style={{ fontSize: 12, color: '#10b981' }}>Conectado</span></>
-                : <><WifiOff size={13} style={{ color: 'var(--lumen-text-muted)' }} /><span style={{ fontSize: 12, color: 'var(--lumen-text-muted)' }}>Sin conectar</span></>}
-              {saved === 'cal' && <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 3 }}><Check size={10} /> Listo</span>}
+                ? <button onClick={disconnectCal} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; }}>Desconectar</button>
+                : <button onClick={connectCal} disabled={calBusy || !calCredsStatus?.hasAny} className="btn-accent"
+                    title={!calCredsStatus?.hasAny ? 'Configura las credenciales OAuth primero' : ''}>
+                    {calBusy ? <><RefreshCw size={12} className="animate-spin" /> Conectando…</> : <><Wifi size={12} /> Conectar con Google</>}
+                  </button>}
             </div>
-            {calConnected
-              ? <button onClick={disconnectCal} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', transition: 'background 0.15s' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; }}>Desconectar</button>
-              : <button onClick={connectCal} disabled={calBusy} className="btn-accent">
-                  {calBusy ? <><RefreshCw size={12} className="animate-spin" /> Conectando…</> : <><Wifi size={12} /> Conectar con Google</>}
-                </button>}
+
+            {/* Credentials setup — collapsible */}
+            {!calConnected && (
+              <details>
+                <summary style={{ fontSize: 10, color: 'var(--lumen-text-muted)', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Key size={10} style={{ flexShrink: 0 }} />
+                  {calCredsStatus?.hasAny
+                    ? `OAuth: ${calCredsStatus.clientIdPreview || '…'} (${calCredsStatus.source === 'user' ? 'guardadas por ti' : 'integradas'}) · click para cambiar`
+                    : 'Configurar credenciales OAuth (requerido para conectar)'}
+                </summary>
+                <div style={{ marginTop: 10, padding: 12, borderRadius: 6, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--lumen-border)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.6, marginBottom: 10 }}>
+                    1. Ve a <strong style={{ color: 'var(--lumen-text-secondary)' }}>console.cloud.google.com</strong><br />
+                    2. Crea proyecto → habilita <strong>Google Calendar API</strong><br />
+                    3. Crea credenciales tipo <strong>"Aplicación de escritorio"</strong><br />
+                    4. Pega Client ID y Client Secret:
+                  </p>
+                  <input
+                    value={calClientId}
+                    onChange={(e) => setCalClientId(e.target.value)}
+                    style={{ ...INPUT, marginBottom: 6 }}
+                    placeholder="Client ID (xxxxx.apps.googleusercontent.com)"
+                  />
+                  <input
+                    type="password"
+                    value={calClientSecret}
+                    onChange={(e) => setCalClientSecret(e.target.value)}
+                    style={{ ...INPUT, marginBottom: 8 }}
+                    placeholder="Client Secret"
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      onClick={saveCalCreds}
+                      disabled={!calClientId.trim() || !calClientSecret.trim()}
+                      style={BTN_ACCENT}
+                    >
+                      <Save size={11} /> Guardar credenciales
+                    </button>
+                    {calCredsSaved && <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Guardado — ahora puedes conectar</span>}
+                  </div>
+                </div>
+              </details>
+            )}
           </div>
         </Row>
 
@@ -904,7 +1085,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
 
       </div>
 
-      {/* ── COLUMNA DERECHA: IA + sistema ── */}
+      {/* ── COLUMNA DERECHA: nombres + IA + sistema ── */}
       <div className="bento-card" style={{ padding: '0 20px' }}>
 
         {/* Nombres secciones */}
@@ -921,6 +1102,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
                   placeholder={def.default}
                   style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', borderRadius: 5, padding: '6px 10px', color: 'var(--lumen-text)', fontSize: 12, outline: 'none' }}
                   onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(167,139,250,0.4)'; }}
+                  onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'var(--lumen-border)'; }}
                 />
               </div>
             ))}
@@ -935,69 +1117,31 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
 
         {/* Diagnóstico de IA */}
         <Row label="Diagnóstico de Gemini" icon={Zap} iconColor="#fbbf24"
-          hint="Verifica que la API Key actual puede generar respuestas. Útil si LU o el análisis AC3 no responden.">
+          hint="Verifica que la API Key puede generar respuestas.">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
-                onClick={testAiConnection}
-                disabled={testingAi}
-                className="btn-accent"
-                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                {testingAi
-                  ? <><Loader2 size={12} className="animate-spin" /> Probando…</>
-                  : <><Zap size={12} /> Probar conexión</>}
+              <button onClick={testAiConnection} disabled={testingAi} className="btn-accent" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {testingAi ? <><Loader2 size={12} className="animate-spin" /> Probando…</> : <><Zap size={12} /> Probar conexión</>}
               </button>
-              {aiTestResult && aiTestResult.keyPreview && (
-                <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)', fontFamily: 'monospace' }}>
-                  Key: {aiTestResult.keyPreview}
-                </span>
+              {aiTestResult?.keyPreview && (
+                <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)', fontFamily: 'monospace' }}>Key: {aiTestResult.keyPreview}</span>
               )}
             </div>
-
             {aiTestResult && (
-              <div style={{
-                padding: '10px 12px',
-                borderRadius: 6,
-                background: aiTestResult.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.06)',
-                border: `1px solid ${aiTestResult.ok ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
-              }}>
+              <div style={{ padding: '10px 12px', borderRadius: 6, background: aiTestResult.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.06)', border: `1px solid ${aiTestResult.ok ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}` }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  {aiTestResult.ok
-                    ? <Check size={14} style={{ color: '#10b981', marginTop: 1, flexShrink: 0 }} />
-                    : <AlertTriangle size={14} style={{ color: '#f87171', marginTop: 1, flexShrink: 0 }} />}
+                  {aiTestResult.ok ? <Check size={14} style={{ color: '#10b981', marginTop: 1, flexShrink: 0 }} /> : <AlertTriangle size={14} style={{ color: '#f87171', marginTop: 1, flexShrink: 0 }} />}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{
-                      fontSize: 11, fontWeight: 600,
-                      color: aiTestResult.ok ? '#10b981' : '#f87171',
-                      marginBottom: 4,
-                    }}>
-                      {aiTestResult.ok
-                        ? `Conexión OK · ${aiTestResult.model || 'gemini'}`
-                        : 'Fallo de conexión'}
+                    <p style={{ fontSize: 11, fontWeight: 600, color: aiTestResult.ok ? '#10b981' : '#f87171', marginBottom: 4 }}>
+                      {aiTestResult.ok ? `Conexión OK · ${aiTestResult.model || 'gemini'}` : 'Fallo de conexión'}
                     </p>
-                    {aiTestResult.ok ? (
-                      <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.5 }}>
-                        Respuesta recibida: "{aiTestResult.sample}"
-                      </p>
-                    ) : (
-                      <p style={{ fontSize: 11, color: 'var(--lumen-text)', lineHeight: 1.55 }}>
-                        {aiTestResult.message}
-                      </p>
-                    )}
+                    {aiTestResult.ok
+                      ? <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.5 }}>Respuesta: "{aiTestResult.sample}"</p>
+                      : <p style={{ fontSize: 11, color: 'var(--lumen-text)', lineHeight: 1.55 }}>{aiTestResult.message}</p>}
                     {!aiTestResult.ok && aiTestResult.raw && (
                       <details style={{ marginTop: 6 }}>
-                        <summary style={{ fontSize: 10, color: 'var(--lumen-text-muted)', cursor: 'pointer' }}>
-                          Ver error técnico
-                        </summary>
-                        <pre style={{
-                          fontSize: 9, color: 'var(--lumen-text-muted)',
-                          background: 'rgba(0,0,0,0.3)', padding: 6, marginTop: 4,
-                          borderRadius: 3, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                          maxHeight: 120, overflowY: 'auto',
-                        }}>
-                          {aiTestResult.raw}
-                        </pre>
+                        <summary style={{ fontSize: 10, color: 'var(--lumen-text-muted)', cursor: 'pointer' }}>Ver error técnico</summary>
+                        <pre style={{ fontSize: 9, color: 'var(--lumen-text-muted)', background: 'rgba(0,0,0,0.3)', padding: 6, marginTop: 4, borderRadius: 3, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 120, overflowY: 'auto' }}>{aiTestResult.raw}</pre>
                       </details>
                     )}
                   </div>
@@ -1007,22 +1151,9 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           </div>
         </Row>
 
-        {/* Sistema */}
-        <Row label="Sistema" icon={Info}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>
-                Version <code style={{ fontFamily: 'monospace', color: 'var(--lumen-text-secondary)' }}>v{version}</code>
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>
-                Motor <span style={{ color: '#4285F4' }}>Google Gemini</span>
-              </span>
-            </div>
-            <button onClick={checkUpdate} disabled={checking} className="btn-ghost !py-1.5 !px-3" style={{ fontSize: 11 }}>
-              <RefreshCw size={11} className={checking ? 'animate-spin' : ''} />
-              {checking ? 'Verificando…' : 'Actualizar'}
-            </button>
-          </div>
+        {/* Sistema y actualizaciones */}
+        <Row label="Sistema y actualizaciones" icon={Info}>
+          {renderUpdateSection()}
         </Row>
 
         {/* Salir */}
