@@ -615,7 +615,7 @@ function registerHandlers() {
       throw new Error(humanizeGeminiError(err));
     }
   });
-  ipcMain.handle('ai:chat', async (_e, message, history) => {
+  ipcMain.handle('ai:chat', async (_e, message, history, attachments) => {
     try {
       const apiKey = getApiKey();
       if (!apiKey) throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
@@ -666,7 +666,16 @@ function registerHandlers() {
         tools: [{ googleSearch: {} }],
       });
       const chat = model.startChat({ history: history || [] });
-      const result = await chat.sendMessage(message);
+      let msgParts;
+      if (attachments && attachments.length > 0) {
+        msgParts = [
+          { text: message },
+          ...attachments.map(a => ({ inlineData: { mimeType: a.mimeType, data: a.data } })),
+        ];
+      } else {
+        msgParts = message;
+      }
+      const result = await chat.sendMessage(msgParts);
       return result.response.text();
     } catch (err) {
       throw new Error(humanizeGeminiError(err));
