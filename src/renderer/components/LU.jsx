@@ -90,7 +90,28 @@ export default function LU() {
       if (proposal.intent === 'CREATE_BRANCH') {
         result = await window.lumen.ac3.branches.create(proposal.branch);
       } else if (proposal.intent === 'UPDATE_BRANCH') {
-        result = await window.lumen.ac3.branches.update(proposal.branchId, proposal.branch);
+        // Safety net: preserve x/y coords AND prevent accidental mass deletion
+        const allBranches = await window.lumen.ac3.branches.getAll();
+        const existing    = allBranches.find(b => b.id === proposal.branchId);
+        const existingNodes = Array.isArray(existing?.nodes) ? existing.nodes : [];
+        const proposedNodes = Array.isArray(proposal.branch?.nodes) ? proposal.branch.nodes : [];
+        // If proposal would delete more than half the nodes, ask for confirmation
+        if (existingNodes.length >= 3 && proposedNodes.length < existingNodes.length / 2) {
+          const ok = window.confirm(
+            `⚠ La propuesta reduciría la rama de ${existingNodes.length} a ${proposedNodes.length} nodos. ` +
+            `Esto suele indicar que LU perdió contexto y va a borrar nodos importantes.\n\n` +
+            `¿Aplicar de todas formas?`
+          );
+          if (!ok) throw new Error('Cancelado por el usuario para evitar pérdida de nodos');
+        }
+        // Preserve x/y from existing nodes by id (AI doesn't know positions)
+        const posMap = Object.fromEntries(existingNodes.map(n => [n.id, { x: n.x, y: n.y }]));
+        const mergedNodes = proposedNodes.map(n => ({
+          ...n,
+          x: n.x ?? posMap[n.id]?.x ?? 80,
+          y: n.y ?? posMap[n.id]?.y ?? 80,
+        }));
+        result = await window.lumen.ac3.branches.update(proposal.branchId, { ...proposal.branch, nodes: mergedNodes });
       } else if (proposal.intent === 'DELETE_BRANCH') {
         await window.lumen.ac3.branches.delete(proposal.branchId);
         result = { deleted: true };

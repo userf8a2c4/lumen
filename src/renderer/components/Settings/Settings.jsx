@@ -805,7 +805,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
   };
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
@@ -817,6 +817,9 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', marginTop: 1 }}>LUMEN v{version}</p>
         </div>
       </div>
+
+      {/* Two-column grid: cuenta+apariencia (left) | IA+sistema (right) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: 16, marginBottom: 16 }}>
 
       <div className="bento-card" style={{ padding: '0 20px' }}>
 
@@ -899,6 +902,11 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           />
         </Row>
 
+      </div>
+
+      {/* ── COLUMNA DERECHA: IA + sistema ── */}
+      <div className="bento-card" style={{ padding: '0 20px' }}>
+
         {/* Nombres secciones */}
         <Row label="Nombres de secciones" icon={Tag} iconColor="#a78bfa"
           hint="Renombra cada sección. Los cambios se guardan automáticamente.">
@@ -923,22 +931,6 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
               {labelSaved && <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Guardado</span>}
             </div>
           </div>
-        </Row>
-
-        {/* ── PLANTILLAS DE TEXTO ── */}
-        <Row label="Plantillas de texto" icon={Tag} iconColor="#4ade80" collapsible>
-          <TextTemplatesEditor />
-        </Row>
-
-        {/* ── PLANTILLAS DE EMAIL ── */}
-        <Row label="Plantillas de email" icon={Mail} iconColor="#60a5fa" collapsible>
-          <EmailTemplatesEditor />
-        </Row>
-
-        {/* ── ÁRBOL DE DECISIONES ── */}
-        <Row label="Árbol de decisiones" icon={GitBranch} iconColor="#a78bfa" collapsible
-          hint="Crea ramas y define los pasos del proceso. Cada paso tiene un speech (qué decir) y opciones de selección para el agente.">
-          <DecisionTreeEditor />
         </Row>
 
         {/* Diagnóstico de IA */}
@@ -1043,6 +1035,28 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
             <LogOut size={13} /> Salir de LUMEN
           </button>
         </div>
+
+      </div>
+      </div>{/* /grid 2-cols */}
+
+      {/* ── EDITORES GRANDES (full-width) ── */}
+      <div className="bento-card" style={{ padding: '0 20px' }}>
+
+        {/* ── PLANTILLAS DE TEXTO ── */}
+        <Row label="Plantillas de texto" icon={Tag} iconColor="#4ade80" collapsible>
+          <TextTemplatesEditor />
+        </Row>
+
+        {/* ── PLANTILLAS DE EMAIL ── */}
+        <Row label="Plantillas de email" icon={Mail} iconColor="#60a5fa" collapsible>
+          <EmailTemplatesEditor />
+        </Row>
+
+        {/* ── ÁRBOL DE DECISIONES ── */}
+        <Row label="Árbol de decisiones" icon={GitBranch} iconColor="#a78bfa" collapsible
+          hint="Crea ramas y define los pasos del proceso. Cada paso tiene un speech (qué decir) y opciones de selección para el agente.">
+          <DecisionTreeEditor />
+        </Row>
 
       </div>
     </div>

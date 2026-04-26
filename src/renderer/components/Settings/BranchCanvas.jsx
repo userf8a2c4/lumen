@@ -300,6 +300,28 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
 
   const handleAutoLayout = () => { setNodes(p => autoLayout(p)); mark(); };
 
+  // Fit all nodes into the visible canvas (center + adjust zoom)
+  const handleFitView = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || nodes.length === 0) {
+      setZoom(1); setPan({ x: 0, y: 0 });
+      return;
+    }
+    const minX = Math.min(...nodes.map(n => n.x));
+    const minY = Math.min(...nodes.map(n => n.y));
+    const maxX = Math.max(...nodes.map(n => n.x + NODE_W));
+    const maxY = Math.max(...nodes.map(n => n.y + NODE_H));
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const padding = 60;
+    const scaleX = (w - padding * 2) / (maxX - minX);
+    const scaleY = (h - padding * 2) / (maxY - minY);
+    const newZoom = Math.max(0.15, Math.min(1.2, Math.min(scaleX, scaleY)));
+    const cxNodes = (minX + maxX) / 2;
+    const cyNodes = (minY + maxY) / 2;
+    setZoom(newZoom);
+    setPan({ x: w / 2 - cxNodes * newZoom, y: h / 2 - cyNodes * newZoom });
+  };
+
   const pointed = useMemo(() =>
     new Set(nodes.flatMap(n => (n.options || []).map(o => o.next_node_id).filter(Boolean))),
     [nodes]
@@ -363,6 +385,7 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', minWidth: 36, textAlign: 'center', fontFamily: 'monospace' }}>{Math.round(zoom * 100)}%</span>
           <button onClick={() => setZoom(z => Math.min(3, z + 0.15))} title="Acercar" style={TB_BTN}>+</button>
           <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} title="Restablecer vista (100%)" style={{ ...TB_BTN, marginLeft: 4 }}>⌂</button>
+          <button onClick={handleFitView} title="Centrar y ajustar vista a todos los nodos" style={{ ...TB_BTN, marginLeft: 2 }}>⊡</button>
         </div>
         <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
         <button

@@ -719,12 +719,9 @@ function registerHandlers() {
       const branchesContext = branches.length === 0
         ? '(no hay ramas todavía)'
         : branches.map((b) => {
-            const nodes = Array.isArray(b.nodes) ? b.nodes : [];
-            const nodesPreview = nodes.map((n) =>
-              `  [${n.id}] ${n.question || n.title || '(sin pregunta)'} — speech: "${(n.speech || n.note || '').slice(0, 100)}" — opciones: ${Array.isArray(n.options) ? n.options.map((o) => o.label).join(', ') : 'ninguna'}`
-            ).join('\n');
-            return `BRANCH id=${b.id} name="${b.name}" color=${b.color}\n${nodesPreview || '  (sin pasos)'}`;
-          }).join('\n\n');
+            // Pass full JSON so AI can preserve all node fields when updating
+            return `BRANCH id=${b.id} name="${b.name}" color=${b.color}\nFULL_JSON:\n${JSON.stringify({ id: b.id, name: b.name, color: b.color, description: b.description, nodes: Array.isArray(b.nodes) ? b.nodes : [] }, null, 2)}`;
+          }).join('\n\n---\n\n');
 
       const localContext = [
         '=== CONTEXTO LOCAL DE LUMEN ===',
@@ -766,7 +763,12 @@ function registerHandlers() {
         '1. Diseña la lógica BASÁNDOTE en el contexto local (políticas, notas, directorio).\n' +
         '2. Si la instrucción no es relevante a edición de ramas, devuelve {"intent":"NONE","summary":"","explanation":"..."}.\n' +
         '3. Si falta información crítica, marca [CONFIRMAR CON LUCILA] en speech o instructions.\n' +
-        '4. Para UPDATE, incluye el branch COMPLETO (no diff) — los nodos faltantes se eliminan.\n' +
+        '4. ⚠️ CRÍTICO PARA UPDATE_BRANCH: DEBES incluir el branch COMPLETO con TODOS los nodos existentes (los que ves en FULL_JSON) MÁS tus modificaciones.\n' +
+        '   - COPIA EXACTAMENTE cada nodo que NO modificas (id, question, instructions, speech, options completos).\n' +
+        '   - Solo modifica los nodos específicos que la instrucción pide cambiar.\n' +
+        '   - Para AGREGAR un nodo: incluye TODOS los existentes + el nuevo.\n' +
+        '   - Para ELIMINAR un nodo: incluye todos los demás existentes excepto ese.\n' +
+        '   - NUNCA omitas nodos que no menciona la instrucción — eso los borra.\n' +
         '5. "instructions" es para Lucila (interno). "speech" es para el cliente (copiable).\n' +
         '6. Colors válidos: #7E3FF2, #3B82F6, #10B981, #F59E0B, #EF4444, #EC4899, #06B6D4, #84CC16.\n' +
         '7. NUNCA escribas nada fuera del JSON.';
