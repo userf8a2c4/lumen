@@ -7,14 +7,6 @@ function isAdminCommand(text) {
   return text.trim().toLowerCase().startsWith(ADMIN_PREFIX);
 }
 
-function isAjusteCommand(text) {
-  return /\bajuste\b/i.test(text) && !isAdminCommand(text);
-}
-
-function isAdminLike(text) {
-  return isAdminCommand(text) || isAjusteCommand(text);
-}
-
 function stripAdminPrefix(text) {
   return text.trim().replace(/^\/admin\s*/i, '').trim();
 }
@@ -55,12 +47,12 @@ export default function LU() {
     setMessages((prev) => [...prev, { role: 'user', text: userMsg, attachment: pendingAttachment ? pendingAttachment.name : null }]);
     setLoading(true);
     try {
-      if (isAdminLike(userMsg)) {
-        const instruction = isAdminCommand(userMsg) ? stripAdminPrefix(userMsg) : userMsg;
+      if (isAdminCommand(userMsg)) {
+        const instruction = stripAdminPrefix(userMsg);
         if (!instruction || instruction === '/admin') {
           setMessages((prev) => [...prev, {
             role: 'model',
-            text: 'Modo admin: dame una instrucción concreta. Ej: "/admin crea una rama Reembolsos" o escribe "AJUSTE agrega un paso de verificación de factura".',
+            text: 'Modo /admin: dame una instrucción concreta. Ej: "/admin crea una rama Reembolsos con pasos para verificar el motivo y procesar el cambio".',
           }]);
         } else {
           const proposal = await Promise.race([
@@ -336,7 +328,7 @@ export default function LU() {
                 Hola, soy LU.<br />¿En qué puedo ayudarte?
               </p>
               <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, opacity: 0.7 }}>
-                Tip: usa <code style={{ fontFamily: 'monospace', color: 'var(--lumen-accent-secondary)' }}>/admin</code> o escribe <code style={{ fontFamily: 'monospace', color: 'var(--lumen-accent-secondary)' }}>AJUSTE</code> para editar el árbol AC3
+                Tip: usa <code style={{ fontFamily: 'monospace', color: 'var(--lumen-accent-secondary)' }}>/admin</code> para crear o editar el árbol AC3
               </p>
             </div>
           )}
@@ -427,12 +419,12 @@ export default function LU() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-              placeholder={isAdminLike(input) ? 'Modo admin: describe el cambio…' : 'Pregunta… o escribe AJUSTE para editar AC3'}
+              placeholder={isAdminCommand(input) ? '/admin: describe el cambio al árbol AC3…' : 'Pregunta algo… o usa /admin para editar el árbol'}
               autoFocus
               style={{
                 flex: 1,
-                background: isAdminLike(input) ? 'rgba(126,63,242,0.08)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${isAdminLike(input) ? 'var(--lumen-accent-secondary)' : 'var(--lumen-border)'}`,
+                background: isAdminCommand(input) ? 'rgba(126,63,242,0.08)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${isAdminCommand(input) ? 'var(--lumen-accent-secondary)' : 'var(--lumen-border)'}`,
                 borderRadius: 6, padding: '6px 9px', fontSize: 12,
                 color: 'var(--lumen-text)', outline: 'none',
                 transition: 'border-color 0.15s, background 0.15s',

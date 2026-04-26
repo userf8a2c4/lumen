@@ -97,25 +97,32 @@ function assignHierarchicalIds(nodes) {
   }));
 }
 
+const needsLayout = (arr) =>
+  arr.length > 1 && arr.every(n => Math.abs(n.x - arr[0].x) < 10 && Math.abs(n.y - arr[0].y) < 10);
+
 export default function BranchCanvas({ branch, onClose, onSaved }) {
   const [nodes, setNodes]           = useState(() => {
     const raw = Array.isArray(branch.nodes) ? branch.nodes : [];
-    return raw.map(n => ({ ...n, x: n.x ?? 80, y: n.y ?? 80 }));
+    const mapped = raw.map(n => ({ ...n, x: n.x ?? 80, y: n.y ?? 80 }));
+    return needsLayout(mapped) ? autoLayout(mapped) : mapped;
   });
   const [color]                     = useState(branch.color || '#7E3FF2');
-  const [connecting, setConnecting] = useState(null); // { nodeId, optId }
+  const [connecting, setConnecting] = useState(null);
   const [dirty, setDirty]           = useState(false);
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
   const [pan, setPan]               = useState({ x: 0, y: 0 });
+  const [zoom, setZoom]             = useState(1);
   const [reloading, setReloading]   = useState(false);
 
-  const dragRef  = useRef(null); // { nodeId, sx, sy, ox, oy }
-  const panRef   = useRef(null); // { sx, sy, ox, oy }
+  const dragRef  = useRef(null);
+  const panRef   = useRef(null);
   const movedRef = useRef(false);
   const canvasRef = useRef(null);
   const nodesRef  = useRef(nodes);
+  const zoomRef   = useRef(1);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
 
   const mark = () => { setDirty(true); setSaved(false); };
 
@@ -126,7 +133,7 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
       const fresh = all.find(b => b.id === branch.id);
       if (fresh) {
         const freshNodes = (Array.isArray(fresh.nodes) ? fresh.nodes : []).map(n => ({ ...n, x: n.x ?? 80, y: n.y ?? 80 }));
-        setNodes(freshNodes);
+        setNodes(needsLayout(freshNodes) ? autoLayout(freshNodes) : freshNodes);
         setDirty(false);
         onSaved?.(fresh);
       }
@@ -148,7 +155,8 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
       if (dragRef.current) {
         movedRef.current = true;
         const { nodeId, sx, sy, ox, oy } = dragRef.current;
-        setNodes(p => p.map(n => n.id === nodeId ? { ...n, x: ox + (e.clientX - sx), y: oy + (e.clientY - sy) } : n));
+        const z = zoomRef.current;
+        setNodes(p => p.map(n => n.id === nodeId ? { ...n, x: ox + (e.clientX - sx) / z, y: oy + (e.clientY - sy) / z } : n));
       } else if (panRef.current) {
         const { sx, sy, ox, oy } = panRef.current;
         setPan({ x: ox + (e.clientX - sx), y: oy + (e.clientY - sy) });
@@ -171,6 +179,26 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
     };
   }, []);
 
+  // Wheel zoom toward cursor
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      setZoom(prev => {
+        const nz = Math.max(0.15, Math.min(3, prev * factor));
+        setPan(p => ({ x: mx + (p.x - mx) * (nz / prev), y: my + (p.y - my) * (nz / prev) }));
+        return nz;
+      });
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, []);
+
   const startNodeDrag = (e, nodeId) => {
     e.stopPropagation();
     const node = nodesRef.current.find(n => n.id === nodeId);
@@ -186,12 +214,13 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
 
   const addNode = () => {
     const canvas = canvasRef.current;
-    const cx = canvas ? canvas.clientWidth / 2 : 500;
-    const cy = canvas ? canvas.clientHeight / 2 : 300;
+    const w = canvas ? canvas.clientWidth : 1000;
+    const h = canvas ? canvas.clientHeight : 600;
+    const z = zoomRef.current;
     setNodes(p => [...p, {
       id: uid(), question: '', speech: '', instructions: '', options: [],
-      x: cx - pan.x - NODE_W / 2,
-      y: cy - pan.y - 100,
+      x: (w / 2 - pan.x) / z - NODE_W / 2,
+      y: (h / 2 - pan.y) / z - 100,
     }]);
     mark();
   };
@@ -281,16 +310,19 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
     return n && (n.options || []).every(o => !o.next_node_id);
   };
 
-  // SVG horizontal bezier paths (left → right)
+  // Per-option bezier paths: arrow exits from the option row, enters target header
+  const OPT_SECTION_Y = 268; // px from node.y to center of first option row
+  const OPT_ROW_H     = 29;  // px per option row (height + margin)
   const paths = useMemo(() => {
     const result = [];
     nodes.forEach(node => {
-      (node.options || []).forEach((opt) => {
+      (node.options || []).forEach((opt, optIdx) => {
         if (!opt.next_node_id) return;
         const target = nodes.find(n => n.id === opt.next_node_id);
         if (!target) return;
-        const s = srcPoint(node);
-        const d = dstPoint(target);
+        const sy = node.y + OPT_SECTION_Y + optIdx * OPT_ROW_H + OPT_ROW_H / 2;
+        const s  = { x: node.x + NODE_W, y: sy };
+        const d  = { x: target.x, y: target.y + 16 };
         const dx = Math.max(Math.abs(d.x - s.x) * 0.45, 60);
         result.push({
           key: `${node.id}-${opt.id}`,
@@ -324,6 +356,14 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)' }}>
           {nodes.length} nodo{nodes.length !== 1 ? 's' : ''}
         </span>
+        <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+        {/* Zoom controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <button onClick={() => setZoom(z => Math.max(0.15, z - 0.15))} title="Alejar" style={TB_BTN}>−</button>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', minWidth: 36, textAlign: 'center', fontFamily: 'monospace' }}>{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom(z => Math.min(3, z + 0.15))} title="Acercar" style={TB_BTN}>+</button>
+          <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} title="Restablecer vista (100%)" style={{ ...TB_BTN, marginLeft: 4 }}>⌂</button>
+        </div>
         <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
         <button
           onClick={reloadFromDB}
@@ -382,12 +422,12 @@ export default function BranchCanvas({ branch, onClose, onSaved }) {
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
           backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-          backgroundPosition: `${pan.x % 24}px ${pan.y % 24}px`,
+          backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
+          backgroundPosition: `${pan.x % (24 * zoom)}px ${pan.y % (24 * zoom)}px`,
         }} />
 
-        {/* Pan layer */}
-        <div style={{ position: 'absolute', left: pan.x, top: pan.y }}>
+        {/* Pan+Zoom layer */}
+        <div style={{ position: 'absolute', left: 0, top: 0, transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, transformOrigin: '0 0', willChange: 'transform' }}>
 
           {/* SVG connections */}
           <svg style={{ position: 'absolute', overflow: 'visible', pointerEvents: 'none', left: 0, top: 0, width: 1, height: 1 }}>
@@ -593,4 +633,10 @@ const BTN_CONNECT_ACTIVE = {
   background: 'rgba(126,63,242,0.22)',
   border: '1px solid rgba(126,63,242,0.6)',
   color: '#a78bfa',
+};
+
+const TB_BTN = {
+  padding: '3px 8px', borderRadius: 4, fontSize: 13, lineHeight: 1,
+  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+  color: 'rgba(255,255,255,0.5)', cursor: 'pointer',
 };

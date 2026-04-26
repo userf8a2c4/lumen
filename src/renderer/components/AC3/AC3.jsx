@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  Cpu, Copy, Check, ChevronDown, ChevronUp, ChevronLeft,
+  Cpu, Copy, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   CalendarDays, Loader2, RefreshCw, Settings, Users,
   AlertTriangle, Mail, GitBranch, BookOpen, Plus,
 } from 'lucide-react';
@@ -42,7 +42,7 @@ function normalizeNode(node) {
 
 // ─── Templates Panel — read-only, copy only ──────────────────────────────────
 
-function TemplatesPanel({ templates }) {
+function TemplatesPanel({ templates, collapsed, onToggle }) {
   const [expanded, setExpanded] = useState(() => new Set(['saludo']));
   const [copying, setCopying]   = useState(null);
 
@@ -58,16 +58,40 @@ function TemplatesPanel({ templates }) {
     setTimeout(() => setCopying(null), 1500);
   };
 
+  if (collapsed) {
+    return (
+      <div style={{
+        width: 28, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        borderRight: '1px solid var(--lumen-border)', background: 'rgba(255,255,255,0.01)',
+      }}>
+        <button
+          onClick={onToggle}
+          title="Mostrar plantillas de texto"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lumen-text-muted)', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       width: 230, flexShrink: 0, display: 'flex', flexDirection: 'column',
       borderRight: '1px solid var(--lumen-border)', overflowY: 'auto',
       background: 'rgba(255,255,255,0.01)',
     }}>
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--lumen-border)' }}>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--lumen-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase' }}>
           Plantillas de texto
         </span>
+        <button
+          onClick={onToggle}
+          title="Ocultar panel"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lumen-text-muted)', padding: 2, display: 'flex', alignItems: 'center' }}
+        >
+          <ChevronLeft size={12} />
+        </button>
       </div>
 
       {TEMPLATE_CATEGORIES.map((cat) => {
@@ -189,11 +213,11 @@ function DecisionWizard({ branch, onBack, onNodeChange }) {
           </span>
         )}
         {(path.length > 0) && (
-          <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)', cursor: 'pointer', fontSize: 11 }}>
+          <button onClick={goBack} title="Volver al paso anterior" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)', cursor: 'pointer', fontSize: 11 }}>
             ← Atrás
           </button>
         )}
-        <button onClick={reset} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)', cursor: 'pointer', fontSize: 11 }}>
+        <button onClick={reset} title="Reiniciar el flujo desde el principio" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)', cursor: 'pointer', fontSize: 11 }}>
           ↺ Reiniciar
         </button>
       </div>
@@ -272,6 +296,7 @@ function DecisionWizard({ branch, onBack, onNodeChange }) {
                   <label
                     key={opt.id || opt.label}
                     onClick={() => advance(opt.next_node_id)}
+                    title={opt.next_node_id ? 'Seleccionar y avanzar' : 'Seleccionar (nodo terminal)'}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '8px 12px', borderRadius: 5, cursor: 'pointer',
@@ -345,8 +370,7 @@ function BranchCard({ branch, index, onClick }) {
 // ─── Email Card — copy subject + body ────────────────────────────────────────
 
 function EmailCard({ em }) {
-  const [copiedSubject, setCopiedSubject] = useState(false);
-  const [copiedBody, setCopiedBody]       = useState(false);
+  const [copiedBody, setCopiedBody] = useState(false);
 
   const copyText = async (text, setter) => {
     try { await navigator.clipboard.writeText(text); } catch {}
@@ -358,17 +382,10 @@ function EmailCard({ em }) {
     <div style={{ marginBottom: 5, padding: '7px 8px', border: '1px solid var(--lumen-border)', borderRadius: 5, background: 'rgba(255,255,255,0.02)' }}>
       <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 3 }}>{em.label}</p>
       {em.subject && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-          <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', flex: 1, lineHeight: 1.3 }} className="line-clamp-1">
+        <div style={{ marginBottom: 3 }}>
+          <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', lineHeight: 1.3 }} className="line-clamp-1">
             Asunto: {em.subject}
           </p>
-          <button
-            onClick={() => copyText(em.subject, setCopiedSubject)}
-            title="Copiar asunto"
-            style={{ padding: '2px 4px', background: 'none', border: 'none', cursor: 'pointer', color: copiedSubject ? '#10b981' : 'var(--lumen-text-muted)', flexShrink: 0 }}
-          >
-            {copiedSubject ? <Check size={9} /> : <Copy size={9} />}
-          </button>
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
@@ -387,12 +404,38 @@ function EmailCard({ em }) {
 
 // ─── Right Panel — read-only ──────────────────────────────────────────────────
 
-function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCalRefresh, topPolicies, onNavigate }) {
+function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCalRefresh, topPolicies, onNavigate, collapsed, onToggle }) {
+  if (collapsed) {
+    return (
+      <div style={{
+        width: 28, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        borderLeft: '1px solid var(--lumen-border)',
+      }}>
+        <button
+          onClick={onToggle}
+          title="Mostrar panel derecho"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lumen-text-muted)', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <ChevronLeft size={14} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--lumen-border)', minHeight: 0 }}>
 
       {/* Quick nav */}
       <div style={{ padding: '12px', borderBottom: '1px solid var(--lumen-border)', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 2 }}>
+          <button
+            onClick={onToggle}
+            title="Ocultar panel"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lumen-text-muted)', padding: 2, display: 'flex', alignItems: 'center' }}
+          >
+            <ChevronRight size={12} />
+          </button>
+        </div>
         {[
           { label: 'Configuración', icon: Settings, color: 'var(--lumen-accent)', target: 'settings', bg: 'rgba(255,255,255,0.03)', border: 'var(--lumen-border)' },
           { label: 'Contactos',     icon: Users,    color: '#60a5fa',              target: 'contacts', bg: 'rgba(255,255,255,0.03)', border: 'var(--lumen-border)' },
@@ -444,7 +487,7 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
               <CalendarDays size={10} style={{ color: 'var(--lumen-text-muted)' }} />
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase' }}>Calendario</span>
             </div>
-            <button onClick={onCalRefresh} style={{ padding: 2, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lumen-text-muted)' }}>
+            <button onClick={onCalRefresh} title="Actualizar calendario" style={{ padding: 2, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lumen-text-muted)' }}>
               <RefreshCw size={9} className={calLoading ? 'animate-spin' : ''} />
             </button>
           </div>
@@ -481,7 +524,7 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
         <div>
           <div style={{ padding: '8px 12px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Mail size={10} style={{ color: 'var(--lumen-text-muted)' }} />
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase' }}>
+            <span title="Plantillas filtradas por la rama y nodo activo" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase' }}>
               {activeBranch ? `Emails — ${activeBranch.name}` : 'Templates de email'}
             </span>
           </div>
@@ -511,6 +554,8 @@ export default function AC3({ navigateTo: onNavigate }) {
   const [calEvents, setCalEvents]       = useState([]);
   const [calLoading, setCalLoading]     = useState(false);
   const [topPolicies, setTopPolicies]   = useState([]);
+  const [leftOpen, setLeftOpen]         = useState(true);
+  const [rightOpen, setRightOpen]       = useState(true);
 
   const loadAll = useCallback(async () => {
     try {
@@ -556,7 +601,7 @@ export default function AC3({ navigateTo: onNavigate }) {
     <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', background: 'var(--lumen-bg)' }}>
 
       {/* LEFT — Text templates (read-only) */}
-      <TemplatesPanel templates={textTemplates} />
+      <TemplatesPanel templates={textTemplates} collapsed={!leftOpen} onToggle={() => setLeftOpen(v => !v)} />
 
       {/* CENTER — Branch grid or Decision Wizard */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
@@ -619,6 +664,8 @@ export default function AC3({ navigateTo: onNavigate }) {
         onCalRefresh={loadCalEvents}
         topPolicies={topPolicies}
         onNavigate={navigate}
+        collapsed={!rightOpen}
+        onToggle={() => setRightOpen(v => !v)}
       />
     </div>
   );

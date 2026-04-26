@@ -146,51 +146,30 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
           </h3>
         </div>
 
-        <div className="bento-grid bento-grid-2 !gap-3">
-          {[
-            {
-              keyword: '/admin',
-              label: 'Modo administración',
-              desc: 'Permite a Lu modificar el árbol de decisiones AC3 (crear, actualizar o eliminar ramas). Lu propone el cambio completo y tú decides si aplicar o descartar.',
-              example: '/admin crea una rama Reembolsos con un paso que pregunte si tiene factura',
-            },
-            {
-              keyword: 'AJUSTE',
-              label: 'Edición en lenguaje natural',
-              desc: 'Escribe AJUSTE en cualquier parte del mensaje para que Lu lo interprete como instrucción de modificación del árbol AC3, sin necesidad de prefijo de comando.',
-              example: 'AJUSTE quiero que la rama Tarjetas tenga un paso que verifique si el acceso está activo',
-            },
-          ].map(({ keyword, label, desc, example }) => (
-            <div key={keyword} style={{
-              padding: '12px 14px', borderRadius: 3,
-              borderLeft: '2px solid var(--lumen-accent-secondary)',
+        <div style={{ padding: '12px 14px', borderRadius: 3, borderLeft: '2px solid var(--lumen-accent-secondary)' }}>
+          <div className="flex items-center gap-2 mb-2">
+            <code style={{
+              fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+              color: 'var(--lumen-accent-secondary)',
+              background: 'rgba(126,63,242,0.10)',
+              padding: '2px 6px', borderRadius: 3,
             }}>
-              <div className="flex items-center gap-2 mb-2">
-                <code style={{
-                  fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
-                  color: 'var(--lumen-accent-secondary)',
-                  background: 'rgba(126,63,242,0.10)',
-                  padding: '2px 6px', borderRadius: 3,
-                }}>
-                  {keyword}
-                </code>
-                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {label}
-                </span>
-              </div>
-              <p style={{ fontSize: 11, lineHeight: 1.55, color: 'var(--lumen-text-muted)', marginBottom: 6 }}>{desc}</p>
-              <code style={{
-                display: 'block',
-                fontFamily: 'monospace', fontSize: 10,
-                color: 'var(--lumen-text-secondary)',
-                background: 'rgba(0,0,0,0.3)',
-                padding: '6px 8px', borderRadius: 3,
-                lineHeight: 1.5, wordBreak: 'break-word',
-              }}>
-                {example}
-              </code>
-            </div>
-          ))}
+              /admin
+            </code>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Modo administración
+            </span>
+          </div>
+          <p style={{ fontSize: 11, lineHeight: 1.55, color: 'var(--lumen-text-muted)', marginBottom: 6 }}>
+            Permite a LU modificar el árbol de decisiones AC3: crear, actualizar o eliminar ramas y nodos. LU propone el cambio completo y tú decides si aplicar o descartar.
+          </p>
+          <code style={{
+            display: 'block', fontFamily: 'monospace', fontSize: 10,
+            color: 'var(--lumen-text-secondary)', background: 'rgba(0,0,0,0.3)',
+            padding: '6px 8px', borderRadius: 3, lineHeight: 1.5, wordBreak: 'break-word',
+          }}>
+            /admin crea una rama Reembolsos con un paso que pregunte si tiene factura
+          </code>
         </div>
       </div>
     </div>
