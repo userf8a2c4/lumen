@@ -31,41 +31,119 @@
 
 /* ── Light theme ───────────────────────────────────────────── */
 .light-theme {
-  --lumen-bg:              #f0f0f0;
-  --lumen-surface:         transparent;
-  --lumen-card:            transparent;
-  --lumen-card-hover:      rgba(0,0,0,0.03);
-  --lumen-border:          rgba(0,0,0,0.12);
-  --lumen-border-light:    rgba(0,0,0,0.22);
-  --lumen-text:            rgba(0,0,0,0.88);
-  --lumen-text-secondary:  rgba(0,0,0,0.50);
-  --lumen-text-muted:      rgba(0,0,0,0.30);
-  --lumen-accent:          rgba(0,0,0,0.88);
+  --lumen-bg:              #eaeaea;
+  --lumen-surface:         #f2f2f2;
+  --lumen-card:            #ffffff;
+  --lumen-card-hover:      rgba(0,0,0,0.04);
+  --lumen-border:          rgba(0,0,0,0.10);
+  --lumen-border-light:    rgba(0,0,0,0.20);
+  --lumen-text:            rgba(0,0,0,0.87);
+  --lumen-text-secondary:  rgba(0,0,0,0.55);
+  --lumen-text-muted:      rgba(0,0,0,0.38);
+  --lumen-accent:          #1a1a1a;
   --lumen-accent-hover:    #000000;
-  --lumen-scrollbar:       rgba(0,0,0,0.12);
-  --lumen-scrollbar-hover: rgba(0,0,0,0.22);
-  --lumen-input-bg:        transparent;
-  --lumen-overlay:         rgba(255,255,255,0.25);
+  --lumen-scrollbar:       rgba(0,0,0,0.14);
+  --lumen-scrollbar-hover: rgba(0,0,0,0.24);
+  --lumen-input-bg:        #ffffff;
+  --lumen-overlay:         rgba(0,0,0,0.35);
 }
 
 /* ── Light theme component overrides ───────────────────────── */
+
+/* Cards & surfaces */
+.light-theme .bento-card {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.09);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.light-theme .bento-card:hover {
+  border-color: rgba(0,0,0,0.16);
+}
+.light-theme .bento-card.interactive:hover {
+  background: #f7f7f7;
+  border-color: rgba(0,0,0,0.16);
+}
+.light-theme .dark-card {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.09);
+}
+.light-theme .glass-sidebar {
+  background: #f5f5f5;
+  border-right: 1px solid rgba(0,0,0,0.08);
+}
+.light-theme .glass-card {
+  background: rgba(255,255,255,0.98);
+  border-color: rgba(0,0,0,0.10);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+/* Nav */
+.light-theme .nav-item.active {
+  color: var(--lumen-text) !important;
+}
+.light-theme .nav-item.active::before {
+  background: var(--lumen-accent);
+}
+.light-theme .nav-item:hover:not(.active) {
+  color: var(--lumen-text) !important;
+}
+
+/* Inputs */
+.light-theme .dark-input {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.14);
+  color: rgba(0,0,0,0.87);
+}
+.light-theme .dark-input:focus {
+  border-color: rgba(0,0,0,0.30);
+}
+
+/* Buttons */
+.light-theme .btn-accent {
+  border-color: rgba(0,0,0,0.20);
+  color: var(--lumen-text);
+}
+.light-theme .btn-accent:hover {
+  border-color: rgba(0,0,0,0.45);
+  background: rgba(0,0,0,0.04);
+}
+.light-theme .btn-ghost {
+  border-color: rgba(0,0,0,0.14);
+  color: var(--lumen-text-secondary);
+}
+.light-theme .btn-ghost:hover {
+  color: var(--lumen-text);
+  border-color: rgba(0,0,0,0.25);
+}
+
+/* Misc */
 .light-theme .drop-zone:hover,
 .light-theme .drop-zone.drag-over {
   border-color: rgba(0,0,0,0.30);
 }
-.light-theme .status-dot.online  { background: #000000; opacity: 0.7; }
+.light-theme .status-dot.online  { background: #1a1a1a; opacity: 0.7; }
 .light-theme .status-dot.offline { background: rgba(0,0,0,0.25); }
 .light-theme .status-dot.checking{ background: rgba(0,0,0,0.5); }
 .light-theme .search-highlight {
   background: rgba(0,0,0,0.10);
   color: var(--lumen-text);
 }
-.light-theme .nav-item:hover:not(.active) {
-  color: var(--lumen-text) !important;
-}
 .light-theme .tag-pill {
   color: var(--lumen-text-secondary);
   border-color: var(--lumen-border);
+  background: rgba(0,0,0,0.03);
+}
+.light-theme .accordion-section.open {
+  border-left-color: var(--lumen-border-light);
+}
+/* Rich editor in light mode */
+.light-theme .rich-editor {
+  background: #ffffff;
+  color: var(--lumen-text);
+}
+/* Table cells in light mode */
+.light-theme table th {
+  background: rgba(0,0,0,0.03);
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
@@ -83,7 +161,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 .light-theme body {
-  background-color: #f0f0f0;
+  background-color: #eaeaea;
 }
 
 /* ── Tailwind radius → ángulos limpios ── */

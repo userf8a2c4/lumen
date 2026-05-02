@@ -114,7 +114,7 @@ function DockMenu({ currentPos, onDock }) {
   const handleToggle = () => {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setCoords({ top: r.top, right: window.innerWidth - r.right });
+      setCoords({ top: r.bottom + 4, right: window.innerWidth - r.right });
     }
     setOpen((v) => !v);
   };
@@ -146,7 +146,6 @@ function DockMenu({ currentPos, onDock }) {
           position: 'fixed',
           top: coords.top,
           right: coords.right,
-          transform: 'translateY(-100%) translateY(-4px)',
           zIndex: 9999,
           background: 'var(--lumen-bg)', border: '1px solid var(--lumen-border-light)',
           borderRadius: 6, padding: 4, minWidth: 110,
@@ -1174,7 +1173,7 @@ function ClientSelectorPanel({ onSelect, onClose }) {
               </button>
               <button
                 onClick={confirmManualId}
-                style={{ flex: 2, padding: '8px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: 'var(--lumen-accent)', border: 'none', color: '#fff' }}
+                style={{ flex: 2, padding: '8px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: 'var(--lumen-accent)', border: 'none', color: 'var(--lumen-bg)' }}
               >
                 Abrir caso
               </button>
@@ -1583,7 +1582,7 @@ function HistoryModal({ onClose, onViewDetail }) {
           />
           <button
             onClick={() => search(filters)}
-            style={{ padding: '6px 14px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: 'var(--lumen-accent)', border: 'none', color: '#fff' }}
+            style={{ padding: '6px 14px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: 'var(--lumen-accent)', border: 'none', color: 'var(--lumen-bg)' }}
           >
             Buscar
           </button>

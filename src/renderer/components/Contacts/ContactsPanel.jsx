@@ -107,7 +107,7 @@ function ContactDetail({ contact, onEdit, onDelete, onBack }) {
         </button>
         <button
           onClick={onEdit}
-          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: 'var(--lumen-accent)', color: '#fff', border: 'none', cursor: 'pointer' }}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: 'var(--lumen-accent)', color: 'var(--lumen-bg)', border: 'none', cursor: 'pointer' }}
         >
           <Edit3 size={12} /> Editar
         </button>
@@ -179,7 +179,7 @@ export default function ContactsPanel({ onClose }) {
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--lumen-text)', flex: 1 }}>Contactos</span>
         <button
           onClick={() => { setEditingContact(null); setShowForm(true); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 5, fontSize: 10, fontWeight: 600, background: 'var(--lumen-accent)', color: '#fff', border: 'none', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 5, fontSize: 10, fontWeight: 600, background: 'var(--lumen-accent)', color: 'var(--lumen-bg)', border: 'none', cursor: 'pointer' }}
         >
           <Plus size={11} /> Nuevo
         </button>

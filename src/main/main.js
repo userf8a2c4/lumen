@@ -538,34 +538,58 @@ function registerHandlers() {
   ipcMain.handle('settings:getShowPromos', () => (db.getSetting('show_promos') ?? 'true') === 'true');
   ipcMain.handle('settings:setShowPromos', (_e, val) => db.setSetting('show_promos', val ? 'true' : 'false'));
 
-  // Promos near Toluca de Lerdo
+  // Locations (3 slots: Casa, Trabajo, Otro)
+  const DEFAULT_LOCATIONS = [
+    { id: 'home',  label: 'Casa',    lat: null, lng: null, address: '', enabled: true },
+    { id: 'work',  label: 'Trabajo', lat: null, lng: null, address: '', enabled: true },
+    { id: 'other', label: 'Otro',    lat: null, lng: null, address: '', enabled: false },
+  ];
+  ipcMain.handle('settings:getLocations', () => {
+    try {
+      const raw = db.getSetting('promo_locations');
+      return raw ? JSON.parse(raw) : DEFAULT_LOCATIONS;
+    } catch { return DEFAULT_LOCATIONS; }
+  });
+  ipcMain.handle('settings:setLocations', (_e, locs) => db.setSetting('promo_locations', JSON.stringify(locs)));
+
+  // Promos — fetch for a specific location
+  async function fetchPromosForLocation(loc) {
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error('Sin API Key');
+    const modelId = db.getSetting('model') || 'gemini-2.5-flash';
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: modelId, tools: [{ googleSearch: {} }] });
+    const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const locationDesc = loc.address
+      ? `${loc.address}`
+      : 'Toluca de Lerdo, Estado de México, México';
+    const prompt =
+      `Hoy es ${today}. Busca promociones de comida, restaurantes y negocios de alimentos cerca de: "${locationDesc}". ` +
+      `Incluye combos, descuentos, 2x1, menú del día, ofertas especiales, etc. ` +
+      `Responde ÚNICAMENTE con un JSON válido, sin texto extra, sin markdown, con este formato exacto: ` +
+      `[{"name":"Nombre negocio","category":"Tipo","promo":"Descripción promo","details":"Condiciones/detalles","address":"Dirección"}]. ` +
+      `Máximo 8 resultados. Si no encuentras info real, devuelve [].`;
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+    return JSON.parse(jsonMatch[0]);
+  }
+
+  ipcMain.handle('promos:fetchForLocation', async (_e, loc) => {
+    try { return await fetchPromosForLocation(loc); }
+    catch (e) { console.error('promos:fetchForLocation error', e); return []; }
+  });
+
+  // Legacy fetch (backward compat — uses first enabled location or default)
   ipcMain.handle('promos:fetch', async () => {
     try {
-      const apiKey = getApiKey();
-      if (!apiKey) throw new Error('Sin API Key');
-      const modelId = db.getSetting('model') || 'gemini-2.5-flash';
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: modelId,
-        tools: [{ googleSearch: {} }],
-      });
-      const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-      const prompt =
-        `Hoy es ${today}. Busca promociones de comida, restaurantes y negocios de alimentos en Toluca de Lerdo, Estado de México, Mexico que estén activas hoy o esta semana. ` +
-        `Incluye combos, descuentos, 2x1, menú del día, etc. ` +
-        `Responde ÚNICAMENTE con un JSON válido, sin texto extra, sin markdown, con el siguiente formato exacto: ` +
-        `[{"name":"Nombre del negocio","category":"Tipo (Pizzería/Taquería/etc)","promo":"Descripción de la promo","details":"Detalle adicional o condiciones","address":"Dirección si disponible"}]. ` +
-        `Máximo 10 resultados. Si no encuentras info real, devuelve un array vacío [].`;
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().trim();
-      // Extract JSON from response (may have markdown wrapper)
-      const jsonMatch = text.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) return [];
-      return JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      console.error('promos:fetch error', e);
-      return [];
-    }
+      const raw = db.getSetting('promo_locations');
+      const locs = raw ? JSON.parse(raw) : DEFAULT_LOCATIONS;
+      const enabled = locs.filter((l) => l.enabled);
+      const loc = enabled[0] || { address: 'Toluca de Lerdo, Estado de México, México' };
+      return await fetchPromosForLocation(loc);
+    } catch (e) { console.error('promos:fetch error', e); return []; }
   });
 
   // Logic Flows

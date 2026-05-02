@@ -5,8 +5,9 @@ import {
   RefreshCw, Info, Tag, RotateCcw, Plus, Trash2, X,
   GitBranch, ChevronDown, ChevronUp, Save, Loader2,
   Zap, AlertTriangle, ArrowDown, ArrowUp, CornerDownRight,
-  Target, MessageSquare, HelpCircle, Briefcase, Utensils,
+  Target, MessageSquare, HelpCircle, Briefcase, Utensils, MapPin,
 } from 'lucide-react';
+import LocationPicker from './LocationPicker';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1005,6 +1006,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
   const [aiTestResult, setAiTestResult] = useState(null); // { ok, message, ... }
   const [caseIdMode,   setCaseIdMode]   = useState('auto');
   const [showPromos,   setShowPromos]   = useState(true);
+  const [locations,    setLocations]    = useState(null); // null = loading
 
   const flash = (tag) => { setSaved(tag); setTimeout(() => setSaved(''), 2000); };
 
@@ -1022,7 +1024,8 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       window.lumen.calendar.isAuthenticated(),
       window.lumen.settings.getCaseIdMode(),
       window.lumen.settings.getShowPromos(),
-    ]).then(([k, m, em, ac, v, conn, cim, sp]) => {
+      window.lumen.settings.getLocations(),
+    ]).then(([k, m, em, ac, v, conn, cim, sp, locs]) => {
       setApiKey(k ? k.slice(0, 7) + '…' + k.slice(-4) : '');
       setModel(MODELS.find((x) => x.id === m) ? m : 'gemini-2.5-flash');
       setEmail(em || ''); setEmailInput(em || '');
@@ -1031,6 +1034,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       setCalConnected(conn);
       setCaseIdMode(cim || 'auto');
       setShowPromos(sp !== false);
+      setLocations(locs || []);
     }).catch(() => {});
   }, []);
 
@@ -1352,15 +1356,13 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
         </Row>
 
         {/* ── PROMOCIONES ── */}
-        <Row label="Promociones de comida" icon={Utensils} iconColor="#f59e0b"
-          hint="Muestra una tabla con promociones de negocios de comida cerca de Toluca de Lerdo en el Dashboard. Se actualiza al abrir el Dashboard.">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
+        <Row label="Promociones de comida" icon={Utensils} iconColor="#f59e0b" collapsible defaultOpen={false}
+          hint="Muestra un widget con promociones de negocios de comida cerca de tus ubicaciones en el Dashboard.">
+          {/* Widget toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0 14px' }}>
             <div>
               <p style={{ fontSize: 12, color: 'var(--lumen-text)', fontWeight: 500, marginBottom: 2 }}>
-                {showPromos ? 'Widget activo' : 'Widget oculto'}
-              </p>
-              <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.4 }}>
-                {showPromos ? 'Visible en Dashboard' : 'No aparece en el Dashboard'}
+                {showPromos ? 'Widget activo — visible en Dashboard' : 'Widget oculto'}
               </p>
             </div>
             <button
@@ -1383,6 +1385,16 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
               }} />
             </button>
           </div>
+          {/* Location picker */}
+          {locations !== null && (
+            <LocationPicker
+              locations={locations}
+              onChange={(updated) => {
+                setLocations(updated);
+                window.lumen.settings.setLocations(updated).catch(() => {});
+              }}
+            />
+          )}
         </Row>
 
         {/* Sistema */}

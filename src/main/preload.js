@@ -52,9 +52,12 @@ contextBridge.exposeInMainWorld('lumen', {
     setCaseIdMode: (mode) => ipcRenderer.invoke('settings:setCaseIdMode', mode),
     getShowPromos: () => ipcRenderer.invoke('settings:getShowPromos'),
     setShowPromos: (val) => ipcRenderer.invoke('settings:setShowPromos', val),
+    getLocations: () => ipcRenderer.invoke('settings:getLocations'),
+    setLocations: (locs) => ipcRenderer.invoke('settings:setLocations', locs),
   },
   promos: {
     fetch: () => ipcRenderer.invoke('promos:fetch'),
+    fetchForLocation: (loc) => ipcRenderer.invoke('promos:fetchForLocation', loc),
   },
   logic: {
     getAll:       ()         => ipcRenderer.invoke('logic:getAll'),

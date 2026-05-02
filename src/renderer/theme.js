@@ -17,10 +17,10 @@ export const DEFAULT_THEME = {
     border: '#FFFFFF',
   },
   light: {
-    accent: '#000000',
-    bg:     '#F0F0F0',
-    text:   '#000000',
-    border: '#000000',
+    accent: '#1a1a1a',
+    bg:     '#EAEAEA',
+    text:   '#111111',
+    border: '#111111',
   },
   font: 'Inter',
 };
