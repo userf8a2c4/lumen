@@ -36,7 +36,7 @@ export default function StatusBar({ version, syncStatus, model }) {
         </div>
       </div>
       <div className="flex items-center gap-1.5" style={{ opacity: 0.7 }}>
-        <span style={{ fontFamily: 'monospace', letterSpacing: '0.04em' }}>v{version} Chiquisauras</span>
+        <span style={{ fontFamily: 'monospace', letterSpacing: '0.04em' }}>v{version} Chiquisaurias Edition</span>
       </div>
     </footer>
   );
