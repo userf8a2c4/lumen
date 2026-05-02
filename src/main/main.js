@@ -531,6 +531,10 @@ function registerHandlers() {
   ipcMain.handle('settings:setAccentColor',    (_e, color) => db.setSetting('accent_color', color));
   ipcMain.handle('settings:getSectionLabels',  () => db.getSetting('section_labels') || null);
   ipcMain.handle('settings:setSectionLabels',  (_e, json) => db.setSetting('section_labels', json));
+  ipcMain.handle('settings:getThemeCustomization', () => db.getSetting('theme_customization') || null);
+  ipcMain.handle('settings:setThemeCustomization', (_e, json) => db.setSetting('theme_customization', json));
+  ipcMain.handle('settings:getCaseIdMode', () => db.getSetting('case_id_mode') || 'auto');
+  ipcMain.handle('settings:setCaseIdMode', (_e, mode) => db.setSetting('case_id_mode', mode));
 
   // Logic Flows
   ipcMain.handle('logic:getAll',    () => db.getAllFlows());
@@ -613,7 +617,7 @@ function registerHandlers() {
       throw new Error(humanizeGeminiError(err));
     }
   });
-  ipcMain.handle('ai:chat', async (_e, message, history) => {
+  ipcMain.handle('ai:chat', async (_e, message, history, fileData) => {
     try {
       const apiKey = getApiKey();
       if (!apiKey) throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuracion para agregarla.');
@@ -664,8 +668,134 @@ function registerHandlers() {
         tools: [{ googleSearch: {} }],
       });
       const chat = model.startChat({ history: history || [] });
-      const result = await chat.sendMessage(message);
+
+      // Build message parts — text + optional inline file (multimodal)
+      let messageParts;
+      if (fileData && fileData.base64 && fileData.mimeType) {
+        messageParts = [
+          { inlineData: { mimeType: fileData.mimeType, data: fileData.base64 } },
+          { text: message || 'Describe o analiza este archivo.' },
+        ];
+      } else {
+        messageParts = message;
+      }
+
+      const result = await chat.sendMessage(messageParts);
       return result.response.text();
+    } catch (err) {
+      throw new Error(humanizeGeminiError(err));
+    }
+  });
+
+  // ─── /RAMAS — AI-driven decision-tree edits ─────────────────────────────
+  //   Input:  natural-language instruction from Lu (the "/RAMAS" prefix is
+  //           stripped by the renderer before calling this).
+  //   Output: { intent, summary, branchId?, branch? } preview object that the
+  //           renderer shows to the user; if the user accepts, the renderer
+  //           applies it via the regular ac3:branches:* handlers.
+  ipcMain.handle('ai:proposeBranchEdit', async (_e, instruction) => {
+    try {
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error('No se ha configurado la API Key de Google AI. Ve a Configuración para agregarla.');
+      const stored = db.getSetting('model') || '';
+      const modelId = stored.startsWith('gemini-') ? stored : 'gemini-2.5-flash';
+
+      const currentBranches = db.getAllAC3Branches();
+
+      // ─── Local context — políticas, notas, contactos relevantes a la instrucción
+      let localContext = '';
+      try {
+        const policies = db.searchPoliciesForAI(instruction) || [];
+        const notes    = db.searchNotesForAI(instruction)    || [];
+        const depts    = [...new Set(policies.map((p) => p.department).filter(Boolean))];
+        const contacts = depts.length > 0
+          ? (db.getContactsByDepartments(depts) || [])
+          : (db.getAllContacts() || []).slice(0, 8);
+
+        if (policies.length > 0) {
+          localContext += '\n\n--- POLÍTICAS RELEVANTES (Biblioteca) ---\n';
+          localContext += policies.slice(0, 5).map((p) =>
+            `[${p.name}${p.department ? ' · ' + p.department : ''}] ${p.description || ''}\n${(p.content || '').slice(0, 700)}`
+          ).join('\n\n');
+        }
+        if (notes.length > 0) {
+          localContext += '\n\n--- NOTAS INTERNAS RELEVANTES ---\n';
+          localContext += notes.slice(0, 4).map((n) =>
+            `[${n.title || 'sin título'}] ${(n.content || '').slice(0, 400)}`
+          ).join('\n');
+        }
+        if (contacts.length > 0) {
+          localContext += '\n\n--- DIRECTORIO (contactos disponibles para escalación) ---\n';
+          localContext += contacts.slice(0, 12).map((c) =>
+            `${c.name}${c.department ? ' (' + c.department + ')' : ''}${c.role ? ' — ' + c.role : ''}${c.email ? ' · ' + c.email : ''}${c.phone ? ' · ' + c.phone : ''}`
+          ).join('\n');
+        }
+      } catch { /* DB puede estar vacía — continuar sin contexto */ }
+
+      const systemInstruction =
+`Eres LU, el arquitecto del árbol de decisiones de LUMEN. Lucila te da una instrucción en lenguaje natural sobre cómo modificar las ramas. Debes devolver EXCLUSIVAMENTE un objeto JSON válido que describa el cambio propuesto. No añadas texto fuera del JSON. No uses bloques markdown.
+
+Tu trabajo es diseñar la lógica del árbol BASÁNDOTE en el contexto local que recibes (políticas, notas y directorio) y en las reglas que Lucila te dé en su instrucción. Si una política dice cómo se debe manejar un escenario, refléjalo fielmente en los pasos. Si el directorio tiene un contacto especializado, menciónalo en el speech del paso correspondiente. Nunca inventes datos que no aparezcan en el contexto local; si falta información, deja un placeholder claro como "[CONFIRMAR CON LUCILA]".
+
+Esquema del nodo:
+  { "id": "string (si existe, reutilízalo; si es nuevo, inventa uno corto tipo 'nX')",
+    "title": "pregunta/título visible",
+    "instructions": "nota interna para Lu",
+    "speech": "qué decir literalmente al cliente",
+    "outcome": "resultado final (solo si es nodo hoja), ej '$120.000'",
+    "options": [ { "id": "oX", "label": "texto del botón", "next_node_id": "id del nodo destino o null" } ]
+  }
+
+Formato de salida (OBLIGATORIO — devuelve solo esto):
+{
+  "intent": "CREATE" | "UPDATE" | "DELETE" | "NONE",
+  "summary": "descripción breve en español de lo que cambiarás",
+  "branchId": "id de la rama existente (solo para UPDATE o DELETE)",
+  "branch": {
+    "name": "nombre de la rama",
+    "color": "#hex (#7E3FF2 por defecto)",
+    "nodes": [ /* array de nodos según el esquema */ ]
+  }
+}
+
+Reglas:
+- Si la instrucción NO tiene que ver con ramas de decisiones, devuelve { "intent": "NONE", "summary": "..." } explicando por qué.
+- Para CREATE: no incluyas branchId.
+- Para DELETE: solo incluye intent, summary y branchId.
+- Para UPDATE: devuelve el árbol completo resultante (no diffs).
+- Los IDs de nodos y opciones deben ser únicos dentro de su ámbito.
+- next_node_id solo puede apuntar a nodos que existen en la misma rama (o null).`;
+
+      const userPrompt =
+`INSTRUCCIÓN DE LUCILA:
+${instruction}
+${localContext ? `\n=== CONTEXTO LOCAL DE LUMEN ===${localContext}\n=== FIN DEL CONTEXTO LOCAL ===\n` : '\n(No se encontró contexto local relevante en políticas, notas o directorio.)\n'}
+RAMAS ACTUALES (JSON):
+${JSON.stringify(currentBranches, null, 2)}
+
+Devuelve el JSON de la propuesta.`;
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: modelId,
+        systemInstruction,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      });
+      const result = await model.generateContent(userPrompt);
+      const raw = result.response.text().trim();
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        // fallback: strip code-fences if Gemini ignored responseMimeType
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        parsed = JSON.parse(cleaned);
+      }
+      return parsed;
     } catch (err) {
       throw new Error(humanizeGeminiError(err));
     }
@@ -757,6 +887,35 @@ function registerHandlers() {
   ipcMain.handle('ac3:emailTemplates:create',        (_e, data)    => db.createAC3EmailTemplate(data));
   ipcMain.handle('ac3:emailTemplates:update',        (_e, id, data)=> db.updateAC3EmailTemplate(id, data));
   ipcMain.handle('ac3:emailTemplates:delete',        (_e, id)      => db.deleteAC3EmailTemplate(id));
+
+  // Quick Search
+  ipcMain.handle('quick-search', (_e, query) => db.quickSearch(query));
+
+  // Clients
+  ipcMain.handle('clients:getAll',    ()            => db.getAllClients());
+  ipcMain.handle('clients:search',    (_e, q)       => db.searchClients(q));
+  ipcMain.handle('clients:create',    (_e, data)    => db.createClient(data));
+  ipcMain.handle('clients:update',    (_e, id, data)=> db.updateClient(id, data));
+
+  // Turns
+  ipcMain.handle('turns:getActive',   ()            => db.getActiveTurn());
+  ipcMain.handle('turns:create',      ()            => db.createTurn());
+  ipcMain.handle('turns:close',       (_e, id, sum) => db.closeTurn(id, sum));
+  ipcMain.handle('turns:getHistory',  ()            => db.getTurnHistory());
+
+  // Cases
+  ipcMain.handle('cases:create',      (_e, data)    => db.createCase(data));
+  ipcMain.handle('cases:getById',     (_e, id)      => db.getCaseById(id));
+  ipcMain.handle('cases:update',      (_e, id, data)=> db.updateCase(id, data));
+  ipcMain.handle('cases:close',       (_e, id, data)=> db.closeCase(id, data));
+  ipcMain.handle('cases:getLastForClient', (_e, clientId, limit) => db.getLastCasesForClient(clientId, limit));
+  ipcMain.handle('cases:search',      (_e, filters) => db.searchCases(filters || {}));
+
+  // Speeches
+  ipcMain.handle('ac3:speeches:getAll',   ()             => db.getAllSpeeches());
+  ipcMain.handle('ac3:speeches:create',   (_e, data)     => db.createSpeech(data));
+  ipcMain.handle('ac3:speeches:update',   (_e, id, data) => db.updateSpeech(id, data));
+  ipcMain.handle('ac3:speeches:delete',   (_e, id)       => db.deleteSpeech(id));
 
   // Updater
   ipcMain.handle('updater:check', () => checkForUpdates());

@@ -1,32 +1,44 @@
 import React from 'react';
-import { Download, RefreshCw, X } from 'lucide-react';
+import { Download, Loader2, X } from 'lucide-react';
 
-export default function UpdateBanner({ update, onDownload, onInstall, onDismiss }) {
+export default function UpdateBanner({ update, onInstall, onDismiss }) {
   if (!update) return null;
 
   return (
-    <div className="flex items-center justify-between px-5 py-2.5"
-      style={{ background: 'rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-      <div className="flex items-center gap-2 text-[13px] font-medium" style={{ color: 'var(--lumen-accent)' }}>
-        {update.status === 'available' && (
-          <><Download size={14} /><span>Nueva version disponible: <strong>v{update.version}</strong></span></>
-        )}
-        {update.status === 'downloading' && (
-          <><RefreshCw size={14} className="animate-spin" /><span>Descargando... {Math.round(update.percent || 0)}%</span></>
+    <div className="flex items-center justify-between px-5 py-2"
+      style={{ background: 'rgba(126,63,242,0.08)', borderBottom: '1px solid rgba(126,63,242,0.18)' }}>
+      <div className="flex items-center gap-2.5 text-[12px]" style={{ color: 'var(--lumen-accent)' }}>
+        {(update.status === 'available' || update.status === 'downloading') && (
+          <>
+            <Loader2 size={13} className="animate-spin" />
+            <span>
+              {update.status === 'downloading'
+                ? `Descargando actualización… ${Math.round(update.percent || 0)}%`
+                : `Nueva versión disponible — descargando en segundo plano…`}
+            </span>
+          </>
         )}
         {update.status === 'downloaded' && (
-          <><Download size={14} /><span>Actualizacion lista. Reinicia para aplicar <strong>v{update.version}</strong></span></>
+          <>
+            <Download size={13} />
+            <span>
+              <strong>v{update.version}</strong> lista para instalar
+            </span>
+          </>
         )}
       </div>
+
       <div className="flex items-center gap-2">
-        {update.status === 'available' && (
-          <button onClick={onDownload} className="btn-accent !py-1 !px-3 !text-xs">Descargar</button>
-        )}
         {update.status === 'downloaded' && (
-          <button onClick={onInstall} className="btn-accent !py-1 !px-3 !text-xs">Reiniciar ahora</button>
+          <button
+            onClick={onInstall}
+            className="btn-accent !py-1 !px-3 !text-xs"
+          >
+            Instalar y reiniciar
+          </button>
         )}
         <button onClick={onDismiss} className="p-1 rounded-lg transition-colors">
-          <X size={13} style={{ color: 'var(--lumen-text-muted)' }} />
+          <X size={12} style={{ color: 'var(--lumen-text-muted)' }} />
         </button>
       </div>
     </div>

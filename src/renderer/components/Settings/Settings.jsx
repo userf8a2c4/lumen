@@ -4,7 +4,8 @@ import {
   Mail, CalendarDays, Wifi, WifiOff, Palette, LogOut,
   RefreshCw, Info, Tag, RotateCcw, Plus, Trash2, X,
   GitBranch, ChevronDown, ChevronUp, Save, Loader2,
-  Zap, AlertTriangle,
+  Zap, AlertTriangle, ArrowDown, ArrowUp, CornerDownRight,
+  Target, MessageSquare, HelpCircle, Briefcase,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -326,6 +327,156 @@ function EmailTemplatesEditor() {
   );
 }
 
+// ─── Speeches Editor ──────────────────────────────────────────────────────────
+
+const SPEECH_CATEGORY_COLOR = '#a78bfa';
+
+function SpeechesEditor() {
+  const [speeches,    setSpeeches]    = useState([]);
+  const [editingId,   setEditingId]   = useState(null);
+  const [editData,    setEditData]    = useState({});
+  const [adding,      setAdding]      = useState(false);
+  const [newData,     setNewData]     = useState({ category: '', title: '', content: '' });
+  const [saving,      setSaving]      = useState(false);
+  const [expandedCat, setExpandedCat] = useState(() => new Set());
+
+  useEffect(() => {
+    window.lumen.ac3.speeches.getAll().then(setSpeeches).catch(() => {});
+  }, []);
+
+  const categories = [...new Set(speeches.map((s) => s.category))].sort();
+
+  const toggleCat = (cat) => setExpandedCat((prev) => {
+    const s = new Set(prev);
+    s.has(cat) ? s.delete(cat) : s.add(cat);
+    return s;
+  });
+
+  const startEdit = (sp) => {
+    setEditingId(sp.id);
+    setEditData({ category: sp.category, title: sp.title, content: sp.content });
+  };
+
+  const cancelEdit = () => { setEditingId(null); setEditData({}); };
+
+  const saveEdit = async (sp) => {
+    setSaving(true);
+    try {
+      const saved = await window.lumen.ac3.speeches.update(sp.id, { ...sp, ...editData });
+      setSpeeches((p) => p.map((x) => x.id === sp.id ? saved : x));
+      setEditingId(null);
+    } catch {} finally { setSaving(false); }
+  };
+
+  const del = async (id) => {
+    if (!confirm('¿Eliminar este speech?')) return;
+    await window.lumen.ac3.speeches.delete(id);
+    setSpeeches((p) => p.filter((x) => x.id !== id));
+  };
+
+  const add = async () => {
+    if (!newData.title.trim() || !newData.content.trim()) return;
+    try {
+      const saved = await window.lumen.ac3.speeches.create({
+        category: newData.category.trim() || 'General',
+        title: newData.title.trim(),
+        content: newData.content.trim(),
+        order_idx: speeches.length,
+      });
+      setSpeeches((p) => [...p, saved]);
+      setAdding(false);
+      setNewData({ category: '', title: '', content: '' });
+      // Auto-expand category
+      setExpandedCat((prev) => new Set([...prev, saved.category]));
+    } catch {}
+  };
+
+  return (
+    <div>
+      {/* Categories */}
+      {categories.length === 0 && !adding && (
+        <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', marginBottom: 10 }}>Sin speeches aún. Agrega guiones para tus llamadas.</p>
+      )}
+
+      {categories.map((cat) => {
+        const items = speeches.filter((s) => s.category === cat);
+        const open  = expandedCat.has(cat);
+        return (
+          <div key={cat} style={{ marginBottom: 6, border: '1px solid var(--lumen-border)', borderRadius: 6, overflow: 'hidden' }}>
+            <button
+              onClick={() => toggleCat(cat)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(167,139,250,0.04)', border: 'none', cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: SPEECH_CATEGORY_COLOR }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--lumen-text)' }}>{cat}</span>
+                <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)' }}>({items.length})</span>
+              </div>
+              {open ? <ChevronUp size={12} style={{ color: 'var(--lumen-text-muted)' }} /> : <ChevronDown size={12} style={{ color: 'var(--lumen-text-muted)' }} />}
+            </button>
+
+            {open && (
+              <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.01)', borderTop: '1px solid var(--lumen-border)' }}>
+                {items.map((sp) => (
+                  <div key={sp.id} style={{ marginBottom: 8, padding: 10, border: '1px solid var(--lumen-border)', borderRadius: 6, background: 'rgba(255,255,255,0.02)' }}>
+                    {editingId === sp.id ? (
+                      <>
+                        <input value={editData.category || ''} onChange={(e) => setEditData((p) => ({ ...p, category: e.target.value }))}
+                          style={{ ...INPUT, marginBottom: 6 }} placeholder="Categoría..." />
+                        <input value={editData.title || ''} onChange={(e) => setEditData((p) => ({ ...p, title: e.target.value }))}
+                          style={{ ...INPUT, marginBottom: 6 }} placeholder="Título del speech..." />
+                        <textarea value={editData.content || ''} onChange={(e) => setEditData((p) => ({ ...p, content: e.target.value }))}
+                          rows={5} style={{ ...TEXTAREA, marginBottom: 6 }} placeholder="Guión completo..." />
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => saveEdit(sp)} style={BTN_ACCENT} disabled={saving}>
+                            {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Guardar
+                          </button>
+                          <button onClick={cancelEdit} style={BTN_GHOST}><X size={11} /> Cancelar</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 3 }}>{sp.title}</p>
+                          <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', lineHeight: 1.5 }} className="line-clamp-3">{sp.content}</p>
+                        </div>
+                        <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                          <button onClick={() => startEdit(sp)} style={BTN_GHOST} title="Editar">✎</button>
+                          <button onClick={() => del(sp.id)} style={BTN_DANGER}><Trash2 size={12} /></button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Add form */}
+      {adding ? (
+        <div style={{ padding: 12, border: '1px dashed rgba(167,139,250,0.35)', borderRadius: 6, background: 'rgba(167,139,250,0.04)', marginTop: 8 }}>
+          <input autoFocus value={newData.category} onChange={(e) => setNewData((p) => ({ ...p, category: e.target.value }))}
+            style={{ ...INPUT, marginBottom: 6 }} placeholder="Categoría (ej. Apertura, Cierre, Objeción)..." />
+          <input value={newData.title} onChange={(e) => setNewData((p) => ({ ...p, title: e.target.value }))}
+            style={{ ...INPUT, marginBottom: 6 }} placeholder="Título del guión..." />
+          <textarea value={newData.content} onChange={(e) => setNewData((p) => ({ ...p, content: e.target.value }))}
+            rows={5} style={{ ...TEXTAREA, marginBottom: 6 }} placeholder="Escribe aquí el guión completo de voz..." />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={add} style={BTN_ACCENT}><Plus size={11} /> Agregar speech</button>
+            <button onClick={() => { setAdding(false); setNewData({ category: '', title: '', content: '' }); }} style={BTN_GHOST}><X size={11} /> Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} style={{ ...BTN_GHOST, width: '100%', justifyContent: 'center', borderStyle: 'dashed', marginTop: 6 }}>
+          <Plus size={10} /> Agregar speech
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Branch & Node Editor ─────────────────────────────────────────────────────
 
 function BranchNodeEditor({ branch: initialBranch, onSaved, onDeleted }) {
@@ -334,12 +485,15 @@ function BranchNodeEditor({ branch: initialBranch, onSaved, onDeleted }) {
   const [nodes,  setNodes]  = useState(() => {
     const raw = Array.isArray(initialBranch.nodes) ? initialBranch.nodes : [];
     return raw.map((n) => ({
-      id:      n.id,
-      title:   n.title || '',
-      speech:  n.speech || n.note || '',
-      options: Array.isArray(n.options) ? n.options : [],
+      id:           n.id,
+      title:        n.title || '',
+      instructions: n.instructions || '',
+      speech:       n.speech || n.note || '',
+      outcome:      n.outcome || '',
+      options:      Array.isArray(n.options) ? n.options : [],
     }));
   });
+  const [openNodes, setOpenNodes] = useState(() => new Set());  // collapsed by default
   const [dirty,  setDirty]  = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
@@ -350,7 +504,7 @@ function BranchNodeEditor({ branch: initialBranch, onSaved, onDeleted }) {
   const deleteNode = (id) => { setNodes((p) => p.filter((n) => n.id !== id)); mark(); };
   const addNode = () => {
     const id = `n${makeId()}`;
-    setNodes((p) => [...p, { id, title: 'Nuevo paso', speech: '', options: [] }]);
+    setNodes((p) => [...p, { id, title: 'Nuevo paso', instructions: '', speech: '', outcome: '', options: [] }]);
     mark();
   };
 
@@ -373,6 +527,22 @@ function BranchNodeEditor({ branch: initialBranch, onSaved, onDeleted }) {
     setNodes((p) => p.map((n) => n.id === nodeId ? { ...n, options: n.options.filter((o) => o.id !== optId) } : n));
     mark();
   };
+  const moveNode = (id, dir) => {
+    setNodes((p) => {
+      const idx = p.findIndex((n) => n.id === id);
+      const target = idx + dir;
+      if (idx < 0 || target < 0 || target >= p.length) return p;
+      const next = [...p];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+    mark();
+  };
+  const toggleNodeOpen = (id) => setOpenNodes((prev) => {
+    const s = new Set(prev);
+    s.has(id) ? s.delete(id) : s.add(id);
+    return s;
+  });
 
   const handleSave = async () => {
     setSaving(true);
@@ -404,48 +574,151 @@ function BranchNodeEditor({ branch: initialBranch, onSaved, onDeleted }) {
           style={{ ...INPUT, flex: 1 }} placeholder="Nombre de la rama..." />
       </div>
 
+      {/* Stats row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10, padding: '8px 12px',
+        background: `${color}08`, border: `1px solid ${color}25`, borderRadius: 6,
+      }}>
+        <GitBranch size={12} style={{ color }} />
+        <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>
+          <strong style={{ color: 'var(--lumen-text)' }}>{nodes.length}</strong> paso{nodes.length !== 1 ? 's' : ''}
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>·</span>
+        <span style={{ fontSize: 11, color: 'var(--lumen-text-muted)' }}>
+          <strong style={{ color: 'var(--lumen-text)' }}>{nodes.filter(n => (!n.options || n.options.length === 0) && n.outcome).length}</strong> resultado{nodes.filter(n => (!n.options || n.options.length === 0) && n.outcome).length !== 1 ? 's' : ''}
+        </span>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setOpenNodes(new Set(nodes.map(n => n.id)))} style={{ ...BTN_GHOST, fontSize: 10 }}>
+          <ChevronDown size={10} /> Expandir todo
+        </button>
+        <button onClick={() => setOpenNodes(new Set())} style={{ ...BTN_GHOST, fontSize: 10 }}>
+          <ChevronUp size={10} /> Colapsar
+        </button>
+      </div>
+
       {/* Nodes */}
-      {nodes.map((node, idx) => (
-        <div key={node.id} style={{ marginBottom: 10, border: `1px solid ${color}30`, borderLeft: `3px solid ${color}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', background: 'rgba(255,255,255,0.01)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <span style={{ fontSize: 9, fontFamily: 'monospace', color, fontWeight: 700 }}>PASO {idx + 1}</span>
-            <div style={{ flex: 1 }} />
-            <button onClick={() => deleteNode(node.id)} style={BTN_DANGER}><Trash2 size={11} /></button>
-          </div>
+      {nodes.map((node, idx) => {
+        const isOpen = openNodes.has(node.id);
+        const isTerminal = (!node.options || node.options.length === 0);
+        const hasOutcome = Boolean(node.outcome);
+        return (
+        <div key={node.id} style={{ marginBottom: 8, border: `1px solid ${color}30`, borderLeft: `3px solid ${color}`, borderRadius: '0 6px 6px 0', background: 'rgba(255,255,255,0.01)', overflow: 'hidden' }}>
 
-          <input value={node.title} onChange={(e) => updateNode(node.id, { title: e.target.value })}
-            style={{ ...INPUT, marginBottom: 6, fontWeight: 600 }} placeholder="Título del paso..." />
-          <textarea value={node.speech} onChange={(e) => updateNode(node.id, { speech: e.target.value })}
-            rows={2} style={{ ...TEXTAREA, marginBottom: 8 }} placeholder="Qué decir en este momento (speech)..." />
-
-          {/* Options */}
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase', marginBottom: 5 }}>
-              Opciones de selección:
-            </p>
-            {node.options.map((opt) => (
-              <div key={opt.id} style={{ display: 'flex', gap: 5, marginBottom: 5, alignItems: 'center' }}>
-                <input value={opt.label} onChange={(e) => updateOption(node.id, opt.id, { label: e.target.value })}
-                  style={{ ...INPUT, flex: 1, fontSize: 11 }} placeholder="Texto del botón..." />
-                <select
-                  value={opt.next_node_id || ''}
-                  onChange={(e) => updateOption(node.id, opt.id, { next_node_id: e.target.value || null })}
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', borderRadius: 5, padding: '6px 8px', color: 'var(--lumen-text)', fontSize: 11, cursor: 'pointer', outline: 'none' }}
-                >
-                  <option value="">→ Siguiente en secuencia</option>
-                  {nodeOptions.filter((n) => n.id !== node.id).map((n) => (
-                    <option key={n.id} value={n.id}>{n.title}</option>
-                  ))}
-                </select>
-                <button onClick={() => deleteOption(node.id, opt.id)} style={BTN_DANGER}><X size={11} /></button>
-              </div>
-            ))}
-            <button onClick={() => addOption(node.id)} style={{ ...BTN_GHOST, fontSize: 10, borderStyle: 'dashed', marginTop: 2 }}>
-              <Plus size={9} /> Agregar opción
+          {/* Header — click to collapse/expand */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', cursor: 'pointer' }}
+               onClick={() => toggleNodeOpen(node.id)}>
+            <span style={{ fontSize: 9, fontFamily: 'monospace', color, fontWeight: 700, minWidth: 46 }}>PASO {idx + 1}</span>
+            {isTerminal && hasOutcome && (
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: '#10b981', textTransform: 'uppercase', padding: '2px 6px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 3 }}>
+                <Target size={9} style={{ display: 'inline', marginRight: 3, verticalAlign: '-1px' }} />Hoja
+              </span>
+            )}
+            {!isTerminal && (
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase', padding: '2px 6px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--lumen-border)', borderRadius: 3 }}>
+                <HelpCircle size={9} style={{ display: 'inline', marginRight: 3, verticalAlign: '-1px' }} />{node.options.length} op{node.options.length !== 1 ? 'c.' : '.'}
+              </span>
+            )}
+            <span style={{ flex: 1, fontSize: 12, color: 'var(--lumen-text)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {node.title || <em style={{ color: 'var(--lumen-text-muted)', fontWeight: 400 }}>Sin título</em>}
+            </span>
+            <button onClick={(e) => { e.stopPropagation(); moveNode(node.id, -1); }}
+                    disabled={idx === 0}
+                    style={{ ...BTN_GHOST, padding: '4px 6px', opacity: idx === 0 ? 0.3 : 1 }} title="Subir">
+              <ArrowUp size={11} />
             </button>
+            <button onClick={(e) => { e.stopPropagation(); moveNode(node.id, +1); }}
+                    disabled={idx === nodes.length - 1}
+                    style={{ ...BTN_GHOST, padding: '4px 6px', opacity: idx === nodes.length - 1 ? 0.3 : 1 }} title="Bajar">
+              <ArrowDown size={11} />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }} style={BTN_DANGER} title="Eliminar paso">
+              <Trash2 size={11} />
+            </button>
+            {isOpen ? <ChevronUp size={12} style={{ color: 'var(--lumen-text-muted)' }} /> : <ChevronDown size={12} style={{ color: 'var(--lumen-text-muted)' }} />}
           </div>
+
+          {/* Body */}
+          {isOpen && (
+            <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid var(--lumen-border)' }}>
+              {/* Title / question */}
+              <div style={{ marginTop: 10 }}>
+                <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <HelpCircle size={9} /> Pregunta / título
+                </label>
+                <input value={node.title} onChange={(e) => updateNode(node.id, { title: e.target.value })}
+                  style={{ ...INPUT, marginBottom: 8, fontWeight: 600 }} placeholder="¿Cuántas máquinas te interesan?" />
+              </div>
+
+              {/* Instructions */}
+              <div>
+                <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Info size={9} /> Instrucciones internas
+                </label>
+                <textarea value={node.instructions || ''} onChange={(e) => updateNode(node.id, { instructions: e.target.value })}
+                  rows={2} style={{ ...TEXTAREA, marginBottom: 8 }} placeholder="Nota para ti — qué significa este paso, cuándo aplicarlo..." />
+              </div>
+
+              {/* Speech */}
+              <div>
+                <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color, textTransform: 'uppercase', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <MessageSquare size={9} /> Script — qué decir al cliente
+                </label>
+                <textarea value={node.speech || ''} onChange={(e) => updateNode(node.id, { speech: e.target.value })}
+                  rows={3} style={{ ...TEXTAREA, marginBottom: 8 }} placeholder='"Hola, antes de continuar necesito saber..."' />
+              </div>
+
+              {/* Outcome (terminal) */}
+              <div>
+                <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: hasOutcome ? '#10b981' : 'var(--lumen-text-muted)', textTransform: 'uppercase', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Target size={9} /> Resultado final {hasOutcome ? '' : '(opcional, solo si es nodo hoja)'}
+                </label>
+                <input value={node.outcome || ''} onChange={(e) => updateNode(node.id, { outcome: e.target.value })}
+                  style={{ ...INPUT, marginBottom: 10, fontWeight: 600 }} placeholder="$120.000" />
+              </div>
+
+              {/* Options */}
+              <div>
+                <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>
+                  Opciones de ramificación
+                </label>
+                {node.options.length === 0 && (
+                  <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', fontStyle: 'italic', marginBottom: 6 }}>
+                    Sin opciones → este paso es un nodo hoja (muestra el resultado final).
+                  </p>
+                )}
+                {node.options.map((opt) => {
+                  const targetNode = nodes.find((n) => n.id === opt.next_node_id);
+                  return (
+                  <div key={opt.id} style={{ marginBottom: 6, padding: '8px 10px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--lumen-border)', borderRadius: 5 }}>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 4 }}>
+                      <input value={opt.label} onChange={(e) => updateOption(node.id, opt.id, { label: e.target.value })}
+                        style={{ ...INPUT, flex: 1, fontSize: 11 }} placeholder="Texto del botón (ej: '1 máquina')" />
+                      <button onClick={() => deleteOption(node.id, opt.id)} style={BTN_DANGER} title="Eliminar opción"><X size={11} /></button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingLeft: 4 }}>
+                      <CornerDownRight size={11} style={{ color: 'var(--lumen-text-muted)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)', flexShrink: 0 }}>va a:</span>
+                      <select
+                        value={opt.next_node_id || ''}
+                        onChange={(e) => updateOption(node.id, opt.id, { next_node_id: e.target.value || null })}
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', borderRadius: 5, padding: '5px 7px', color: targetNode ? color : 'var(--lumen-text-muted)', fontSize: 11, cursor: 'pointer', outline: 'none', fontWeight: targetNode ? 600 : 400 }}
+                      >
+                        <option value="">(siguiente en secuencia)</option>
+                        {nodeOptions.filter((n) => n.id !== node.id).map((n) => (
+                          <option key={n.id} value={n.id}>{n.title || '(sin título)'}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                );})}
+                <button onClick={() => addOption(node.id)} style={{ ...BTN_GHOST, fontSize: 10, borderStyle: 'dashed', width: '100%', justifyContent: 'center' }}>
+                  <Plus size={9} /> Agregar opción
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      ))}
+      );})}
 
       {/* Add node */}
       <button onClick={addNode} style={{ ...BTN_GHOST, width: '100%', justifyContent: 'center', borderStyle: 'dashed', marginBottom: 12 }}>
@@ -557,6 +830,158 @@ function DecisionTreeEditor() {
   );
 }
 
+// ─── LU Chat History ─────────────────────────────────────────────────────────
+
+const LU_STORAGE_KEY = 'lumen_lu_history';
+
+function LuHistorySection() {
+  const [sessions, setSessions] = useState([]);
+
+  const reload = () => {
+    try { setSessions(JSON.parse(localStorage.getItem(LU_STORAGE_KEY) || '[]')); } catch { setSessions([]); }
+  };
+
+  useEffect(() => { reload(); }, []);
+
+  const deleteSession = (id) => {
+    const updated = sessions.filter((s) => s.id !== id);
+    localStorage.setItem(LU_STORAGE_KEY, JSON.stringify(updated));
+    setSessions(updated);
+  };
+
+  const deleteAll = () => {
+    if (!confirm('¿Borrar todo el historial de conversaciones con LU?')) return;
+    localStorage.removeItem(LU_STORAGE_KEY);
+    setSessions([]);
+  };
+
+  const exportSession = (session) => {
+    const lines = [];
+    lines.push(`Conversación con LU — ${new Date(session.startedAt).toLocaleString()}`);
+    lines.push('='.repeat(60));
+    session.messages.forEach((m) => {
+      lines.push('');
+      lines.push(m.role === 'user' ? '▶ Tú:' : '◀ LU:');
+      lines.push(m.text || '');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LU_chat_${session.startedAt.slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAll = () => {
+    if (sessions.length === 0) return;
+    const lines = ['HISTORIAL COMPLETO DE CONVERSACIONES CON LU', '='.repeat(60), ''];
+    sessions.forEach((session) => {
+      lines.push(`Conversación — ${new Date(session.startedAt).toLocaleString()}`);
+      lines.push('-'.repeat(40));
+      session.messages.forEach((m) => {
+        lines.push(m.role === 'user' ? '▶ Tú:' : '◀ LU:');
+        lines.push(m.text || '');
+        lines.push('');
+      });
+      lines.push('');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LU_historial_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (sessions.length === 0) {
+    return (
+      <div style={{ fontSize: 12, color: 'var(--lumen-text-muted)', padding: '10px 0', lineHeight: 1.6 }}>
+        Sin conversaciones guardadas. Cada vez que presiones <strong style={{ color: 'var(--lumen-text-secondary)' }}>+ Nuevo Chat</strong> en LU,
+        la conversación anterior se archiva aquí automáticamente.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Actions row */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <button onClick={exportAll} style={BTN_GHOST}>
+          <X size={11} style={{ display: 'none' }} />
+          ↓ Exportar todo
+        </button>
+        <button onClick={deleteAll} style={{ ...BTN_GHOST, color: '#f87171', borderColor: 'rgba(239,68,68,0.2)' }}>
+          Borrar historial
+        </button>
+        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--lumen-text-muted)', alignSelf: 'center' }}>
+          {sessions.length} conversación{sessions.length !== 1 ? 'es' : ''}
+        </span>
+      </div>
+
+      {/* Session list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
+        {sessions.map((session) => {
+          const date = new Date(session.startedAt);
+          const msgCount = session.messages?.length || 0;
+          const preview = session.messages?.find((m) => m.role === 'user')?.text || '';
+          return (
+            <div key={session.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '9px 12px', borderRadius: 6,
+              border: '1px solid var(--lumen-border)',
+              background: 'rgba(255,255,255,0.02)',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                  <span style={{ fontSize: 11, color: 'var(--lumen-text-secondary)', fontWeight: 500 }}>
+                    {date.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)' }}>
+                    {date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span style={{
+                    fontSize: 9, padding: '1px 5px', borderRadius: 999,
+                    background: 'rgba(255,255,255,0.06)', color: 'var(--lumen-text-muted)',
+                  }}>
+                    {msgCount} mensajes
+                  </span>
+                </div>
+                {preview && (
+                  <p style={{
+                    fontSize: 11, color: 'var(--lumen-text-muted)',
+                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                    maxWidth: '100%',
+                  }}>
+                    {preview.slice(0, 80)}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                <button
+                  onClick={() => exportSession(session)}
+                  title="Exportar como .txt"
+                  style={{ ...BTN_GHOST, padding: '3px 8px', fontSize: 10 }}
+                >
+                  Exportar
+                </button>
+                <button
+                  onClick={() => deleteSession(session.id)}
+                  title="Eliminar"
+                  style={BTN_DANGER}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export default function Settings({ onModelChange, sectionLabels, onSectionLabelsChange }) {
@@ -578,6 +1003,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
   const [labelSaved,   setLabelSaved]   = useState(false);
   const [testingAi,    setTestingAi]    = useState(false);
   const [aiTestResult, setAiTestResult] = useState(null); // { ok, message, ... }
+  const [caseIdMode,   setCaseIdMode]   = useState('auto');
 
   const flash = (tag) => { setSaved(tag); setTimeout(() => setSaved(''), 2000); };
 
@@ -593,13 +1019,15 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       window.lumen.settings.getAccentColor(),
       window.lumen.app.getVersion(),
       window.lumen.calendar.isAuthenticated(),
-    ]).then(([k, m, em, ac, v, conn]) => {
+      window.lumen.settings.getCaseIdMode(),
+    ]).then(([k, m, em, ac, v, conn, cim]) => {
       setApiKey(k ? k.slice(0, 7) + '…' + k.slice(-4) : '');
       setModel(MODELS.find((x) => x.id === m) ? m : 'gemini-2.5-flash');
       setEmail(em || ''); setEmailInput(em || '');
       if (ac) { setAccentColor(ac); document.documentElement.style.setProperty('--lumen-accent', ac); }
       setVersion(v || '');
       setCalConnected(conn);
+      setCaseIdMode(cim || 'auto');
     }).catch(() => {});
   }, []);
 
@@ -814,10 +1242,22 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           <EmailTemplatesEditor />
         </Row>
 
+        {/* ── SPEECHES / GUIONES ── */}
+        <Row label="Speeches y guiones" icon={MessageSquare} iconColor="#a78bfa" collapsible
+          hint="Guiones de voz para guiar conversaciones con clientes. Disponibles en Decisiones con modo teleprompter.">
+          <SpeechesEditor />
+        </Row>
+
         {/* ── ÁRBOL DE DECISIONES ── */}
         <Row label="Árbol de decisiones" icon={GitBranch} iconColor="#a78bfa" collapsible
           hint="Crea ramas y define los pasos del proceso. Cada paso tiene un speech (qué decir) y opciones de selección para el agente.">
           <DecisionTreeEditor />
+        </Row>
+
+        {/* ── HISTORIAL DE CHAT LU ── */}
+        <Row label="Historial de chat con LU" icon={MessageSquare} iconColor="#7c6af7" collapsible
+          hint="Las conversaciones con LU se archivan cada vez que inicias un nuevo chat. Puedes exportarlas como .txt o eliminarlas desde aquí.">
+          <LuHistorySection />
         </Row>
 
         {/* Diagnóstico de IA */}
@@ -891,6 +1331,44 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
                 </div>
               </div>
             )}
+          </div>
+        </Row>
+
+        {/* ── SISTEMA DE CASOS ── */}
+        <Row label="Sistema de casos" icon={Briefcase} iconColor="#60a5fa"
+          hint="Define cómo se identifican los casos en Decisiones. En modo automático se genera un ID único (CASO-YYYYMMDD-NNNN). En modo manual podés ingresar el número de caso externo.">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
+            <div>
+              <p style={{ fontSize: 12, color: 'var(--lumen-text)', fontWeight: 500, marginBottom: 2 }}>
+                {caseIdMode === 'auto' ? 'ID automático' : 'ID manual / externo'}
+              </p>
+              <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.4 }}>
+                {caseIdMode === 'auto'
+                  ? 'CASO-YYYYMMDD-NNNN generado al abrir el caso'
+                  : 'Ingresás el número de caso al iniciar'}
+              </p>
+            </div>
+            {/* Inline toggle switch */}
+            <button
+              onClick={() => {
+                const next = caseIdMode === 'auto' ? 'manual' : 'auto';
+                setCaseIdMode(next);
+                window.lumen.settings.setCaseIdMode(next).catch(() => {});
+              }}
+              style={{
+                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                position: 'relative', flexShrink: 0, transition: 'background 0.2s',
+                background: caseIdMode === 'manual' ? 'rgba(96,165,250,0.7)' : 'rgba(255,255,255,0.12)',
+              }}
+              title={caseIdMode === 'auto' ? 'Cambiar a manual' : 'Cambiar a automático'}
+            >
+              <span style={{
+                position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%',
+                background: '#fff', transition: 'left 0.2s',
+                left: caseIdMode === 'manual' ? 23 : 3,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              }} />
+            </button>
           </div>
         </Row>
 

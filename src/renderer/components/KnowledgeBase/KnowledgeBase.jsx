@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, BookOpen, ChevronDown, ChevronRight, FolderOpen, FileText } from 'lucide-react';
+import { Plus, BookOpen, ChevronDown, ChevronRight, FolderOpen, FileText, Tag, X } from 'lucide-react';
 import Modal from '../Modal';
 import PolicyForm from './PolicyForm';
 import PolicyList from './PolicyList';
@@ -11,6 +11,7 @@ export default function KnowledgeBase({ navigateTo }) {
   const [loading, setLoading] = useState(true);
   const [showTree, setShowTree] = useState(true);
   const [filterDept, setFilterDept] = useState('');
+  const [filterTag, setFilterTag] = useState('');
   const [expandedDepts, setExpandedDepts] = useState({});
 
   const loadPolicies = async () => {
@@ -47,9 +48,18 @@ export default function KnowledgeBase({ navigateTo }) {
     setExpandedDepts((prev) => ({ ...prev, [dept]: !prev[dept] }));
   };
 
-  const filteredPolicies = filterDept
-    ? policies.filter((p) => p.department === filterDept)
-    : policies;
+  // Extract all tags across all policies
+  const allTags = [...new Set(policies.flatMap((p) => {
+    try { return JSON.parse(p.tags || '[]'); } catch { return []; }
+  }))].sort();
+
+  const filteredPolicies = policies.filter((p) => {
+    const deptOk = !filterDept || p.department === filterDept;
+    const tagOk  = !filterTag  || (() => {
+      try { return JSON.parse(p.tags || '[]').includes(filterTag); } catch { return false; }
+    })();
+    return deptOk && tagOk;
+  });
 
   return (
     <div className="flex gap-4">
@@ -96,15 +106,15 @@ export default function KnowledgeBase({ navigateTo }) {
                     {isExpanded && (
                       <div className="ml-5 mt-0.5 space-y-0.5">
                         {items.map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => { setEditingPolicy(p); setShowForm(true); }}
-                            className="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] truncate transition-colors"
-                            style={{ color: 'var(--lumen-text-muted)' }}
-                          >
-                            <FileText size={10} className="shrink-0" />
-                            <span className="truncate">{p.name}</span>
-                          </button>
+                          <div key={p.id} className="flex items-center gap-1 group/item">
+                            <span
+                              className="flex-1 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] truncate"
+                              style={{ color: 'var(--lumen-text-muted)' }}
+                            >
+                              <FileText size={10} className="shrink-0" />
+                              <span className="truncate">{p.name}</span>
+                            </span>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -158,10 +168,41 @@ export default function KnowledgeBase({ navigateTo }) {
             </div>
             <div className="bento-card flex items-center gap-3">
               <div className="bento-stat">
-                <span className="stat-value">{policies.filter(p => p.source_url).length}</span>
-                <span className="stat-label">Desde URL</span>
+                <span className="stat-value">{allTags.length}</span>
+                <span className="stat-label">Etiquetas</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Tag filter pills */}
+        {!loading && allTags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setFilterTag('')}
+              className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+              style={{
+                background: !filterTag ? 'var(--lumen-accent)' : 'rgba(255,255,255,0.06)',
+                color: !filterTag ? 'white' : 'var(--lumen-text-muted)',
+              }}
+            >
+              Todas
+            </button>
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setFilterTag(filterTag === tag ? '' : tag)}
+                className="px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1"
+                style={{
+                  background: filterTag === tag ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)',
+                  color: filterTag === tag ? '#10b981' : 'var(--lumen-text-muted)',
+                  border: filterTag === tag ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent',
+                }}
+              >
+                <Tag size={9} />
+                {tag}
+              </button>
+            ))}
           </div>
         )}
 

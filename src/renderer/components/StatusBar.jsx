@@ -35,9 +35,8 @@ export default function StatusBar({ version, syncStatus, model }) {
           <span>{sync.label}</span>
         </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <Cpu size={10} />
-        <span>{modelLabel}</span>
+      <div className="flex items-center gap-1.5" style={{ opacity: 0.7 }}>
+        <span style={{ fontFamily: 'monospace', letterSpacing: '0.04em' }}>v{version} Chiquisauras</span>
       </div>
     </footer>
   );

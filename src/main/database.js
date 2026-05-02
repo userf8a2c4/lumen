@@ -247,6 +247,63 @@ async function initDatabase() {
   try { db.run('ALTER TABLE ac3_cases ADD COLUMN image_path TEXT'); } catch {}
   try { db.run('ALTER TABLE ac3_cases ADD COLUMN calendar_event_id TEXT'); } catch {}
 
+  // notes: add ref_links if upgrading from older schema
+  try { db.run("ALTER TABLE notes ADD COLUMN ref_links TEXT NOT NULL DEFAULT '[]'"); } catch {}
+  // policies: add tags if upgrading from older schema
+  try { db.run("ALTER TABLE policies ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"); } catch {}
+
+  // contacts: client profile fields
+  try { db.run("ALTER TABLE contacts ADD COLUMN type TEXT NOT NULL DEFAULT 'interno'"); } catch {}
+  try { db.run("ALTER TABLE contacts ADD COLUMN external_id TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.run("ALTER TABLE contacts ADD COLUMN schedule TEXT NOT NULL DEFAULT ''"); } catch {}
+
+  // ── Turns (Modo Turno) ───────────────────────────────────
+  db.run(`
+    CREATE TABLE IF NOT EXISTS turns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      turn_number INTEGER NOT NULL DEFAULT 1,
+      started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      ended_at DATETIME,
+      cases_count INTEGER NOT NULL DEFAULT 0,
+      summary TEXT NOT NULL DEFAULT '',
+      calendar_event_id TEXT
+    )
+  `);
+
+  // ── Cases (Sistema de tickets) ───────────────────────────
+  db.run(`
+    CREATE TABLE IF NOT EXISTS cases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      case_number TEXT NOT NULL UNIQUE,
+      client_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+      turn_id INTEGER REFERENCES turns(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      opened_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      closed_at DATETIME,
+      duration_seconds INTEGER NOT NULL DEFAULT 0,
+      branch_id INTEGER,
+      branch_name TEXT NOT NULL DEFAULT '',
+      policies_used TEXT NOT NULL DEFAULT '[]',
+      notes TEXT NOT NULL DEFAULT '',
+      chat_transcript TEXT NOT NULL DEFAULT '[]',
+      summary TEXT NOT NULL DEFAULT '',
+      calendar_event_id TEXT
+    )
+  `);
+
+  // Speeches — guiones para atención al cliente
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ac3_speeches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL DEFAULT 'General',
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      order_idx INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Seed text templates if empty
   const tmplCount = queryOne('SELECT COUNT(*) as n FROM ac3_text_templates');
   if (!tmplCount || tmplCount.n === 0) {
@@ -338,18 +395,18 @@ function getPolicyById(id) {
   return queryOne('SELECT * FROM policies WHERE id = ?', [id]);
 }
 
-function createPolicy({ name, department, description, content, source_url }) {
+function createPolicy({ name, department, description, content, source_url, tags }) {
   runAndSave(
-    'INSERT INTO policies (name, department, description, content, source_url) VALUES (?, ?, ?, ?, ?)',
-    [name, department, description || '', content, source_url || null]
+    'INSERT INTO policies (name, department, description, content, source_url, tags) VALUES (?, ?, ?, ?, ?, ?)',
+    [name, department, description || '', content, source_url || null, JSON.stringify(tags || [])]
   );
   return getPolicyById(getLastId());
 }
 
-function updatePolicy(id, { name, department, description, content, source_url }) {
+function updatePolicy(id, { name, department, description, content, source_url, tags }) {
   runAndSave(
-    'UPDATE policies SET name=?, department=?, description=?, content=?, source_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-    [name, department, description || '', content, source_url || null, id]
+    'UPDATE policies SET name=?, department=?, description=?, content=?, source_url=?, tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    [name, department, description || '', content, source_url || null, JSON.stringify(tags || []), id]
   );
   return getPolicyById(id);
 }
@@ -530,20 +587,45 @@ function getNoteById(id) {
   return queryOne('SELECT * FROM notes WHERE id = ?', [id]);
 }
 
-function createNote({ title, content, tags, attachments }) {
+function createNote({ title, content, tags, attachments, ref_links }) {
   runAndSave(
-    'INSERT INTO notes (title, content, tags, attachments) VALUES (?, ?, ?, ?)',
-    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || [])]
+    'INSERT INTO notes (title, content, tags, attachments, ref_links) VALUES (?, ?, ?, ?, ?)',
+    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || []), JSON.stringify(ref_links || [])]
   );
   return getNoteById(getLastId());
 }
 
-function updateNote(id, { title, content, tags, attachments }) {
+function updateNote(id, { title, content, tags, attachments, ref_links }) {
   runAndSave(
-    'UPDATE notes SET title=?, content=?, tags=?, attachments=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || []), id]
+    'UPDATE notes SET title=?, content=?, tags=?, attachments=?, ref_links=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || []), JSON.stringify(ref_links || []), id]
   );
   return getNoteById(id);
+}
+
+// ─── Speeches ─────────────────────────────────────────────────────────────────
+function getAllSpeeches() {
+  return queryAll('SELECT * FROM ac3_speeches ORDER BY category, order_idx, id');
+}
+function getSpeechById(id) {
+  return queryOne('SELECT * FROM ac3_speeches WHERE id = ?', [id]);
+}
+function createSpeech({ category, title, content, order_idx }) {
+  runAndSave(
+    'INSERT INTO ac3_speeches (category, title, content, order_idx) VALUES (?, ?, ?, ?)',
+    [category || 'General', title || '', content || '', order_idx ?? 0]
+  );
+  return getSpeechById(getLastId());
+}
+function updateSpeech(id, { category, title, content, order_idx }) {
+  runAndSave(
+    'UPDATE ac3_speeches SET category=?, title=?, content=?, order_idx=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    [category || 'General', title || '', content || '', order_idx ?? 0, id]
+  );
+  return getSpeechById(id);
+}
+function deleteSpeech(id) {
+  runAndSave('DELETE FROM ac3_speeches WHERE id = ?', [id]);
 }
 
 function deleteNote(id) {
@@ -803,6 +885,268 @@ function deleteAC3EmailTemplate(id) {
   runAndSave('DELETE FROM ac3_email_templates WHERE id = ?', [id]);
 }
 
+// --- Clients (contacts with type='cliente') ---
+
+function getAllClients() {
+  return queryAll("SELECT * FROM contacts WHERE type='cliente' ORDER BY name ASC");
+}
+
+function searchClients(query) {
+  if (!query || !query.trim()) return getAllClients();
+  const like = `%${query.trim()}%`;
+  return queryAll(
+    "SELECT * FROM contacts WHERE type='cliente' AND (name LIKE ? OR last_name LIKE ? OR company LIKE ? OR external_id LIKE ?) ORDER BY name ASC",
+    [like, like, like, like]
+  );
+}
+
+function createClient(data) {
+  runAndSave(
+    `INSERT INTO contacts (name, last_name, company, phones, emails, schedule, notes, type, external_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'cliente', ?)`,
+    [
+      data.name || '',
+      data.last_name || '',
+      data.company || '',
+      JSON.stringify(data.phones || []),
+      JSON.stringify(data.emails || []),
+      data.schedule || '',
+      data.notes || '',
+      data.external_id || '',
+    ]
+  );
+  return queryOne('SELECT * FROM contacts WHERE id = ?', [getLastId()]);
+}
+
+function updateClient(id, data) {
+  runAndSave(
+    `UPDATE contacts SET name=?, last_name=?, company=?, phones=?, emails=?, schedule=?, notes=?, external_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+    [
+      data.name || '',
+      data.last_name || '',
+      data.company || '',
+      JSON.stringify(data.phones || []),
+      JSON.stringify(data.emails || []),
+      data.schedule || '',
+      data.notes || '',
+      data.external_id || '',
+      id,
+    ]
+  );
+  return queryOne('SELECT * FROM contacts WHERE id = ?', [id]);
+}
+
+// --- Turns (Modo Turno) ---
+
+function getActiveTurn() {
+  return queryOne('SELECT * FROM turns WHERE ended_at IS NULL ORDER BY id DESC LIMIT 1');
+}
+
+function createTurn() {
+  const last = queryOne('SELECT MAX(turn_number) as n FROM turns');
+  const num  = (last?.n || 0) + 1;
+  runAndSave('INSERT INTO turns (turn_number) VALUES (?)', [num]);
+  return queryOne('SELECT * FROM turns WHERE id = ?', [getLastId()]);
+}
+
+function closeTurn(id, summary) {
+  runAndSave(
+    'UPDATE turns SET ended_at=CURRENT_TIMESTAMP, summary=? WHERE id=?',
+    [summary || '', id]
+  );
+  return queryOne('SELECT * FROM turns WHERE id = ?', [id]);
+}
+
+function updateTurnCasesCount(id) {
+  runAndSave(
+    'UPDATE turns SET cases_count = (SELECT COUNT(*) FROM cases WHERE turn_id=?) WHERE id=?',
+    [id, id]
+  );
+}
+
+function getTurnHistory() {
+  return queryAll('SELECT * FROM turns ORDER BY started_at DESC LIMIT 30');
+}
+
+// --- Cases ---
+
+function _nextCaseNumber() {
+  const today  = new Date();
+  const ymd    = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const last   = queryOne(
+    "SELECT case_number FROM cases WHERE case_number LIKE ? ORDER BY id DESC LIMIT 1",
+    [`CASO-${ymd}-%`]
+  );
+  let seq = 1;
+  if (last) {
+    const parts = last.case_number.split('-');
+    seq = parseInt(parts[parts.length - 1], 10) + 1;
+  }
+  return `CASO-${ymd}-${String(seq).padStart(4, '0')}`;
+}
+
+function createCase({ client_id, turn_id, external_id }) {
+  // If external_id provided, use it; otherwise auto-generate
+  const caseNumber = external_id && external_id.trim()
+    ? external_id.trim()
+    : _nextCaseNumber();
+
+  runAndSave(
+    `INSERT INTO cases (case_number, client_id, turn_id) VALUES (?, ?, ?)`,
+    [caseNumber, client_id || null, turn_id || null]
+  );
+  const id   = getLastId();
+  const row  = queryOne('SELECT * FROM cases WHERE id = ?', [id]);
+  // Add client info
+  if (row && row.client_id) {
+    const client = queryOne('SELECT * FROM contacts WHERE id = ?', [row.client_id]);
+    row._client  = client || null;
+  }
+  return row;
+}
+
+function getCaseById(id) {
+  const row = queryOne('SELECT * FROM cases WHERE id = ?', [id]);
+  if (row && row.client_id) {
+    row._client = queryOne('SELECT * FROM contacts WHERE id = ?', [row.client_id]);
+  }
+  return row;
+}
+
+function updateCase(id, data) {
+  runAndSave(
+    `UPDATE cases SET branch_id=?, branch_name=?, policies_used=?, notes=?, chat_transcript=?, summary=? WHERE id=?`,
+    [
+      data.branch_id   || null,
+      data.branch_name || '',
+      JSON.stringify(data.policies_used || []),
+      data.notes       || '',
+      JSON.stringify(data.chat_transcript || []),
+      data.summary     || '',
+      id,
+    ]
+  );
+}
+
+function closeCase(id, data) {
+  runAndSave(
+    `UPDATE cases SET status='closed', closed_at=CURRENT_TIMESTAMP, duration_seconds=?,
+     branch_id=?, branch_name=?, policies_used=?, notes=?, chat_transcript=?, summary=?, calendar_event_id=?
+     WHERE id=?`,
+    [
+      data.duration_seconds   || 0,
+      data.branch_id          || null,
+      data.branch_name        || '',
+      JSON.stringify(data.policies_used   || []),
+      data.notes              || '',
+      JSON.stringify(data.chat_transcript || []),
+      data.summary            || '',
+      data.calendar_event_id  || null,
+      id,
+    ]
+  );
+  const row = queryOne('SELECT * FROM cases WHERE id = ?', [id]);
+  if (row && row.client_id) {
+    row._client = queryOne('SELECT * FROM contacts WHERE id = ?', [row.client_id]);
+  }
+  return row;
+}
+
+function getLastCasesForClient(clientId, limit = 5) {
+  const rows = queryAll(
+    `SELECT c.*, co.name as client_name, co.last_name as client_last_name
+     FROM cases c
+     LEFT JOIN contacts co ON c.client_id = co.id
+     WHERE c.client_id = ? AND c.status = 'closed'
+     ORDER BY c.opened_at DESC LIMIT ?`,
+    [clientId, limit]
+  );
+  return rows;
+}
+
+function searchCases({ query, clientName, dateFrom, dateTo, status }) {
+  const conditions = [];
+  const params     = [];
+
+  if (query && query.trim()) {
+    conditions.push('(c.case_number LIKE ? OR c.summary LIKE ? OR c.notes LIKE ?)');
+    const like = `%${query.trim()}%`;
+    params.push(like, like, like);
+  }
+  if (clientName && clientName.trim()) {
+    conditions.push('(co.name LIKE ? OR co.last_name LIKE ? OR co.company LIKE ?)');
+    const like = `%${clientName.trim()}%`;
+    params.push(like, like, like);
+  }
+  if (dateFrom) {
+    conditions.push('c.opened_at >= ?');
+    params.push(dateFrom);
+  }
+  if (dateTo) {
+    conditions.push('c.opened_at <= ?');
+    params.push(dateTo + ' 23:59:59');
+  }
+  if (status) {
+    conditions.push('c.status = ?');
+    params.push(status);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  return queryAll(
+    `SELECT c.*, co.name as client_name, co.last_name as client_last_name, co.company as client_company, co.external_id as client_external_id
+     FROM cases c
+     LEFT JOIN contacts co ON c.client_id = co.id
+     ${where}
+     ORDER BY c.opened_at DESC LIMIT 100`,
+    params
+  );
+}
+
+// --- Quick Search (cross-module) ---
+
+function quickSearch(query) {
+  if (!query || query.trim().length < 2) return { notes: [], policies: [], contacts: [], speeches: [] };
+  const like = `%${query.trim()}%`;
+
+  const notes = queryAll(
+    `SELECT id, title as name, substr(content,1,140) as excerpt, '' as extra
+     FROM notes
+     WHERE title LIKE ? OR content LIKE ?
+     ORDER BY updated_at DESC LIMIT 6`,
+    [like, like]
+  );
+
+  const policies = queryAll(
+    `SELECT id, name, substr(description,1,100) as excerpt, department as extra
+     FROM policies
+     WHERE name LIKE ? OR description LIKE ? OR content LIKE ?
+     ORDER BY updated_at DESC LIMIT 6`,
+    [like, like, like]
+  );
+
+  const contacts = queryAll(
+    `SELECT id, (name || CASE WHEN last_name != '' THEN ' ' || last_name ELSE '' END) as name,
+            COALESCE(role,'') as excerpt, COALESCE(department,'') as extra
+     FROM contacts
+     WHERE name LIKE ? OR last_name LIKE ? OR department LIKE ? OR role LIKE ?
+     ORDER BY name ASC LIMIT 6`,
+    [like, like, like, like]
+  );
+
+  let speeches = [];
+  try {
+    speeches = queryAll(
+      `SELECT id, title as name, substr(content,1,120) as excerpt, category as extra
+       FROM ac3_speeches
+       WHERE title LIKE ? OR content LIKE ? OR category LIKE ?
+       ORDER BY category ASC LIMIT 6`,
+      [like, like, like]
+    );
+  } catch { /* table may not exist yet */ }
+
+  return { notes, policies, contacts, speeches };
+}
+
 function closeDatabase() {
   if (db) {
     save();
@@ -872,4 +1216,28 @@ module.exports = {
   createAC3EmailTemplate,
   updateAC3EmailTemplate,
   deleteAC3EmailTemplate,
+  getAllSpeeches,
+  getSpeechById,
+  createSpeech,
+  updateSpeech,
+  deleteSpeech,
+  quickSearch,
+  // Clients
+  getAllClients,
+  searchClients,
+  createClient,
+  updateClient,
+  // Turns
+  getActiveTurn,
+  createTurn,
+  closeTurn,
+  updateTurnCasesCount,
+  getTurnHistory,
+  // Cases
+  createCase,
+  getCaseById,
+  updateCase,
+  closeCase,
+  getLastCasesForClient,
+  searchCases,
 };

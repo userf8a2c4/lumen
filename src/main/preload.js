@@ -46,6 +46,10 @@ contextBridge.exposeInMainWorld('lumen', {
     setAccentColor:    (color) => ipcRenderer.invoke('settings:setAccentColor', color),
     getSectionLabels:  () => ipcRenderer.invoke('settings:getSectionLabels'),
     setSectionLabels:  (json) => ipcRenderer.invoke('settings:setSectionLabels', json),
+    getThemeCustomization: () => ipcRenderer.invoke('settings:getThemeCustomization'),
+    setThemeCustomization: (json) => ipcRenderer.invoke('settings:setThemeCustomization', json),
+    getCaseIdMode: () => ipcRenderer.invoke('settings:getCaseIdMode'),
+    setCaseIdMode: (mode) => ipcRenderer.invoke('settings:setCaseIdMode', mode),
   },
   logic: {
     getAll:       ()         => ipcRenderer.invoke('logic:getAll'),
@@ -79,8 +83,9 @@ contextBridge.exposeInMainWorld('lumen', {
   ai: {
     analyze:        (caseDescription, options) => ipcRenderer.invoke('ai:analyze', caseDescription, options),
     generateEmail:  (context, options)         => ipcRenderer.invoke('ai:generateEmail', context, options),
-    chat:           (message, history)         => ipcRenderer.invoke('ai:chat', message, history),
+    chat:           (message, history, fileData) => ipcRenderer.invoke('ai:chat', message, history, fileData),
     testConnection: ()                          => ipcRenderer.invoke('ai:testConnection'),
+    proposeBranchEdit: (instruction)            => ipcRenderer.invoke('ai:proposeBranchEdit', instruction),
   },
   ac3: {
     triage:           (caseDesc, options)          => ipcRenderer.invoke('ac3:triage', caseDesc, options),
@@ -110,6 +115,12 @@ contextBridge.exposeInMainWorld('lumen', {
       create:        (data)     => ipcRenderer.invoke('ac3:emailTemplates:create', data),
       update:        (id, data) => ipcRenderer.invoke('ac3:emailTemplates:update', id, data),
       delete:        (id)       => ipcRenderer.invoke('ac3:emailTemplates:delete', id),
+    },
+    speeches: {
+      getAll:  ()             => ipcRenderer.invoke('ac3:speeches:getAll'),
+      create:  (data)         => ipcRenderer.invoke('ac3:speeches:create', data),
+      update:  (id, data)     => ipcRenderer.invoke('ac3:speeches:update', id, data),
+      delete:  (id)           => ipcRenderer.invoke('ac3:speeches:delete', id),
     },
   },
   updater: {
@@ -145,5 +156,26 @@ contextBridge.exposeInMainWorld('lumen', {
   app: {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     quit: () => ipcRenderer.invoke('app:quit'),
+  },
+  quickSearch: (query) => ipcRenderer.invoke('quick-search', query),
+  clients: {
+    getAll:  ()            => ipcRenderer.invoke('clients:getAll'),
+    search:  (q)           => ipcRenderer.invoke('clients:search', q),
+    create:  (data)        => ipcRenderer.invoke('clients:create', data),
+    update:  (id, data)    => ipcRenderer.invoke('clients:update', id, data),
+  },
+  turns: {
+    getActive:   ()          => ipcRenderer.invoke('turns:getActive'),
+    create:      ()          => ipcRenderer.invoke('turns:create'),
+    close:       (id, sum)   => ipcRenderer.invoke('turns:close', id, sum),
+    getHistory:  ()          => ipcRenderer.invoke('turns:getHistory'),
+  },
+  cases: {
+    create:           (data)          => ipcRenderer.invoke('cases:create', data),
+    getById:          (id)            => ipcRenderer.invoke('cases:getById', id),
+    update:           (id, data)      => ipcRenderer.invoke('cases:update', id, data),
+    close:            (id, data)      => ipcRenderer.invoke('cases:close', id, data),
+    getLastForClient: (clientId, lim) => ipcRenderer.invoke('cases:getLastForClient', clientId, lim),
+    search:           (filters)       => ipcRenderer.invoke('cases:search', filters),
   },
 });

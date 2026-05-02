@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   StickyNote, Plus, Search, Trash2, Tag, Calendar,
-  Paperclip, Edit3, ZoomIn, ZoomOut, ChevronRight,
+  Paperclip, Edit3, ZoomIn, ZoomOut, ChevronRight, Link2, ExternalLink,
 } from 'lucide-react';
 import Modal from '../Modal';
 import NoteEditor from './NoteEditor';
@@ -12,8 +12,10 @@ function NotePreview({ note, onEdit, onDelete, onClose }) {
 
   let tags = [];
   let attachments = [];
+  let refLinks = [];
   try { tags = JSON.parse(note.tags || '[]'); } catch {}
   try { attachments = JSON.parse(note.attachments || '[]'); } catch {}
+  try { refLinks = JSON.parse(note.ref_links || '[]'); } catch {}
 
   const formatDate = (d) => {
     if (!d) return '';
@@ -64,19 +66,54 @@ function NotePreview({ note, onEdit, onDelete, onClose }) {
         ))}
       </div>
 
-      {/* Content rendered */}
+      {/* Content rendered — TipTap HTML */}
       <div
-        className="leading-relaxed rounded-2xl p-4 overflow-y-auto"
+        className="tiptap-editor overflow-y-auto"
         style={{
           background: 'var(--lumen-surface)',
           border: '1px solid var(--lumen-border)',
+          borderRadius: 8,
           fontSize: `${zoom}px`,
-          color: 'var(--lumen-text)',
-          maxHeight: '40vh',
-          lineHeight: 1.75,
+          maxHeight: '42vh',
+          cursor: 'default',
         }}
-        dangerouslySetInnerHTML={{ __html: note.content || '<em style="color:var(--lumen-text-muted)">Sin contenido.</em>' }}
+        dangerouslySetInnerHTML={{ __html: note.content || '<p style="color:var(--lumen-text-muted);font-style:italic">Sin contenido.</p>' }}
       />
+
+      {/* Reference Links */}
+      {refLinks.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest mb-2"
+            style={{ color: 'var(--lumen-text-muted)' }}>
+            <Link2 size={10} className="inline mr-1" />Links de referencia
+          </p>
+          <div className="space-y-1.5">
+            {refLinks.map((lk, i) => (
+              <a
+                key={i}
+                href={lk.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => { e.preventDefault(); window.open(lk.url); }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--lumen-border)',
+                  color: 'var(--lumen-accent)',
+                  textDecoration: 'none',
+                  fontSize: 12,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+              >
+                <Link2 size={11} style={{ flexShrink: 0 }} />
+                <span className="flex-1 truncate">{lk.label || lk.url}</span>
+                <ExternalLink size={10} style={{ flexShrink: 0, opacity: 0.5 }} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Attachments */}
       {attachments.length > 0 && (

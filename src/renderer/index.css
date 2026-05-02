@@ -26,6 +26,7 @@
   --lumen-scrollbar-hover: rgba(255,255,255,0.14);
   --lumen-input-bg:        transparent;
   --lumen-overlay:         rgba(0,0,0,0.90);
+  --lumen-font:            'Inter', -apple-system, system-ui, sans-serif;
 }
 
 /* ── Light theme ───────────────────────────────────────────── */
@@ -57,7 +58,7 @@
 body {
   background-color: #000000;
   color: var(--lumen-text);
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-family: var(--lumen-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -145,7 +146,7 @@ body {
   border: 1px solid var(--lumen-border);
   border-radius: 3px;
   color: var(--lumen-text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--lumen-font);
   font-size: 13px;
   transition: border-color 0.15s;
 }
@@ -167,7 +168,7 @@ body {
   padding: 7px 16px;
   background: transparent;
   color: var(--lumen-text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--lumen-font);
   font-weight: 500;
   font-size: 12px;
   letter-spacing: 0.04em;
@@ -198,7 +199,7 @@ body {
   padding: 6px 12px;
   background: transparent;
   color: var(--lumen-text-secondary);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--lumen-font);
   font-weight: 400;
   font-size: 12px;
   border-radius: 3px;
@@ -333,7 +334,7 @@ body {
   border: 1px solid var(--lumen-border);
   border-radius: 0 0 4px 4px;
   color: var(--lumen-text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--lumen-font);
   font-size: 13px; line-height: 1.65;
   outline: none;
 }

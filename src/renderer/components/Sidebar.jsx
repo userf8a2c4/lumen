@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard',   icon: LayoutDashboard },
   { id: 'ac3',       label: 'Decisiones',  icon: Cpu },
   { id: 'knowledge', label: 'Biblioteca',  icon: Library },
-  { id: 'contacts',  label: 'Directorio',  icon: Users },
   { id: 'notes',     label: 'Notas',       icon: StickyNote },
 ];
 

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import LoadingScreen from './components/LoadingScreen';
 import Sidebar from './components/Sidebar';
+import QuickSearch from './components/QuickSearch';
 import StatusBar from './components/StatusBar';
 import KnowledgeBase from './components/KnowledgeBase/KnowledgeBase';
 import Contacts from './components/Contacts/Contacts';
@@ -16,6 +17,7 @@ import DailyInsight from './components/DailyInsight';
 import Dashboard from './components/Dashboard/Dashboard';
 import LU from './components/LU';
 import ErrorBoundary from './components/ErrorBoundary';
+import { loadAndApplyTheme, applyThemeCustomization } from './theme';
 
 function extractNameFromEmail(email) {
   if (!email || !email.trim()) return 'Lu';
@@ -61,6 +63,8 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const [userName, setUserName] = useState('Lu');
   const [sectionLabels, setSectionLabels] = useState(DEFAULT_SECTION_LABELS);
+  const [showQuickSearch, setShowQuickSearch] = useState(false);
+  const [activeCaseId, setActiveCaseId]       = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2200);
@@ -76,10 +80,9 @@ export default function App() {
       }
     }).catch(() => {});
     window.lumen.settings.getTheme().then((t) => {
-      if (t) {
-        setTheme(t);
-        document.documentElement.className = t === 'light' ? 'light-theme' : '';
-      }
+      const mode = t || 'dark';
+      setTheme(mode);
+      loadAndApplyTheme(mode);
     }).catch(() => {});
     window.lumen.settings.getUserEmail().then((email) => {
       // Full first name (e.g. "Lucila" not "Lu") — formal address
@@ -115,6 +118,22 @@ export default function App() {
     return () => cleanups.forEach((cleanup) => cleanup && cleanup());
   }, []);
 
+  /* ── Global Ctrl+Space → Quick Search ──────────────────── */
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.code === 'Space' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setShowQuickSearch((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const handleQuickSearchNavigate = useCallback((module, props = {}) => {
+    navigateTo(module, props);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
@@ -149,7 +168,6 @@ export default function App() {
       {update && (
         <UpdateBanner
           update={update}
-          onDownload={() => window.lumen.updater.download()}
           onInstall={() => window.lumen.updater.install()}
           onDismiss={() => setUpdate(null)}
         />
@@ -168,7 +186,7 @@ export default function App() {
         />
         <main className={`flex-1 ${activeModule === 'ac3' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
           <ErrorBoundary name={activeModule}>
-            <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} sectionLabels={sectionLabels} onSectionLabelsChange={handleSectionLabelsChange} />
+            <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} sectionLabels={sectionLabels} onSectionLabelsChange={handleSectionLabelsChange} onCaseChange={setActiveCaseId} />
           </ErrorBoundary>
         </main>
       </div>
@@ -178,8 +196,16 @@ export default function App() {
 
       {/* LU — fixed bottom-right chat widget */}
       <ErrorBoundary name="LU">
-        <LU />
+        <LU activeCaseId={activeCaseId} />
       </ErrorBoundary>
+
+      {/* Quick Search overlay (Ctrl+Space) */}
+      {showQuickSearch && (
+        <QuickSearch
+          onClose={() => setShowQuickSearch(false)}
+          onNavigate={handleQuickSearchNavigate}
+        />
+      )}
     </div>
   );
 }

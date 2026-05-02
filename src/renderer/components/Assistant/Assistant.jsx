@@ -62,6 +62,8 @@ export default function Assistant({ userName = 'Lu' }) {
   const [searchMode, setSearchMode] = useState('local'); // 'local' | 'expanded'
   const [attachment, setAttachment] = useState(null); // { name, mimeType, data (base64) }
   const [dragOver, setDragOver] = useState(false);
+  const [ramasProposal, setRamasProposal] = useState(null); // { intent, summary, branchId?, branch? }
+  const [ramasApplying, setRamasApplying] = useState(false);
 
   const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -93,15 +95,73 @@ export default function Assistant({ userName = 'Lu' }) {
     if (file) handleFileAttach(file);
   };
 
+  // /RAMAS <instrucción>  →  edición del árbol de decisiones vía IA
+  const RAMAS_PREFIX = /^\/RAMAS(\s+|$)/i;
+
+  const handleRamasCommand = async (instruction) => {
+    setLoading(true);
+    setError('');
+    setResult(null);
+    setRamasProposal(null);
+    try {
+      const proposal = await window.lumen.ai.proposeBranchEdit(instruction);
+      if (!proposal || !proposal.intent || proposal.intent === 'NONE') {
+        setError(proposal?.summary || 'La IA no pudo interpretar la instrucción como un cambio de ramas.');
+        return;
+      }
+      setRamasProposal(proposal);
+    } catch (e) {
+      setError(e.message || 'Error al procesar /RAMAS.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyRamasProposal = async () => {
+    if (!ramasProposal) return;
+    setRamasApplying(true);
+    try {
+      const { intent, branchId, branch } = ramasProposal;
+      if (intent === 'CREATE') {
+        await window.lumen.ac3.branches.create(branch);
+      } else if (intent === 'UPDATE') {
+        await window.lumen.ac3.branches.update(branchId, branch);
+      } else if (intent === 'DELETE') {
+        await window.lumen.ac3.branches.delete(branchId);
+      }
+      setRamasProposal(null);
+      setCaseDesc('');
+      setError('');
+    } catch (e) {
+      setError(e.message || 'Error al aplicar los cambios.');
+    } finally {
+      setRamasApplying(false);
+    }
+  };
+
   const handleAnalyze = async () => {
-    if (!caseDesc.trim()) return;
+    const text = caseDesc.trim();
+    if (!text) return;
+
+    // /RAMAS mode — natural-language branch editing
+    if (RAMAS_PREFIX.test(text)) {
+      const instruction = text.replace(RAMAS_PREFIX, '').trim();
+      if (!instruction) {
+        setError('Escribe una instrucción después de /RAMAS. Ejemplo: /RAMAS crea una rama "Reembolsos" con 2 pasos...');
+        return;
+      }
+      await handleRamasCommand(instruction);
+      return;
+    }
+
     setLoading(true);
     setError('');
     setResult(null);
     setExpandedPolicy(null);
     setGeneratedEmail('');
+    setRamasProposal(null);
     try {
-      setResult(await window.lumen.ai.analyze(caseDesc.trim(), {
+      setResult(await window.lumen.ai.analyze(text, {
         model: selectedModel,
         searchMode,
         attachment: attachment || undefined,
@@ -201,7 +261,7 @@ export default function Assistant({ userName = 'Lu' }) {
             rows={4}
             disabled={loading}
             className="dark-input resize-y leading-relaxed"
-            placeholder="Describe el caso... o arrastra una imagen / PDF aqui"
+            placeholder='Describe el caso... arrastra una imagen / PDF aquí, o escribe "/RAMAS [instrucción]" para editar el árbol con IA'
             style={{ borderStyle: dragOver ? 'dashed' : 'solid', borderColor: dragOver ? 'rgba(255,255,255,0.06)' : undefined }}
           />
         </div>
@@ -306,6 +366,86 @@ export default function Assistant({ userName = 'Lu' }) {
           <div>
             <p className="text-[13px] font-medium" style={{ color: '#fca5a5' }}>Error al analizar</p>
             <p className="text-xs mt-1" style={{ color: 'rgba(248,113,113,0.8)' }}>{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* /RAMAS — Propuesta de edición del árbol */}
+      {ramasProposal && (
+        <div className="bento-card mb-4 animate-float-in" style={{ borderLeft: '3px solid var(--lumen-accent)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles size={16} style={{ color: 'var(--lumen-accent)' }} />
+            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--lumen-accent)' }}>
+              /RAMAS — Propuesta de cambio
+            </span>
+            <span className="text-[10px] ml-auto font-mono px-2 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lumen-text-muted)' }}>
+              {ramasProposal.intent}
+            </span>
+          </div>
+
+          {/* Summary */}
+          <p className="text-[13px] mb-3" style={{ color: 'var(--lumen-text)', lineHeight: 1.6 }}>
+            {ramasProposal.summary}
+          </p>
+
+          {/* Preview of the branch */}
+          {ramasProposal.branch && ramasProposal.intent !== 'DELETE' && (
+            <div style={{
+              background: 'rgba(0,0,0,0.25)', border: '1px solid var(--lumen-border)',
+              borderLeft: `3px solid ${ramasProposal.branch.color || 'var(--lumen-accent)'}`,
+              borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: 12,
+            }}>
+              <div className="flex items-center gap-2 mb-2">
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: ramasProposal.branch.color || '#7E3FF2' }} />
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--lumen-text)' }}>
+                  {ramasProposal.branch.name || 'Sin nombre'}
+                </span>
+                <span className="text-[10px] ml-auto" style={{ color: 'var(--lumen-text-muted)' }}>
+                  {ramasProposal.branch.nodes?.length || 0} paso{(ramasProposal.branch.nodes?.length || 0) !== 1 ? 's' : ''}
+                </span>
+              </div>
+              {(ramasProposal.branch.nodes || []).map((n, i) => (
+                <div key={n.id || i} style={{ marginTop: 6, paddingLeft: 10, borderLeft: '1px dashed var(--lumen-border)' }}>
+                  <p className="text-[11px] font-mono" style={{ color: 'var(--lumen-text-muted)' }}>
+                    <span style={{ color: ramasProposal.branch.color || 'var(--lumen-accent)' }}>paso {i + 1}</span> · {n.title || '(sin título)'}
+                    {n.outcome && <span style={{ color: '#10b981', marginLeft: 6 }}>→ {n.outcome}</span>}
+                  </p>
+                  {n.options && n.options.length > 0 && (
+                    <p className="text-[10px] ml-3" style={{ color: 'var(--lumen-text-muted)' }}>
+                      opciones: {n.options.map(o => o.label).join(' · ')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Delete preview */}
+          {ramasProposal.intent === 'DELETE' && (
+            <div className="mb-3 p-3" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6 }}>
+              <p className="text-[12px]" style={{ color: '#fca5a5' }}>
+                ⚠ Se eliminará la rama <strong>{ramasProposal.branchId}</strong> permanentemente.
+              </p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={applyRamasProposal}
+              disabled={ramasApplying}
+              className="btn-accent"
+            >
+              {ramasApplying ? <><Loader2 size={12} className="animate-spin" /> Aplicando</> : <><Check size={12} /> Aplicar cambios</>}
+            </button>
+            <button
+              onClick={() => setRamasProposal(null)}
+              disabled={ramasApplying}
+              className="px-3 py-1.5 rounded text-[12px]"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--lumen-border)', color: 'var(--lumen-text-muted)' }}
+            >
+              Descartar
+            </button>
           </div>
         </div>
       )}
