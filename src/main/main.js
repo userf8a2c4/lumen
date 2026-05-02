@@ -457,6 +457,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      webSecurity: false, // allow loading OSM tiles and external resources
     },
   });
 

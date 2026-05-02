@@ -359,7 +359,7 @@ function SpeechesPanel({ speeches, onCollapse, dockPos, onDock }) {
           <button onClick={onCollapse} title="Minimizar" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 3px', color: 'var(--lumen-text-muted)', display: 'flex', opacity: 0.5 }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}>
-            <ChevronLeft size={11} />
+            {dockPos === 'bottom' ? <ChevronDown size={11} /> : <ChevronLeft size={11} />}
           </button>
         )}
       </div>
@@ -450,7 +450,7 @@ function TemplatesPanel({ templates, onCollapse, dockPos, onDock }) {
           <button onClick={onCollapse} title="Minimizar" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 3px', color: 'var(--lumen-text-muted)', display: 'flex', opacity: 0.5 }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}>
-            <ChevronLeft size={11} />
+            {dockPos === 'bottom' ? <ChevronDown size={11} /> : <ChevronLeft size={11} />}
           </button>
         )}
       </div>
@@ -481,20 +481,18 @@ function TemplatesPanel({ templates, onCollapse, dockPos, onDock }) {
                     Sin plantillas. Agrega en Configuración.
                   </p>
                 ) : items.map((t) => (
-                  <div key={t.id} style={{ marginBottom: 4, borderRadius: 5, border: '1px solid var(--lumen-border)', background: 'rgba(255,255,255,0.02)', padding: '6px 8px' }}>
-                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 3, lineHeight: 1.3 }}>{t.title}</p>
-                    <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.45, marginBottom: 5 }} className="line-clamp-2">{t.content}</p>
-                    <button
-                      onClick={() => copy(t)}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                        fontSize: 9, padding: '3px 0', borderRadius: 3, cursor: 'pointer', border: 'none',
-                        background: copying === t.id ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)',
-                        color: copying === t.id ? '#4ade80' : 'var(--lumen-text-muted)', transition: 'all 0.15s',
-                      }}
-                    >
-                      {copying === t.id ? <><Check size={9} /> Copiado</> : <><Copy size={9} /> Copiar</>}
-                    </button>
+                  <div key={t.id} style={{ marginBottom: 4, borderRadius: 5, border: '1px solid var(--lumen-border)', background: 'var(--lumen-card)', padding: '6px 8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, marginBottom: 2 }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', margin: 0, lineHeight: 1.3 }}>{t.title}</p>
+                      <button
+                        onClick={() => copy(t)}
+                        title="Copiar plantilla"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px', color: copying === t.id ? '#10b981' : 'var(--lumen-text-muted)', flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        {copying === t.id ? <Check size={10} /> : <Copy size={10} />}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.45 }} className="line-clamp-2">{t.content}</p>
                   </div>
                 ))}
               </div>
@@ -797,7 +795,8 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
               <button onClick={onCollapse} title="Minimizar" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 3px', color: 'var(--lumen-text-muted)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, opacity: 0.5 }}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}>
-                <ChevronRight size={11} /> <span style={{ letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 700 }}>Cerrar</span>
+                {dockPos === 'bottom' ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                <span style={{ letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 700 }}>Cerrar</span>
               </button>
             )}
             {onDock && <DockMenu currentPos={dockPos} onDock={onDock} />}
@@ -1254,7 +1253,7 @@ function ClientSelectorPanel({ onSelect, onClose }) {
 
 // ─── Case Hub ─────────────────────────────────────────────────────────────────
 
-function CaseHub({ activeTurn, recentCases, onNewCase, onSearchHistory, onTurnStart, onTurnClose }) {
+function CaseHub({ activeTurn, recentCases, onNewCase, onSearchHistory, onTurnStart, onTurnClose, onCloseCase }) {
   const turnActive = activeTurn && !activeTurn.ended_at;
 
   return (
@@ -1341,6 +1340,17 @@ function CaseHub({ activeTurn, recentCases, onNewCase, onSearchHistory, onTurnSt
                 }}>
                   {c.status === 'open' ? 'ABIERTO' : 'CERRADO'}
                 </span>
+                {c.status === 'open' && onCloseCase && (
+                  <button
+                    onClick={() => onCloseCase(c.id)}
+                    title="Cerrar caso manualmente"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--lumen-text-muted)', display: 'flex', flexShrink: 0, opacity: 0.5 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.color = 'var(--lumen-text-muted)'; }}
+                  >
+                    <X size={11} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -2069,6 +2079,12 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
               try {
                 await window.lumen.turns.close(activeTurn.id, 'Turno cerrado manualmente');
                 setActiveTurn(null);
+              } catch {}
+            }}
+            onCloseCase={async (caseId) => {
+              try {
+                await window.lumen.cases.close(caseId, { summary: 'Cerrado manualmente' });
+                window.lumen.cases.search({}).then((r) => setRecentCases((r || []).slice(0, 5))).catch(() => {});
               } catch {}
             }}
           />

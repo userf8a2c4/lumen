@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard, Library,
-  Users, StickyNote, Settings, Sun, Moon,
+  Users, StickyNote, Settings,
   PanelLeftClose, PanelLeftOpen, Cpu,
 } from 'lucide-react';
 import LumenLogo from './LumenLogo';
@@ -39,7 +39,7 @@ function NavBtn({ label, icon: Icon, active, collapsed, onClick, muted }) {
   );
 }
 
-export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleCollapse, theme, onToggleTheme, sectionLabels }) {
+export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleCollapse, sectionLabels }) {
   // Merge custom labels over defaults
   const label = (id, fallback) => (sectionLabels && sectionLabels[id]) ? sectionLabels[id] : fallback;
 
@@ -75,18 +75,6 @@ export default function Sidebar({ activeModule, onNavigate, collapsed, onToggleC
 
       {/* Bottom controls */}
       <div style={{ borderTop: '1px solid var(--lumen-border)', padding: '8px', display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {/* Theme toggle */}
-        <button
-          onClick={onToggleTheme}
-          title={theme === 'dark' ? 'Modo día' : 'Modo noche'}
-          className={`nav-item w-full flex items-center transition-all duration-100
-            ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2 gap-3'}`}
-          style={{ borderRadius: 3, color: 'var(--lumen-text-muted)', fontSize: 12 }}
-        >
-          {theme === 'dark' ? <Sun size={14} strokeWidth={1.5} /> : <Moon size={14} strokeWidth={1.5} />}
-          {!collapsed && <span>{theme === 'dark' ? 'Modo día' : 'Modo noche'}</span>}
-        </button>
-
         {/* Collapse toggle */}
         <button
           onClick={onToggleCollapse}

@@ -79,11 +79,9 @@ export default function App() {
         try { setSectionLabels((prev) => ({ ...prev, ...JSON.parse(json) })); } catch {}
       }
     }).catch(() => {});
-    window.lumen.settings.getTheme().then((t) => {
-      const mode = t || 'dark';
-      setTheme(mode);
-      loadAndApplyTheme(mode);
-    }).catch(() => {});
+    // Always force dark mode — theme toggle removed
+    document.documentElement.className = '';
+    window.lumen.settings.setTheme('dark').catch(() => {});
     window.lumen.settings.getUserEmail().then((email) => {
       // Full first name (e.g. "Lucila" not "Lu") — formal address
       if (email) {
@@ -134,12 +132,7 @@ export default function App() {
     navigateTo(module, props);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    document.documentElement.className = next === 'light' ? 'light-theme' : '';
-    window.lumen.settings.setTheme(next).catch(() => {});
-  };
+  // Theme toggle removed — always dark mode
 
   const navigateTo = (module, props = {}) => {
     setActiveModule(module);
@@ -180,8 +173,6 @@ export default function App() {
           onNavigate={(m) => navigateTo(m)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          theme={theme}
-          onToggleTheme={toggleTheme}
           sectionLabels={sectionLabels}
         />
         <main className={`flex-1 ${activeModule === 'ac3' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
