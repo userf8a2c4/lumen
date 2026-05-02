@@ -5,7 +5,7 @@ import {
   RefreshCw, Info, Tag, RotateCcw, Plus, Trash2, X,
   GitBranch, ChevronDown, ChevronUp, Save, Loader2,
   Zap, AlertTriangle, ArrowDown, ArrowUp, CornerDownRight,
-  Target, MessageSquare, HelpCircle, Briefcase,
+  Target, MessageSquare, HelpCircle, Briefcase, Utensils,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1004,6 +1004,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
   const [testingAi,    setTestingAi]    = useState(false);
   const [aiTestResult, setAiTestResult] = useState(null); // { ok, message, ... }
   const [caseIdMode,   setCaseIdMode]   = useState('auto');
+  const [showPromos,   setShowPromos]   = useState(true);
 
   const flash = (tag) => { setSaved(tag); setTimeout(() => setSaved(''), 2000); };
 
@@ -1020,7 +1021,8 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       window.lumen.app.getVersion(),
       window.lumen.calendar.isAuthenticated(),
       window.lumen.settings.getCaseIdMode(),
-    ]).then(([k, m, em, ac, v, conn, cim]) => {
+      window.lumen.settings.getShowPromos(),
+    ]).then(([k, m, em, ac, v, conn, cim, sp]) => {
       setApiKey(k ? k.slice(0, 7) + '…' + k.slice(-4) : '');
       setModel(MODELS.find((x) => x.id === m) ? m : 'gemini-2.5-flash');
       setEmail(em || ''); setEmailInput(em || '');
@@ -1028,6 +1030,7 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
       setVersion(v || '');
       setCalConnected(conn);
       setCaseIdMode(cim || 'auto');
+      setShowPromos(sp !== false);
     }).catch(() => {});
   }, []);
 
@@ -1107,11 +1110,11 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
   };
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div style={{ width: '100%' }}>
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--lumen-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <SettingsIcon size={15} style={{ color: 'var(--lumen-accent)' }} />
         </div>
         <div>
@@ -1120,6 +1123,10 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
         </div>
       </div>
 
+      {/* Two-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+
+      {/* ── LEFT COLUMN — config ──────────────────────────── */}
       <div className="bento-card" style={{ padding: '0 20px' }}>
 
         {/* Correo */}
@@ -1230,34 +1237,6 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
               {labelSaved && <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Guardado</span>}
             </div>
           </div>
-        </Row>
-
-        {/* ── PLANTILLAS DE TEXTO ── */}
-        <Row label="Plantillas de texto" icon={Tag} iconColor="#4ade80" collapsible>
-          <TextTemplatesEditor />
-        </Row>
-
-        {/* ── PLANTILLAS DE EMAIL ── */}
-        <Row label="Plantillas de email" icon={Mail} iconColor="#60a5fa" collapsible>
-          <EmailTemplatesEditor />
-        </Row>
-
-        {/* ── SPEECHES / GUIONES ── */}
-        <Row label="Speeches y guiones" icon={MessageSquare} iconColor="#a78bfa" collapsible
-          hint="Guiones de voz para guiar conversaciones con clientes. Disponibles en Decisiones con modo teleprompter.">
-          <SpeechesEditor />
-        </Row>
-
-        {/* ── ÁRBOL DE DECISIONES ── */}
-        <Row label="Árbol de decisiones" icon={GitBranch} iconColor="#a78bfa" collapsible
-          hint="Crea ramas y define los pasos del proceso. Cada paso tiene un speech (qué decir) y opciones de selección para el agente.">
-          <DecisionTreeEditor />
-        </Row>
-
-        {/* ── HISTORIAL DE CHAT LU ── */}
-        <Row label="Historial de chat con LU" icon={MessageSquare} iconColor="#7c6af7" collapsible
-          hint="Las conversaciones con LU se archivan cada vez que inicias un nuevo chat. Puedes exportarlas como .txt o eliminarlas desde aquí.">
-          <LuHistorySection />
         </Row>
 
         {/* Diagnóstico de IA */}
@@ -1372,6 +1351,40 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           </div>
         </Row>
 
+        {/* ── PROMOCIONES ── */}
+        <Row label="Promociones de comida" icon={Utensils} iconColor="#f59e0b"
+          hint="Muestra una tabla con promociones de negocios de comida cerca de Toluca de Lerdo en el Dashboard. Se actualiza al abrir el Dashboard.">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
+            <div>
+              <p style={{ fontSize: 12, color: 'var(--lumen-text)', fontWeight: 500, marginBottom: 2 }}>
+                {showPromos ? 'Widget activo' : 'Widget oculto'}
+              </p>
+              <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.4 }}>
+                {showPromos ? 'Visible en Dashboard' : 'No aparece en el Dashboard'}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const next = !showPromos;
+                setShowPromos(next);
+                window.lumen.settings.setShowPromos(next).catch(() => {});
+              }}
+              style={{
+                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                position: 'relative', flexShrink: 0, transition: 'background 0.2s',
+                background: showPromos ? 'rgba(245,158,11,0.7)' : 'rgba(255,255,255,0.12)',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%',
+                background: '#fff', transition: 'left 0.2s',
+                left: showPromos ? 23 : 3,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              }} />
+            </button>
+          </div>
+        </Row>
+
         {/* Sistema */}
         <Row label="Sistema" icon={Info}>
           <div className="flex items-center justify-between">
@@ -1401,7 +1414,42 @@ export default function Settings({ onModelChange, sectionLabels, onSectionLabels
           </button>
         </div>
 
-      </div>
+      </div>{/* END left col */}
+
+      {/* ── RIGHT COLUMN — content editors ───────────────── */}
+      <div className="bento-card" style={{ padding: '0 20px' }}>
+
+        {/* ── PLANTILLAS DE TEXTO ── */}
+        <Row label="Plantillas de texto" icon={Tag} iconColor="#4ade80" collapsible>
+          <TextTemplatesEditor />
+        </Row>
+
+        {/* ── PLANTILLAS DE EMAIL ── */}
+        <Row label="Plantillas de email" icon={Mail} iconColor="#60a5fa" collapsible>
+          <EmailTemplatesEditor />
+        </Row>
+
+        {/* ── SPEECHES / GUIONES ── */}
+        <Row label="Speeches y guiones" icon={MessageSquare} iconColor="#a78bfa" collapsible
+          hint="Guiones de voz para guiar conversaciones con clientes. Disponibles en Decisiones con modo teleprompter.">
+          <SpeechesEditor />
+        </Row>
+
+        {/* ── ÁRBOL DE DECISIONES ── */}
+        <Row label="Árbol de decisiones" icon={GitBranch} iconColor="#a78bfa" collapsible
+          hint="Crea ramas y define los pasos del proceso. Cada paso tiene un speech (qué decir) y opciones de selección para el agente.">
+          <DecisionTreeEditor />
+        </Row>
+
+        {/* ── HISTORIAL DE CHAT LU ── */}
+        <Row label="Historial de chat con LU" icon={MessageSquare} iconColor="#7c6af7" collapsible
+          hint="Las conversaciones con LU se archivan cada vez que inicias un nuevo chat. Puedes exportarlas como .txt o eliminarlas desde aquí.">
+          <LuHistorySection />
+        </Row>
+
+      </div>{/* END right col */}
+
+      </div>{/* END grid */}
     </div>
   );
 }

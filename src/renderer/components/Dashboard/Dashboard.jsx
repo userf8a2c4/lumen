@@ -1,10 +1,130 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   FlaskConical, Library, StickyNote, GitBranch,
   Keyboard, Search, Terminal, Clock, Briefcase,
-  BookOpen, Users, CheckCircle2,
+  BookOpen, Users, CheckCircle2, Utensils, RefreshCw,
+  Star, StarOff, Pin, Settings as SettingsIcon,
 } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
+
+const PROMO_FAV_KEY = 'lumen_promo_favorites';
+
+function PromosWidget({ onNavigateSettings }) {
+  const [promos, setPromos]     = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
+  const [favs, setFavs]         = useState(() => {
+    try { return JSON.parse(localStorage.getItem(PROMO_FAV_KEY) || '[]'); } catch { return []; }
+  });
+
+  const favKey = (p) => `${p.name}||${p.promo}`;
+
+  const isFav = (p) => favs.includes(favKey(p));
+
+  const toggleFav = (p) => {
+    const k = favKey(p);
+    setFavs((prev) => {
+      const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k];
+      try { localStorage.setItem(PROMO_FAV_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      const data = await window.lumen.promos.fetch();
+      setPromos(data || []);
+    } catch (e) {
+      setError(e?.message || 'Error al obtener promociones');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, []);
+
+  const pinned = promos.filter((p) => isFav(p));
+  const others = promos.filter((p) => !isFav(p));
+  const ordered = [...pinned, ...others];
+
+  return (
+    <div className="bento-card bento-span-full">
+      <div className="flex items-center gap-2 mb-3">
+        <Utensils size={13} style={{ color: '#f59e0b' }} />
+        <h3 style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--lumen-text-secondary)' }}>
+          Promociones cerca · Toluca de Lerdo
+        </h3>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!loading && (
+            <button onClick={load} title="Actualizar" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, color: 'var(--lumen-text-muted)', display: 'flex' }}>
+              <RefreshCw size={11} />
+            </button>
+          )}
+          <button onClick={() => onNavigateSettings?.('settings')} title="Configuración" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, color: 'var(--lumen-text-muted)', display: 'flex' }}>
+            <SettingsIcon size={11} />
+          </button>
+        </span>
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0', color: 'var(--lumen-text-muted)', fontSize: 11 }}>
+          <RefreshCw size={13} className="animate-spin" style={{ color: '#f59e0b' }} />
+          Buscando promociones del día...
+        </div>
+      ) : error ? (
+        <div style={{ padding: '10px 14px', borderRadius: 4, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', fontSize: 11 }}>
+          {error}
+        </div>
+      ) : ordered.length === 0 ? (
+        <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', lineHeight: 1.55 }}>
+          No se encontraron promociones activas hoy. Intenta más tarde.
+        </p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--lumen-border)' }}>
+                <th style={{ padding: '5px 8px', textAlign: 'left', color: 'var(--lumen-text-muted)', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', width: 32 }}></th>
+                <th style={{ padding: '5px 8px', textAlign: 'left', color: 'var(--lumen-text-muted)', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Negocio</th>
+                <th style={{ padding: '5px 8px', textAlign: 'left', color: 'var(--lumen-text-muted)', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tipo</th>
+                <th style={{ padding: '5px 8px', textAlign: 'left', color: 'var(--lumen-text-muted)', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Promoción</th>
+                <th style={{ padding: '5px 8px', textAlign: 'left', color: 'var(--lumen-text-muted)', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Detalles</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map((p, i) => {
+                const fav = isFav(p);
+                return (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--lumen-border)', background: fav ? 'rgba(245,158,11,0.04)' : 'transparent', transition: 'background 0.1s' }}
+                    onMouseEnter={(e) => { if (!fav) e.currentTarget.style.background = 'var(--lumen-card-hover)'; }}
+                    onMouseLeave={(e) => { if (!fav) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <td style={{ padding: '7px 8px', verticalAlign: 'top' }}>
+                      <button onClick={() => toggleFav(p)} title={fav ? 'Quitar favorito' : 'Fijar favorito'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: fav ? '#f59e0b' : 'var(--lumen-text-muted)', display: 'flex' }}>
+                        {fav ? <Star size={11} fill="#f59e0b" /> : <Star size={11} />}
+                      </button>
+                    </td>
+                    <td style={{ padding: '7px 8px', verticalAlign: 'top', fontWeight: 600, color: 'var(--lumen-text)' }}>{p.name}</td>
+                    <td style={{ padding: '7px 8px', verticalAlign: 'top', color: 'var(--lumen-text-secondary)' }}>{p.category}</td>
+                    <td style={{ padding: '7px 8px', verticalAlign: 'top', color: '#f59e0b', fontWeight: 500 }}>{p.promo}</td>
+                    <td style={{ padding: '7px 8px', verticalAlign: 'top', color: 'var(--lumen-text-muted)', maxWidth: 220 }}>{p.details || p.address || '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {pinned.length > 0 && (
+            <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', marginTop: 8, letterSpacing: '0.04em' }}>
+              ★ {pinned.length} favorito{pinned.length !== 1 ? 's' : ''} fijado{pinned.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StatCard({ icon: Icon, value, label, loading, onClick, accent }) {
   const color = accent || 'var(--lumen-text-secondary)';
@@ -55,6 +175,7 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
   const [turn, setTurn]     = useState(null);
   const [todayCases, setTodayCases] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showPromos, setShowPromos] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -71,6 +192,9 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
     window.lumen.cases.search({ dateFrom: today, dateTo: today })
       .then((r) => setTodayCases((r || []).length))
       .catch(() => {});
+
+    // Promos setting
+    window.lumen.settings.getShowPromos().then((v) => setShowPromos(v !== false)).catch(() => {});
   }, []);
 
   const greet = () => {
@@ -198,6 +322,9 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
         </div>
       </div>
 
+      {/* Promotions widget */}
+      {showPromos && <PromosWidget onNavigateSettings={navigateTo} />}
+
       {/* LU keywords */}
       <div className="bento-card bento-span-full">
         <div className="flex items-center gap-2 mb-4">
@@ -226,6 +353,23 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
             </p>
             <p style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--lumen-text-muted)', fontStyle: 'italic' }}>
               ej: <span style={{ color: 'var(--lumen-text-secondary)' }}>/RAMAS crea una rama "Reembolsos" con un paso que pregunta si tiene factura</span>
+            </p>
+          </div>
+          <div style={{ padding: '12px 14px', borderRadius: 4, border: '1px solid var(--lumen-border)', background: 'rgba(96,165,250,0.04)', borderLeft: '3px solid #60a5fa' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Terminal size={12} style={{ color: '#60a5fa' }} />
+              <code style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#60a5fa', background: 'rgba(96,165,250,0.12)', padding: '2px 6px', borderRadius: 3 }}>
+                /admin
+              </code>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginLeft: 'auto' }}>
+                Modo administrador
+              </span>
+            </div>
+            <p style={{ fontSize: 11, lineHeight: 1.55, color: 'var(--lumen-text-muted)', marginBottom: 6 }}>
+              Accede a configuraciones avanzadas del sistema, estadísticas internas y herramientas de gestión.
+            </p>
+            <p style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--lumen-text-muted)', fontStyle: 'italic' }}>
+              ej: <span style={{ color: 'var(--lumen-text-secondary)' }}>/admin muéstrame el resumen de casos de esta semana</span>
             </p>
           </div>
         </div>

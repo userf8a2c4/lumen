@@ -50,6 +50,11 @@ contextBridge.exposeInMainWorld('lumen', {
     setThemeCustomization: (json) => ipcRenderer.invoke('settings:setThemeCustomization', json),
     getCaseIdMode: () => ipcRenderer.invoke('settings:getCaseIdMode'),
     setCaseIdMode: (mode) => ipcRenderer.invoke('settings:setCaseIdMode', mode),
+    getShowPromos: () => ipcRenderer.invoke('settings:getShowPromos'),
+    setShowPromos: (val) => ipcRenderer.invoke('settings:setShowPromos', val),
+  },
+  promos: {
+    fetch: () => ipcRenderer.invoke('promos:fetch'),
   },
   logic: {
     getAll:       ()         => ipcRenderer.invoke('logic:getAll'),

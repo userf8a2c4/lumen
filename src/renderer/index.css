@@ -48,6 +48,26 @@
   --lumen-overlay:         rgba(255,255,255,0.25);
 }
 
+/* ── Light theme component overrides ───────────────────────── */
+.light-theme .drop-zone:hover,
+.light-theme .drop-zone.drag-over {
+  border-color: rgba(0,0,0,0.30);
+}
+.light-theme .status-dot.online  { background: #000000; opacity: 0.7; }
+.light-theme .status-dot.offline { background: rgba(0,0,0,0.25); }
+.light-theme .status-dot.checking{ background: rgba(0,0,0,0.5); }
+.light-theme .search-highlight {
+  background: rgba(0,0,0,0.10);
+  color: var(--lumen-text);
+}
+.light-theme .nav-item:hover:not(.active) {
+  color: var(--lumen-text) !important;
+}
+.light-theme .tag-pill {
+  color: var(--lumen-text-secondary);
+  border-color: var(--lumen-border);
+}
+
 /* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track  { background: transparent; }
@@ -122,8 +142,8 @@ body {
   cursor: pointer;
 }
 .bento-card.interactive:hover {
-  border-color: rgba(255,255,255,0.25);
-  background: transparent;
+  border-color: var(--lumen-border-light);
+  background: var(--lumen-card-hover);
 }
 
 .dark-card {
@@ -173,22 +193,22 @@ body {
   font-size: 12px;
   letter-spacing: 0.04em;
   border-radius: 3px;
-  border: 1px solid rgba(255,255,255,0.30);
+  border: 1px solid var(--lumen-border-light);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
   text-transform: uppercase;
 }
 .btn-accent:hover {
-  border-color: rgba(255,255,255,0.65);
-  color: #ffffff;
-  background: rgba(255,255,255,0.04);
+  border-color: var(--lumen-accent);
+  color: var(--lumen-text);
+  background: var(--lumen-card-hover);
 }
 .btn-accent:disabled {
   opacity: 0.25;
   cursor: not-allowed;
 }
 .btn-accent:disabled:hover {
-  border-color: rgba(255,255,255,0.30);
+  border-color: var(--lumen-border-light);
   background: transparent;
 }
 
@@ -236,9 +256,9 @@ body {
 }
 .nav-item.active {
   background: transparent !important;
-  color: #ffffff !important;
+  color: var(--lumen-text) !important;
 }
-/* Thin white left indicator */
+/* Thin accent left indicator */
 .nav-item.active::before {
   content: '';
   position: absolute;
@@ -247,7 +267,7 @@ body {
   transform: translateY(-50%);
   width: 2px;
   height: 50%;
-  background: rgba(255,255,255,0.75);
+  background: var(--lumen-accent);
   border-radius: 0 1px 1px 0;
 }
 
@@ -258,12 +278,12 @@ body {
   background: rgba(6,6,8,0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--lumen-border);
   border-radius: 5px;
 }
 .light-theme .glass-card {
-  background: rgba(245,245,247,0.96);
-  border-color: rgba(0,0,0,0.08);
+  background: rgba(245,245,247,0.98);
+  border-color: var(--lumen-border);
 }
 
 /* ══════════════════════════════════════════════════════════

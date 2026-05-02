@@ -535,6 +535,38 @@ function registerHandlers() {
   ipcMain.handle('settings:setThemeCustomization', (_e, json) => db.setSetting('theme_customization', json));
   ipcMain.handle('settings:getCaseIdMode', () => db.getSetting('case_id_mode') || 'auto');
   ipcMain.handle('settings:setCaseIdMode', (_e, mode) => db.setSetting('case_id_mode', mode));
+  ipcMain.handle('settings:getShowPromos', () => (db.getSetting('show_promos') ?? 'true') === 'true');
+  ipcMain.handle('settings:setShowPromos', (_e, val) => db.setSetting('show_promos', val ? 'true' : 'false'));
+
+  // Promos near Toluca de Lerdo
+  ipcMain.handle('promos:fetch', async () => {
+    try {
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error('Sin API Key');
+      const modelId = db.getSetting('model') || 'gemini-2.5-flash';
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: modelId,
+        tools: [{ googleSearch: {} }],
+      });
+      const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const prompt =
+        `Hoy es ${today}. Busca promociones de comida, restaurantes y negocios de alimentos en Toluca de Lerdo, Estado de México, Mexico que estén activas hoy o esta semana. ` +
+        `Incluye combos, descuentos, 2x1, menú del día, etc. ` +
+        `Responde ÚNICAMENTE con un JSON válido, sin texto extra, sin markdown, con el siguiente formato exacto: ` +
+        `[{"name":"Nombre del negocio","category":"Tipo (Pizzería/Taquería/etc)","promo":"Descripción de la promo","details":"Detalle adicional o condiciones","address":"Dirección si disponible"}]. ` +
+        `Máximo 10 resultados. Si no encuentras info real, devuelve un array vacío [].`;
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      // Extract JSON from response (may have markdown wrapper)
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) return [];
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error('promos:fetch error', e);
+      return [];
+    }
+  });
 
   // Logic Flows
   ipcMain.handle('logic:getAll',    () => db.getAllFlows());

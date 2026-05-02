@@ -262,7 +262,7 @@ export default function LU({ activeCaseId }) {
             size={13}
             style={{
               color: ct.textMuted,
-              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              transform: open ? 'rotate(0deg)' : 'rotate(180deg)',
               transition: 'transform 0.2s ease',
             }}
           />

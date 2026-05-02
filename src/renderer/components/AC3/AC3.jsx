@@ -99,22 +99,33 @@ const DOCK_OPTIONS = [
 
 function DockMenu({ currentPos, onDock }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [coords, setCoords] = useState({ top: 0, right: 0 });
+  const menuRef = useRef(null);
+  const btnRef  = useRef(null);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target) && !btnRef.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setCoords({ top: r.top, right: window.innerWidth - r.right });
+    }
+    setOpen((v) => !v);
+  };
+
   const opts = DOCK_OPTIONS.filter((o) => o.pos !== currentPos);
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'flex' }}>
+    <div style={{ position: 'relative', display: 'flex' }}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={btnRef}
+        onClick={handleToggle}
         title="Mover panel"
         style={{
           background: 'none', border: 'none', cursor: 'pointer',
@@ -131,9 +142,13 @@ function DockMenu({ currentPos, onDock }) {
         </svg>
       </button>
       {open && (
-        <div style={{
-          position: 'absolute', bottom: '100%', right: 0, zIndex: 200,
-          background: '#1a1a24', border: '1px solid var(--lumen-border)',
+        <div ref={menuRef} style={{
+          position: 'fixed',
+          top: coords.top,
+          right: coords.right,
+          transform: 'translateY(-100%) translateY(-4px)',
+          zIndex: 9999,
+          background: 'var(--lumen-bg)', border: '1px solid var(--lumen-border-light)',
           borderRadius: 6, padding: 4, minWidth: 110,
           boxShadow: '0 6px 20px rgba(0,0,0,0.45)',
         }}>
@@ -147,7 +162,7 @@ function DockMenu({ currentPos, onDock }) {
                 cursor: 'pointer', borderRadius: 4, fontSize: 11,
                 color: 'var(--lumen-text)', textAlign: 'left',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lumen-card-hover)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
             >
               <span style={{ fontSize: 9, color: 'var(--lumen-text-muted)' }}>
@@ -181,15 +196,22 @@ function useCollapsed(storageKey, defaultVal = false) {
 // ─── Collapsed strip ──────────────────────────────────────────────────────────
 
 function CollapsedStrip({ label, side = 'left', onExpand }) {
+  const isBottom = side === 'bottom';
   return (
     <div
       onClick={onExpand}
       title={`Expandir ${label}`}
       style={{
-        width: 24, flexShrink: 0, cursor: 'pointer', userSelect: 'none',
+        ...(isBottom
+          ? { height: 24, width: '100%', flexShrink: 0, borderTop: '1px solid var(--lumen-border)' }
+          : {
+              width: 24, flexShrink: 0,
+              borderRight: side === 'left'  ? '1px solid var(--lumen-border)' : 'none',
+              borderLeft:  side === 'right' ? '1px solid var(--lumen-border)' : 'none',
+            }
+        ),
+        cursor: 'pointer', userSelect: 'none',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRight: side === 'left' ? '1px solid var(--lumen-border)' : 'none',
-        borderLeft:  side === 'right' ? '1px solid var(--lumen-border)' : 'none',
         background: 'rgba(255,255,255,0.01)',
         transition: 'background 0.12s',
       }}
@@ -197,8 +219,7 @@ function CollapsedStrip({ label, side = 'left', onExpand }) {
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.01)'; }}
     >
       <span style={{
-        writingMode: 'vertical-rl',
-        transform: side === 'left' ? 'rotate(180deg)' : 'none',
+        ...(isBottom ? {} : { writingMode: 'vertical-rl', transform: side === 'left' ? 'rotate(180deg)' : 'none' }),
         fontSize: 8, fontWeight: 700, letterSpacing: '0.14em',
         color: 'var(--lumen-text-muted)', textTransform: 'uppercase',
       }}>
@@ -756,6 +777,16 @@ function BranchCard({ branch, index, onClick }) {
 // ─── Right Panel — read-only ──────────────────────────────────────────────────
 
 function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCalRefresh, topPolicies, onNavigate, onOpenContacts, onCollapse, activeCase, clientCases, dockPos, onDock }) {
+  const [copyingEmail, setCopyingEmail] = useState(null);
+
+  const copyEmail = (em) => {
+    const text = [em.subject ? `Asunto: ${em.subject}\n\n` : '', em.body].join('');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyingEmail(em.id);
+      setTimeout(() => setCopyingEmail(null), 1400);
+    }).catch(() => {});
+  };
+
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
@@ -774,17 +805,17 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
           </div>
         )}
         <button onClick={() => onNavigate('settings')}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--lumen-border)', borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--lumen-card)', border: '1px solid var(--lumen-border)', borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--lumen-card-hover)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'var(--lumen-card)'}
         >
           <Settings size={13} style={{ color: 'var(--lumen-accent)' }} />
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--lumen-text)' }}>Configuración</span>
         </button>
         <button onClick={onOpenContacts}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--lumen-border)', borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--lumen-card)', border: '1px solid var(--lumen-border)', borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--lumen-card-hover)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'var(--lumen-card)'}
         >
           <Users size={13} style={{ color: '#60a5fa' }} />
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--lumen-text)' }}>Contactos</span>
@@ -831,16 +862,27 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
           <div style={{ borderBottom: '1px solid var(--lumen-border)' }}>
             <div style={{ padding: '8px 12px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
               <BookOpen size={10} style={{ color: 'var(--lumen-text-muted)' }} />
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase' }}>Top políticas</span>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--lumen-text-muted)', textTransform: 'uppercase' }}>
+                {activeBranch ? `Políticas — ${activeBranch.name}` : 'Top políticas'}
+              </span>
             </div>
             {topPolicies.slice(0, 5).map((p, i) => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 12px' }}>
+              <button key={p.id}
+                onClick={() => onNavigate('knowledge')}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 12px',
+                  background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lumen-card-hover)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+              >
                 <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--lumen-accent)', minWidth: 14, paddingTop: 1 }}>{i + 1}</span>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', lineHeight: 1.3, marginBottom: 1 }} className="line-clamp-1">{p.name}</p>
                   <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)' }}>{p.department}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -899,8 +941,17 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
                 {activeBranch ? `Sin templates para ${activeBranch.name}.` : 'Sin templates. Agrega en Configuración.'}
               </p>
             ) : emailTemplates.map((em) => (
-              <div key={em.id} style={{ marginBottom: 4, padding: '6px 8px', border: '1px solid var(--lumen-border)', borderRadius: 5, background: 'rgba(255,255,255,0.02)' }}>
-                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 2 }}>{em.label}</p>
+              <div key={em.id} style={{ marginBottom: 4, padding: '6px 8px', border: '1px solid var(--lumen-border)', borderRadius: 5, background: 'var(--lumen-card)' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, marginBottom: 2 }}>
+                  <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', margin: 0 }}>{em.label}</p>
+                  <button
+                    onClick={() => copyEmail(em)}
+                    title="Copiar email"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px', color: copyingEmail === em.id ? '#10b981' : 'var(--lumen-text-muted)', flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                  >
+                    {copyingEmail === em.id ? <Check size={10} /> : <Copy size={10} />}
+                  </button>
+                </div>
                 {em.subject && <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', marginBottom: 1 }}>Asunto: {em.subject}</p>}
                 <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', lineHeight: 1.4 }} className="line-clamp-2">{em.body}</p>
               </div>
@@ -1132,7 +1183,18 @@ function ClientSelectorPanel({ onSelect, onClose }) {
         )}
 
         {/* Create new */}
-        <div style={{ borderTop: '1px solid var(--lumen-border)', padding: '10px 12px' }}>
+        <div style={{ borderTop: '1px solid var(--lumen-border)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button
+            onClick={() => onSelect(null, null)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '7px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+              background: 'rgba(255,255,255,0.03)', border: '1px solid var(--lumen-border)',
+              color: 'var(--lumen-text-muted)',
+            }}
+          >
+            Continuar sin cliente
+          </button>
           {!showCreate ? (
             <button
               onClick={() => setShowCreate(true)}
@@ -1757,6 +1819,19 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
     window.lumen.cases.search({}).then((r) => setRecentCases((r || []).slice(0, 5))).catch(() => {});
   }, []);
 
+  // Reload top policies when active branch changes
+  useEffect(() => {
+    if (activeBranch?.name) {
+      window.lumen.policies.search(activeBranch.name, '')
+        .then((res) => setTopPolicies((res || []).slice(0, 5)))
+        .catch(() => {});
+    } else {
+      window.lumen.policies.getAll()
+        .then((res) => setTopPolicies((res || []).slice(0, 5)))
+        .catch(() => {});
+    }
+  }, [activeBranch]);
+
   // Timer for active case
   useEffect(() => {
     if (!activeCase) { setElapsedTime('00:00'); return; }
@@ -1791,10 +1866,11 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
         turn = await window.lumen.turns.create();
         setActiveTurn(turn);
       }
-      const caseData = { client_id: client.id, turn_id: turn.id };
+      const caseData = { turn_id: turn.id };
+      if (client?.id) caseData.client_id = client.id;
       if (externalId) caseData.external_id = externalId;
       const newCase = await window.lumen.cases.create(caseData);
-      setActiveCase({ ...newCase, client_id: client.id, client });
+      setActiveCase({ ...newCase, client_id: client?.id || null, client: client || null });
       onCaseChange?.(newCase.id);
       setShowClientSelector(false);
     } catch (e) { console.error('openCase error', e); }
@@ -1858,7 +1934,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
   // Renders Templates in its docked position (left/right/bottom handled by caller)
   const tplPanel = (
     tplCollapsed
-      ? <CollapsedStrip key="tpl-strip" label="Plantillas" side={tplDock === 'right' ? 'right' : 'left'} onExpand={toggleTpl} />
+      ? <CollapsedStrip key="tpl-strip" label="Plantillas" side={tplDock === 'right' ? 'right' : tplDock === 'bottom' ? 'bottom' : 'left'} onExpand={toggleTpl} />
       : <div key="tpl-panel" style={{ width: tplDock !== 'bottom' ? tplWidth : '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', [tplDock === 'right' ? 'borderLeft' : 'borderRight']: '1px solid var(--lumen-border)' }}>
           <TemplatesPanel templates={textTemplates} onCollapse={toggleTpl} dockPos={tplDock} onDock={setTplDock} />
           <div onMouseDown={(e) => startTplDrag(e, tplDock === 'right' ? -1 : 1)} style={dragHandleStyle(tplDock === 'right' ? 'left' : 'right')}
@@ -1868,7 +1944,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
 
   const spPanel = (
     spCollapsed
-      ? <CollapsedStrip key="sp-strip" label="Speeches" side={spDock === 'right' ? 'right' : 'left'} onExpand={toggleSp} />
+      ? <CollapsedStrip key="sp-strip" label="Speeches" side={spDock === 'right' ? 'right' : spDock === 'bottom' ? 'bottom' : 'left'} onExpand={toggleSp} />
       : <div key="sp-panel" style={{ width: spDock !== 'bottom' ? spWidth : '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', [spDock === 'right' ? 'borderLeft' : 'borderRight']: '1px solid var(--lumen-border)' }}>
           <SpeechesPanel speeches={speeches} onCollapse={toggleSp} dockPos={spDock} onDock={setSpDock} />
           <div onMouseDown={(e) => startSpDrag(e, spDock === 'right' ? -1 : 1)} style={dragHandleStyle(spDock === 'right' ? 'left' : 'right')}
@@ -1878,7 +1954,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
 
   const rightPanel = (
     rightCollapsed
-      ? <CollapsedStrip key="right-strip" label="Info" side={rightDock === 'left' ? 'left' : 'right'} onExpand={toggleRight} />
+      ? <CollapsedStrip key="right-strip" label="Info" side={rightDock === 'left' ? 'left' : rightDock === 'bottom' ? 'bottom' : 'right'} onExpand={toggleRight} />
       : <div key="right-panel" style={{ width: rightDock !== 'bottom' ? rightWidth : '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', [rightDock === 'left' ? 'borderRight' : 'borderLeft']: '1px solid var(--lumen-border)' }}>
           <div onMouseDown={(e) => startRightDrag(e, rightDock === 'left' ? 1 : -1)} style={dragHandleStyle(rightDock === 'left' ? 'right' : 'left')}
             onMouseEnter={(e) => DRAG_HOVER(e, true)} onMouseLeave={(e) => DRAG_HOVER(e, false)} />
