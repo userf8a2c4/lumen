@@ -33,6 +33,7 @@
   "build": {
     "appId": "com.lumen.app",
     "productName": "LUMEN",
+    "artifactName": "LUMEN-Setup-${version}.${ext}",
     "asar": true,
     "asarUnpack": [
       "node_modules/sql.js/dist/sql-wasm.wasm"
@@ -50,11 +51,12 @@
       "target": "nsis"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "LUMEN"
+      "shortcutName": "LUMEN",
+      "runAfterFinish": true
     },
     "publish": {
       "provider": "github",

@@ -112,9 +112,12 @@ function installUpdate() {
     sendToRenderer('update-error', 'La actualización aún no ha terminado de descargarse.');
     return;
   }
-  // isSilent=true → NSIS runs with /S, no wizard.
-  // isForceRunAfter=true → relaunch LUMEN after install.
-  autoUpdater.quitAndInstall(true, true);
+  // Give renderer a moment to show "installing…" state, then quit.
+  // isSilent=true  → oneClick NSIS runs with /S (no wizard, no freeze).
+  // isForceRunAfter=true → relaunch LUMEN automatically after install.
+  setTimeout(() => {
+    autoUpdater.quitAndInstall(true, true);
+  }, 500);
 }
 
 module.exports = { initUpdater, checkForUpdates, downloadUpdate, installUpdate };
