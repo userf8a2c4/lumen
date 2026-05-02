@@ -2,15 +2,16 @@ import React from 'react';
 import {
   LayoutDashboard, Library,
   Users, StickyNote, Settings,
-  PanelLeftClose, PanelLeftOpen, Cpu,
+  PanelLeftClose, PanelLeftOpen, Cpu, FolderOpen,
 } from 'lucide-react';
 import LumenLogo from './LumenLogo';
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard',   icon: LayoutDashboard },
-  { id: 'ac3',       label: 'Decisiones',  icon: Cpu },
-  { id: 'knowledge', label: 'Biblioteca',  icon: Library },
-  { id: 'notes',     label: 'Notas',       icon: StickyNote },
+  { id: 'dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
+  { id: 'ac3',          label: 'Decisiones',   icon: Cpu },
+  { id: 'expedientes',  label: 'Expedientes',  icon: FolderOpen },
+  { id: 'knowledge',    label: 'Biblioteca',   icon: Library },
+  { id: 'notes',        label: 'Notas',        icon: StickyNote },
 ];
 
 function NavBtn({ label, icon: Icon, active, collapsed, onClick, muted }) {

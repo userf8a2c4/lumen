@@ -11,6 +11,7 @@ import Agenda from './components/Agenda/Agenda';
 import EvidenceVault from './components/Evidence/EvidenceVault';
 import LogicDesigner from './components/LogicDesigner/LogicDesigner';
 import AC3 from './components/AC3/AC3';
+import Expedientes from './components/Expedientes/Expedientes';
 import Settings from './components/Settings/Settings';
 import UpdateBanner from './components/UpdateBanner';
 import DailyInsight from './components/DailyInsight';
@@ -39,16 +40,17 @@ const DEFAULT_SECTION_LABELS = {
 };
 
 const MODULES = {
-  dashboard: { label: 'Inicio',         component: Dashboard },
-  agenda:    { label: 'Agenda',         component: Agenda },
-  ac3:       { label: 'AC3 Decisiones', component: AC3 },
-  assistant: { label: 'Laboratorio',    component: Assistant },
-  knowledge: { label: 'Biblioteca',     component: KnowledgeBase },
-  contacts:  { label: 'Directorio',     component: Contacts },
-  notes:     { label: 'Notas',          component: Notes },
-  evidence:  { label: 'Evidencias',     component: EvidenceVault },
-  logic:     { label: 'Diseñador',      component: LogicDesigner },
-  settings:  { label: 'Configuración',  component: Settings },
+  dashboard:    { label: 'Inicio',         component: Dashboard },
+  agenda:       { label: 'Agenda',         component: Agenda },
+  ac3:          { label: 'AC3 Decisiones', component: AC3 },
+  expedientes:  { label: 'Expedientes',    component: Expedientes },
+  assistant:    { label: 'Laboratorio',    component: Assistant },
+  knowledge:    { label: 'Biblioteca',     component: KnowledgeBase },
+  contacts:     { label: 'Directorio',     component: Contacts },
+  notes:        { label: 'Notas',          component: Notes },
+  evidence:     { label: 'Evidencias',     component: EvidenceVault },
+  logic:        { label: 'Diseñador',      component: LogicDesigner },
+  settings:     { label: 'Configuración',  component: Settings },
 };
 
 export default function App() {
@@ -175,7 +177,7 @@ export default function App() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           sectionLabels={sectionLabels}
         />
-        <main className={`flex-1 ${activeModule === 'ac3' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
+        <main className={`flex-1 ${['ac3', 'expedientes'].includes(activeModule) ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
           <ErrorBoundary name={activeModule}>
             <ActiveComponent {...moduleProps} navigateTo={navigateTo} onModelChange={handleModelChange} userName={userName} sectionLabels={sectionLabels} onSectionLabelsChange={handleSectionLabelsChange} onCaseChange={setActiveCaseId} />
           </ErrorBoundary>
