@@ -1,7 +1,7 @@
 {
   "name": "lumen-app",
-  "version": "0.1.14",
-  "description": "LUMEN — Motor de Conocimiento Personal (SpaceX Stealth Edition)",
+  "version": "0.1.15",
+  "description": "LUMEN — Motor de Conocimiento Personal (Chiquisaurias Edition)",
   "main": "src/main/main.js",
   "author": "LUMEN Team",
   "license": "MIT",
