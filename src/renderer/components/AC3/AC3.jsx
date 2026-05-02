@@ -304,7 +304,7 @@ function normalizeNode(node) {
 
 // ─── Speeches Panel — read-only, copy, teleprompter ──────────────────────────
 
-function SpeechesPanel({ speeches, onCollapse, dockPos, onDock }) {
+function SpeechesPanel({ speeches, onCollapse, dockPos, onDock, activeCaseId }) {
   const [expanded, setExpanded] = useState(() => new Set());
   const [copying, setCopying]   = useState(null);
   const [tele, setTele]         = useState(null); // speechId en modo teleprompter
@@ -321,6 +321,9 @@ function SpeechesPanel({ speeches, onCollapse, dockPos, onDock }) {
     try { await navigator.clipboard.writeText(sp.content); } catch {}
     setCopying(sp.id);
     setTimeout(() => setCopying(null), 1500);
+    if (activeCaseId) {
+      window.lumen.cases.addResource(activeCaseId, { type: 'speech', id: sp.id, title: sp.title }).catch(() => {});
+    }
   };
 
   // Teleprompter overlay
@@ -420,7 +423,7 @@ function SpeechesPanel({ speeches, onCollapse, dockPos, onDock }) {
 
 // ─── Templates Panel — read-only, copy only ──────────────────────────────────
 
-function TemplatesPanel({ templates, onCollapse, dockPos, onDock }) {
+function TemplatesPanel({ templates, onCollapse, dockPos, onDock, activeCaseId }) {
   const [expanded, setExpanded] = useState(() => new Set(['saludo']));
   const [copying, setCopying]   = useState(null);
 
@@ -434,6 +437,9 @@ function TemplatesPanel({ templates, onCollapse, dockPos, onDock }) {
     try { await navigator.clipboard.writeText(t.content); } catch {}
     setCopying(t.id);
     setTimeout(() => setCopying(null), 1500);
+    if (activeCaseId) {
+      window.lumen.cases.addResource(activeCaseId, { type: 'text_template', id: t.id, title: t.title }).catch(() => {});
+    }
   };
 
   return (
@@ -506,7 +512,7 @@ function TemplatesPanel({ templates, onCollapse, dockPos, onDock }) {
 
 // ─── Decision Wizard — interactive step-by-step ───────────────────────────────
 
-function DecisionWizard({ branch, onBack }) {
+function DecisionWizard({ branch, onBack, activeCaseId }) {
   const nodes = useMemo(() => {
     const raw = Array.isArray(branch.nodes) ? branch.nodes : [];
     return raw.map(normalizeNode);
@@ -518,7 +524,16 @@ function DecisionWizard({ branch, onBack }) {
 
   const currentNode = nodes.find((n) => n.id === currentId) ?? null;
 
-  const advance = (nextNodeId) => {
+  const advance = (nextNodeId, chosenLabel) => {
+    // Log this decision step before advancing
+    if (activeCaseId && currentNode) {
+      window.lumen.cases.addDecisionStep(activeCaseId, {
+        node_id: currentNode.id,
+        title: currentNode.title,
+        branch: branch.name,
+        chosen: chosenLabel || null,
+      }).catch(() => {});
+    }
     setPath((p) => [...p, currentId]);
     if (nextNodeId) {
       const target = nodes.find((n) => n.id === nextNodeId);
@@ -703,7 +718,7 @@ function DecisionWizard({ branch, onBack }) {
                   {currentNode.options.map((opt) => (
                     <button
                       key={opt.id}
-                      onClick={() => advance(opt.next_node_id)}
+                      onClick={() => advance(opt.next_node_id, opt.label)}
                       style={{
                         padding: '11px 16px', borderRadius: 6, textAlign: 'left', cursor: 'pointer',
                         background: 'rgba(255,255,255,0.03)', border: '1px solid var(--lumen-border)',
@@ -781,6 +796,9 @@ function RightPanel({ activeBranch, emailTemplates, calEvents, calLoading, onCal
     navigator.clipboard.writeText(text).then(() => {
       setCopyingEmail(em.id);
       setTimeout(() => setCopyingEmail(null), 1400);
+      if (activeCase?.id) {
+        window.lumen.cases.addResource(activeCase.id, { type: 'email_template', id: em.id, title: em.subject || 'Plantilla de correo' }).catch(() => {});
+      }
     }).catch(() => {});
   };
 
@@ -1379,13 +1397,27 @@ function CaseHub({ activeTurn, recentCases, onNewCase, onSearchHistory, onTurnSt
 // ─── Finalize Modal ────────────────────────────────────────────────────────────
 
 function FinalizeModal({ activeCase, activeBranch, onConfirm, onCancel }) {
-  const [summary, setSummary] = useState('');
-  const [saving, setSaving]   = useState(false);
+  const [summary, setSummary]       = useState('');
+  const [saving, setSaving]         = useState(false);
+  const [freshCase, setFreshCase]   = useState(null);
+
+  useEffect(() => {
+    if (activeCase?.id) {
+      window.lumen.cases.getById(activeCase.id).then(setFreshCase).catch(() => {});
+    }
+  }, [activeCase?.id]);
+
+  const caseInfo = freshCase || activeCase;
 
   const transcript = (() => {
     try { return JSON.parse(localStorage.getItem(`lumen_case_chat_${activeCase?.id}`) || '[]'); }
     catch { return []; }
   })();
+
+  const resources   = (() => { try { return JSON.parse(caseInfo?.resources_used || '[]'); } catch { return []; } })();
+  const decisionPath = (() => { try { return JSON.parse(caseInfo?.decision_path || '[]'); } catch { return []; } })();
+
+  const resourceLabels = { text_template: 'Plantilla texto', email_template: 'Plantilla email', speech: 'Speech', policy: 'Política' };
 
   const doConfirm = async (doExport, doCal) => {
     setSaving(true);
@@ -1397,6 +1429,7 @@ function FinalizeModal({ activeCase, activeBranch, onConfirm, onCancel }) {
   const clientName = activeCase?.client?.name
     ? [activeCase.client.name, activeCase.client.last_name].filter(Boolean).join(' ')
     : (activeCase?.client_name || 'N/A');
+
 
   return (
     <div style={{
@@ -1453,6 +1486,40 @@ function FinalizeModal({ activeCase, activeBranch, onConfirm, onCancel }) {
               }}
             />
           </div>
+
+          {/* Resources used */}
+          {resources.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--lumen-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>
+                Recursos usados ({resources.length})
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {resources.map((r, i) => (
+                  <span key={i} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, background: 'rgba(126,63,242,0.1)', border: '1px solid rgba(126,63,242,0.2)', color: 'var(--lumen-accent)' }}>
+                    {resourceLabels[r.type] || r.type}: {r.title}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Decision path */}
+          {decisionPath.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--lumen-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>
+                Ruta de decisión ({decisionPath.length} pasos)
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {decisionPath.map((step, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6, padding: '3px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--lumen-border)' }}>
+                    <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--lumen-text-muted)', flexShrink: 0 }}>{i + 1}.</span>
+                    <span style={{ fontSize: 10, color: 'var(--lumen-text)', flex: 1 }}>{step.title}</span>
+                    {step.chosen && <span style={{ fontSize: 9, color: '#10b981', flexShrink: 0 }}>→ {step.chosen}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Transcript preview */}
           {transcript.length > 0 && (
@@ -1661,6 +1728,10 @@ function CaseDetailModal({ caseData, onClose }) {
     catch { return []; }
   })();
 
+  const resources    = (() => { try { return JSON.parse(caseData.resources_used || '[]'); } catch { return []; } })();
+  const decisionPath = (() => { try { return JSON.parse(caseData.decision_path || '[]'); } catch { return []; } })();
+  const resourceLabels = { text_template: 'Plantilla texto', email_template: 'Plantilla email', speech: 'Speech', policy: 'Política' };
+
   const PANEL_BG = '#13131b';
 
   return (
@@ -1724,6 +1795,40 @@ function CaseDetailModal({ caseData, onClose }) {
             </div>
           ) : (
             <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', fontStyle: 'italic' }}>Sin resumen registrado.</p>
+          )}
+
+          {/* Decision path */}
+          {decisionPath.length > 0 && (
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--lumen-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                Ruta de decisión ({decisionPath.length} pasos)
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {decisionPath.map((step, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6, padding: '3px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--lumen-border)' }}>
+                    <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--lumen-text-muted)', flexShrink: 0 }}>{i + 1}.</span>
+                    <span style={{ fontSize: 10, color: 'var(--lumen-text)', flex: 1 }}>{step.title}</span>
+                    {step.chosen && <span style={{ fontSize: 9, color: '#10b981', flexShrink: 0 }}>→ {step.chosen}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Resources used */}
+          {resources.length > 0 && (
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--lumen-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                Recursos usados ({resources.length})
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {resources.map((r, i) => (
+                  <span key={i} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, background: 'rgba(126,63,242,0.1)', border: '1px solid rgba(126,63,242,0.2)', color: 'var(--lumen-accent)' }}>
+                    {resourceLabels[r.type] || r.type}: {r.title}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Transcript */}
@@ -1880,6 +1985,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
       if (externalId) caseData.external_id = externalId;
       const newCase = await window.lumen.cases.create(caseData);
       setActiveCase({ ...newCase, client_id: client?.id || null, client: client || null });
+      localStorage.setItem('lumen_active_case_id', String(newCase.id));
       onCaseChange?.(newCase.id);
       setShowClientSelector(false);
     } catch (e) { console.error('openCase error', e); }
@@ -1915,6 +2021,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
       }
       setActiveCase(null);
       setActiveBranch(null);
+      localStorage.removeItem('lumen_active_case_id');
       onCaseChange?.(null);
       setShowFinalizeModal(false);
       window.lumen.cases.search({}).then((r) => setRecentCases((r || []).slice(0, 5))).catch(() => {});
@@ -1945,7 +2052,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
     tplCollapsed
       ? <CollapsedStrip key="tpl-strip" label="Plantillas" side={tplDock === 'right' ? 'right' : tplDock === 'bottom' ? 'bottom' : 'left'} onExpand={toggleTpl} />
       : <div key="tpl-panel" style={{ width: tplDock !== 'bottom' ? tplWidth : '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', [tplDock === 'right' ? 'borderLeft' : 'borderRight']: '1px solid var(--lumen-border)' }}>
-          <TemplatesPanel templates={textTemplates} onCollapse={toggleTpl} dockPos={tplDock} onDock={setTplDock} />
+          <TemplatesPanel templates={textTemplates} onCollapse={toggleTpl} dockPos={tplDock} onDock={setTplDock} activeCaseId={activeCase?.id} />
           <div onMouseDown={(e) => startTplDrag(e, tplDock === 'right' ? -1 : 1)} style={dragHandleStyle(tplDock === 'right' ? 'left' : 'right')}
             onMouseEnter={(e) => DRAG_HOVER(e, true)} onMouseLeave={(e) => DRAG_HOVER(e, false)} />
         </div>
@@ -1955,7 +2062,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
     spCollapsed
       ? <CollapsedStrip key="sp-strip" label="Speeches" side={spDock === 'right' ? 'right' : spDock === 'bottom' ? 'bottom' : 'left'} onExpand={toggleSp} />
       : <div key="sp-panel" style={{ width: spDock !== 'bottom' ? spWidth : '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', [spDock === 'right' ? 'borderLeft' : 'borderRight']: '1px solid var(--lumen-border)' }}>
-          <SpeechesPanel speeches={speeches} onCollapse={toggleSp} dockPos={spDock} onDock={setSpDock} />
+          <SpeechesPanel speeches={speeches} onCollapse={toggleSp} dockPos={spDock} onDock={setSpDock} activeCaseId={activeCase?.id} />
           <div onMouseDown={(e) => startSpDrag(e, spDock === 'right' ? -1 : 1)} style={dragHandleStyle(spDock === 'right' ? 'left' : 'right')}
             onMouseEnter={(e) => DRAG_HOVER(e, true)} onMouseLeave={(e) => DRAG_HOVER(e, false)} />
         </div>
@@ -2033,7 +2140,7 @@ export default function AC3({ navigateTo: onNavigate, onCaseChange }) {
         {activeCase ? (
           activeBranch ? (
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <DecisionWizard branch={activeBranch} onBack={() => setActiveBranch(null)} />
+              <DecisionWizard branch={activeBranch} onBack={() => setActiveBranch(null)} activeCaseId={activeCase?.id} />
             </div>
           ) : (
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>

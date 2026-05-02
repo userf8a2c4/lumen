@@ -224,7 +224,14 @@ export default function Notes() {
     if (editingNote) {
       await window.lumen.notes.update(editingNote.id, data);
     } else {
-      await window.lumen.notes.create(data);
+      // Auto-link to active case if one is open
+      const activeCaseId = (() => {
+        try {
+          const v = localStorage.getItem('lumen_active_case_id');
+          return v ? parseInt(v, 10) : null;
+        } catch { return null; }
+      })();
+      await window.lumen.notes.create({ ...data, ...(activeCaseId ? { case_id: activeCaseId } : {}) });
     }
     setShowEditor(false);
     setEditingNote(null);

@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('lumen', {
     delete: (id) => ipcRenderer.invoke('notes:delete', id),
     search: (query) => ipcRenderer.invoke('notes:search', query),
     saveAttachment: (fileName, buffer) => ipcRenderer.invoke('notes:saveAttachment', fileName, buffer),
+    getByCaseId: (caseId) => ipcRenderer.invoke('notes:getByCaseId', caseId),
   },
   settings: {
     getApiKey: () => ipcRenderer.invoke('settings:getApiKey'),
@@ -185,5 +186,7 @@ contextBridge.exposeInMainWorld('lumen', {
     close:            (id, data)      => ipcRenderer.invoke('cases:close', id, data),
     getLastForClient: (clientId, lim) => ipcRenderer.invoke('cases:getLastForClient', clientId, lim),
     search:           (filters)       => ipcRenderer.invoke('cases:search', filters),
+    addResource:      (caseId, res)   => ipcRenderer.invoke('cases:addResource', caseId, res),
+    addDecisionStep:  (caseId, step)  => ipcRenderer.invoke('cases:addDecisionStep', caseId, step),
   },
 });

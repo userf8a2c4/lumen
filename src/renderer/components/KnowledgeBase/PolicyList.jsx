@@ -115,7 +115,20 @@ export default function PolicyList({ policies, onEdit, onDelete, onViewExamples 
     return acc;
   }, {});
 
-  const openView  = (p) => setViewing(p);
+  const openView  = (p) => {
+    setViewing(p);
+    // Auto-log policy view if a case is active
+    try {
+      const activeCaseId = localStorage.getItem('lumen_active_case_id');
+      if (activeCaseId) {
+        window.lumen.cases.addResource(parseInt(activeCaseId, 10), {
+          type: 'policy',
+          id: p.id,
+          title: p.title,
+        }).catch(() => {});
+      }
+    } catch {}
+  };
   const closeView = () => setViewing(null);
 
   const handleEdit = (p) => {

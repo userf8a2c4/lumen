@@ -249,6 +249,12 @@ async function initDatabase() {
 
   // notes: add ref_links if upgrading from older schema
   try { db.run("ALTER TABLE notes ADD COLUMN ref_links TEXT NOT NULL DEFAULT '[]'"); } catch {}
+  // notes: link to cases
+  try { db.run('ALTER TABLE notes ADD COLUMN case_id INTEGER'); } catch {}
+
+  // cases: extended tracking fields
+  try { db.run("ALTER TABLE cases ADD COLUMN resources_used TEXT NOT NULL DEFAULT '[]'"); } catch {}
+  try { db.run("ALTER TABLE cases ADD COLUMN decision_path TEXT NOT NULL DEFAULT '[]'"); } catch {}
   // policies: add tags if upgrading from older schema
   try { db.run("ALTER TABLE policies ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"); } catch {}
 
@@ -587,12 +593,16 @@ function getNoteById(id) {
   return queryOne('SELECT * FROM notes WHERE id = ?', [id]);
 }
 
-function createNote({ title, content, tags, attachments, ref_links }) {
+function createNote({ title, content, tags, attachments, ref_links, case_id }) {
   runAndSave(
-    'INSERT INTO notes (title, content, tags, attachments, ref_links) VALUES (?, ?, ?, ?, ?)',
-    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || []), JSON.stringify(ref_links || [])]
+    'INSERT INTO notes (title, content, tags, attachments, ref_links, case_id) VALUES (?, ?, ?, ?, ?, ?)',
+    [title, content || '', JSON.stringify(tags || []), JSON.stringify(attachments || []), JSON.stringify(ref_links || []), case_id || null]
   );
   return getNoteById(getLastId());
+}
+
+function getNotesByCase(caseId) {
+  return queryAll('SELECT * FROM notes WHERE case_id = ? ORDER BY updated_at DESC', [caseId]);
 }
 
 function updateNote(id, { title, content, tags, attachments, ref_links }) {
@@ -1015,14 +1025,17 @@ function getCaseById(id) {
 
 function updateCase(id, data) {
   runAndSave(
-    `UPDATE cases SET branch_id=?, branch_name=?, policies_used=?, notes=?, chat_transcript=?, summary=? WHERE id=?`,
+    `UPDATE cases SET branch_id=?, branch_name=?, policies_used=?, notes=?, chat_transcript=?, summary=?,
+     resources_used=?, decision_path=? WHERE id=?`,
     [
       data.branch_id   || null,
       data.branch_name || '',
-      JSON.stringify(data.policies_used || []),
+      JSON.stringify(data.policies_used    || []),
       data.notes       || '',
-      JSON.stringify(data.chat_transcript || []),
+      JSON.stringify(data.chat_transcript  || []),
       data.summary     || '',
+      JSON.stringify(data.resources_used   || []),
+      JSON.stringify(data.decision_path    || []),
       id,
     ]
   );
@@ -1031,17 +1044,20 @@ function updateCase(id, data) {
 function closeCase(id, data) {
   runAndSave(
     `UPDATE cases SET status='closed', closed_at=CURRENT_TIMESTAMP, duration_seconds=?,
-     branch_id=?, branch_name=?, policies_used=?, notes=?, chat_transcript=?, summary=?, calendar_event_id=?
+     branch_id=?, branch_name=?, policies_used=?, notes=?, chat_transcript=?, summary=?,
+     calendar_event_id=?, resources_used=?, decision_path=?
      WHERE id=?`,
     [
       data.duration_seconds   || 0,
       data.branch_id          || null,
       data.branch_name        || '',
-      JSON.stringify(data.policies_used   || []),
+      JSON.stringify(data.policies_used    || []),
       data.notes              || '',
-      JSON.stringify(data.chat_transcript || []),
+      JSON.stringify(data.chat_transcript  || []),
       data.summary            || '',
       data.calendar_event_id  || null,
+      JSON.stringify(data.resources_used   || []),
+      JSON.stringify(data.decision_path    || []),
       id,
     ]
   );
@@ -1050,6 +1066,26 @@ function closeCase(id, data) {
     row._client = queryOne('SELECT * FROM contacts WHERE id = ?', [row.client_id]);
   }
   return row;
+}
+
+// Append a single resource entry to cases.resources_used atomically
+function addResourceToCase(caseId, resource) {
+  const row = queryOne('SELECT resources_used FROM cases WHERE id = ?', [caseId]);
+  if (!row) return;
+  let arr = [];
+  try { arr = JSON.parse(row.resources_used || '[]'); } catch {}
+  arr.push({ ...resource, ts: new Date().toISOString() });
+  runAndSave('UPDATE cases SET resources_used=? WHERE id=?', [JSON.stringify(arr), caseId]);
+}
+
+// Append a node step to cases.decision_path
+function addDecisionStepToCase(caseId, step) {
+  const row = queryOne('SELECT decision_path FROM cases WHERE id = ?', [caseId]);
+  if (!row) return;
+  let arr = [];
+  try { arr = JSON.parse(row.decision_path || '[]'); } catch {}
+  arr.push({ ...step, ts: new Date().toISOString() });
+  runAndSave('UPDATE cases SET decision_path=? WHERE id=?', [JSON.stringify(arr), caseId]);
 }
 
 function getLastCasesForClient(clientId, limit = 5) {
@@ -1240,4 +1276,7 @@ module.exports = {
   closeCase,
   getLastCasesForClient,
   searchCases,
+  addResourceToCase,
+  addDecisionStepToCase,
+  getNotesByCase,
 };

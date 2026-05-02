@@ -967,6 +967,9 @@ Devuelve el JSON de la propuesta.`;
   ipcMain.handle('cases:close',       (_e, id, data)=> db.closeCase(id, data));
   ipcMain.handle('cases:getLastForClient', (_e, clientId, limit) => db.getLastCasesForClient(clientId, limit));
   ipcMain.handle('cases:search',      (_e, filters) => db.searchCases(filters || {}));
+  ipcMain.handle('cases:addResource',     (_e, caseId, resource) => db.addResourceToCase(caseId, resource));
+  ipcMain.handle('cases:addDecisionStep', (_e, caseId, step)     => db.addDecisionStepToCase(caseId, step));
+  ipcMain.handle('notes:getByCaseId',     (_e, caseId)           => db.getNotesByCase(caseId));
 
   // Speeches
   ipcMain.handle('ac3:speeches:getAll',   ()             => db.getAllSpeeches());
