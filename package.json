@@ -1,6 +1,6 @@
 {
   "name": "lumen-app",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "description": "LUMEN — Motor de Conocimiento Personal (Chiquisaurias Edition)",
   "main": "src/main/main.js",
   "author": "LUMEN Team",

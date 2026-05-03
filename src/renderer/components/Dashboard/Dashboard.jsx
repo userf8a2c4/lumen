@@ -24,6 +24,20 @@ function getCurrentPosition() {
   });
 }
 
+async function getLocationByIP() {
+  try {
+    const res = await fetch('https://ipapi.co/json/', { headers: { 'User-Agent': 'LUMEN-App/1.0' } });
+    const d = await res.json();
+    if (d.latitude && d.longitude) return { lat: d.latitude, lng: d.longitude };
+  } catch {}
+  try {
+    const res = await fetch('https://ip-api.com/json/?fields=lat,lon,status');
+    const d = await res.json();
+    if (d.status === 'success') return { lat: d.lat, lng: d.lon };
+  } catch {}
+  return null;
+}
+
 async function reverseGeocode(lat, lng) {
   try {
     const res = await fetch(
@@ -565,7 +579,7 @@ function PromosWidget({ onNavigateSettings }) {
       loc = { lat, lng, address: addr };
       setAddress(addr);
     } catch {
-      // 2. Fallback: last saved location in Settings
+      // 2. Fallback: saved location in Settings
       try {
         const locs = await window.lumen.settings.getLocations();
         const saved = (locs || []).filter((l) => l.enabled && l.lat);
@@ -574,6 +588,18 @@ function PromosWidget({ onNavigateSettings }) {
           setAddress(loc.address || `${loc.lat?.toFixed(4)}, ${loc.lng?.toFixed(4)}`);
         }
       } catch {}
+
+      // 3. Fallback: IP geolocation (for PCs without GPS hardware)
+      if (!loc) {
+        try {
+          const ipLoc = await getLocationByIP();
+          if (ipLoc) {
+            const addr = await reverseGeocode(ipLoc.lat, ipLoc.lng);
+            loc = { lat: ipLoc.lat, lng: ipLoc.lng, address: addr };
+            setAddress(addr + ' (aprox.)');
+          }
+        } catch {}
+      }
     }
 
     if (!loc) {

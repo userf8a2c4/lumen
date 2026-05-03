@@ -30,9 +30,26 @@ function isValidCoord(val, min, max) {
   return !isNaN(n) && n >= min && n <= max;
 }
 
+async function getLocationByIP() {
+  // Primary: ipapi.co
+  try {
+    const res = await fetch('https://ipapi.co/json/', { headers: { 'User-Agent': 'LUMEN-App/1.0' } });
+    const d = await res.json();
+    if (d.latitude && d.longitude) return { lat: d.latitude, lng: d.longitude, city: d.city || d.region || '' };
+  } catch {}
+  // Fallback: ip-api.com
+  try {
+    const res = await fetch('https://ip-api.com/json/?fields=lat,lon,city,status');
+    const d = await res.json();
+    if (d.status === 'success') return { lat: d.lat, lng: d.lon, city: d.city || '' };
+  } catch {}
+  return null;
+}
+
 function LocationCard({ loc, onChange }) {
   const [status,     setStatus]     = useState('idle'); // idle | loading | success | error
   const [errorMsg,   setErrorMsg]   = useState('');
+  const [ipStatus,   setIpStatus]   = useState('idle'); // idle | loading | success | error
   const [manualLat,  setManualLat]  = useState('');
   const [manualLng,  setManualLng]  = useState('');
   const [manualStatus, setManualStatus] = useState('idle'); // idle | loading | success | error
@@ -59,13 +76,29 @@ function LocationCard({ loc, onChange }) {
       (err) => {
         setStatus('error');
         setErrorMsg(
-          err.code === 1 ? 'Permiso denegado. Permite acceso a ubicación en Windows.' :
-          err.code === 2 ? 'No se pudo obtener ubicación. Verifica que el GPS esté activo.' :
-                           'Tiempo de espera agotado. Intenta de nuevo.'
+          err.code === 1
+            ? 'Permiso denegado. Activa el acceso en Configuración de Windows > Privacidad > Ubicación.'
+            : err.code === 2
+            ? 'Tu PC no tiene GPS de hardware. Usa "Ubicación por IP" o ingresa coordenadas manualmente.'
+            : 'Tiempo de espera agotado. Intenta de nuevo.'
         );
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+  };
+
+  // ── IP-based location (fallback for PCs without GPS hardware) ────
+  const captureByIP = async () => {
+    setIpStatus('loading');
+    try {
+      const result = await getLocationByIP();
+      if (!result) { setIpStatus('error'); return; }
+      const address = await reverseGeocode(result.lat, result.lng);
+      onChange({ ...loc, lat: result.lat, lng: result.lng, address, enabled: true });
+      setIpStatus('success');
+      setStatus('idle'); setErrorMsg('');
+      setTimeout(() => setIpStatus('idle'), 2500);
+    } catch { setIpStatus('error'); }
   };
 
   // ── Manual coordinates save ───────────────────────────────────────
@@ -159,9 +192,36 @@ function LocationCard({ loc, onChange }) {
          :                        'Usar mi ubicación actual'}
         </button>
 
-        {/* GPS error detail */}
+        {/* GPS error detail + IP fallback */}
         {status === 'error' && errorMsg && (
-          <p style={{ fontSize: 10, color: '#f87171', lineHeight: 1.5, margin: 0 }}>{errorMsg}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <p style={{ fontSize: 10, color: '#f87171', lineHeight: 1.5, margin: 0 }}>{errorMsg}</p>
+            {/* IP fallback button — shown when GPS hardware is missing (code 2) */}
+            <button
+              onClick={captureByIP}
+              disabled={ipStatus === 'loading'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '6px 12px', borderRadius: 5, cursor: ipStatus === 'loading' ? 'default' : 'pointer',
+                fontSize: 10, fontWeight: 600, transition: 'all 0.15s',
+                background: ipStatus === 'success' ? 'rgba(16,185,129,0.1)' : ipStatus === 'error' ? 'rgba(239,68,68,0.08)' : 'rgba(96,165,250,0.1)',
+                border: `1px solid ${ipStatus === 'success' ? 'rgba(16,185,129,0.3)' : ipStatus === 'error' ? 'rgba(239,68,68,0.25)' : 'rgba(96,165,250,0.3)'}`,
+                color: ipStatus === 'success' ? '#10b981' : ipStatus === 'error' ? '#f87171' : '#60a5fa',
+              }}
+            >
+              {ipStatus === 'loading' && <Loader2 size={11} className="animate-spin" />}
+              {ipStatus === 'success' && <CheckCircle2 size={11} />}
+              {ipStatus === 'error'   && <AlertCircle size={11} />}
+              {ipStatus === 'idle'    && <Navigation size={11} />}
+              {ipStatus === 'loading' ? 'Obteniendo por IP…'
+             : ipStatus === 'success' ? '¡Ubicación guardada!'
+             : ipStatus === 'error'   ? 'No se pudo obtener IP'
+             :                          'Usar ubicación aproximada por IP'}
+            </button>
+            <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', margin: 0, lineHeight: 1.4 }}>
+              La ubicación por IP es aproximada (nivel ciudad). Para mayor precisión usa las coordenadas manuales.
+            </p>
+          </div>
         )}
 
         {/* Toggle manual entry */}
