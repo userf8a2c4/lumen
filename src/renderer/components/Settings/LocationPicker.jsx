@@ -1,29 +1,9 @@
-/**
- * LocationPicker — Selector de 3 ubicaciones con mapa OpenStreetMap + Leaflet.
- * Cada ubicación (Casa, Trabajo, Otro) tiene un pin arrastrable.
- * Reverse geocoding via Nominatim (gratuito, sin API key).
- */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Loader2, ToggleLeft, ToggleRight, RefreshCw } from 'lucide-react';
-
-// Fix Leaflet default icons (Vite/webpack issue)
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-delete L.Icon.Default.prototype._getIconUrl;
+import React, { useState } from 'react';
+import { MapPin, Loader2, ToggleLeft, ToggleRight, Navigation, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const ICON_COLORS = { home: '#10b981', work: '#60a5fa', other: '#f59e0b' };
 const ICON_LABELS = { home: 'Casa', work: 'Trabajo', other: 'Otro' };
 
-function makeIcon(color) {
-  return L.divIcon({
-    html: `<div style="width:20px;height:20px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.45)"></div>`,
-    className: '',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-  });
-}
-
-// Reverse geocode with Nominatim
 async function reverseGeocode(lat, lng) {
   try {
     const res = await fetch(
@@ -31,7 +11,6 @@ async function reverseGeocode(lat, lng) {
       { headers: { 'User-Agent': 'LUMEN-App/1.0' } }
     );
     const data = await res.json();
-    // Build a short readable address
     const a = data.address || {};
     const parts = [
       a.road || a.pedestrian || a.footway,
@@ -46,85 +25,50 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-// Single location card with embedded mini-map
 function LocationCard({ loc, onChange }) {
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markerRef = useRef(null);
-  const [geocoding, setGeocoding] = useState(false);
-
-  // Default to Toluca centro if no coords
-  const defaultLat = loc.lat ?? 19.2934;
-  const defaultLng = loc.lng ?? -99.6569;
-
-  useEffect(() => {
-    if (mapInstanceRef.current) return; // already initialized
-
-    const map = L.map(mapRef.current, {
-      center: [defaultLat, defaultLng],
-      zoom: loc.lat ? 15 : 13,
-      zoomControl: true,
-      attributionControl: false,
-    });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
-
-    const marker = L.marker([defaultLat, defaultLng], {
-      draggable: true,
-      icon: makeIcon(ICON_COLORS[loc.id]),
-    }).addTo(map);
-
-    marker.on('dragend', async (e) => {
-      const { lat, lng } = e.target.getLatLng();
-      setGeocoding(true);
-      const address = await reverseGeocode(lat, lng);
-      setGeocoding(false);
-      onChange({ ...loc, lat, lng, address });
-    });
-
-    // Click to move pin
-    map.on('click', async (e) => {
-      const { lat, lng } = e.latlng;
-      marker.setLatLng([lat, lng]);
-      setGeocoding(true);
-      const address = await reverseGeocode(lat, lng);
-      setGeocoding(false);
-      onChange({ ...loc, lat, lng, address });
-    });
-
-    mapInstanceRef.current = map;
-    markerRef.current = marker;
-
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-      markerRef.current = null;
-    };
-  }, []); // eslint-disable-line
-
-  // Sync marker when lat/lng changes externally
-  useEffect(() => {
-    if (markerRef.current && loc.lat && loc.lng) {
-      markerRef.current.setLatLng([loc.lat, loc.lng]);
-      mapInstanceRef.current?.setView([loc.lat, loc.lng], 15, { animate: true });
-    }
-  }, [loc.lat, loc.lng]);
-
+  const [status, setStatus] = useState('idle'); // idle | loading | success | error
+  const [errorMsg, setErrorMsg] = useState('');
   const color = ICON_COLORS[loc.id];
+
+  const captureLocation = () => {
+    if (!navigator.geolocation) {
+      setStatus('error');
+      setErrorMsg('Tu dispositivo no soporta geolocalización.');
+      return;
+    }
+    setStatus('loading');
+    setErrorMsg('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const address = await reverseGeocode(lat, lng);
+        onChange({ ...loc, lat, lng, address, enabled: true });
+        setStatus('success');
+        setTimeout(() => setStatus('idle'), 2500);
+      },
+      (err) => {
+        setStatus('error');
+        setErrorMsg(
+          err.code === 1 ? 'Permiso de ubicación denegado. Permite el acceso en la configuración de Windows.' :
+          err.code === 2 ? 'No se pudo obtener la ubicación. Verifica que el GPS esté activo.' :
+          'Tiempo de espera agotado. Intenta de nuevo.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   return (
     <div style={{
       border: `1px solid ${loc.enabled ? color + '55' : 'var(--lumen-border)'}`,
       borderRadius: 8, overflow: 'hidden',
-      opacity: loc.enabled ? 1 : 0.5,
+      opacity: loc.enabled ? 1 : 0.6,
       transition: 'opacity 0.2s, border-color 0.2s',
     }}>
-      {/* Card header */}
+      {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '8px 12px',
+        padding: '10px 14px',
         background: loc.enabled ? `${color}10` : 'var(--lumen-card)',
         borderBottom: '1px solid var(--lumen-border)',
       }}>
@@ -132,7 +76,6 @@ function LocationCard({ loc, onChange }) {
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--lumen-text)', flex: 1 }}>
           {ICON_LABELS[loc.id]}
         </span>
-        {/* Enabled toggle */}
         <button
           type="button"
           onClick={() => onChange({ ...loc, enabled: !loc.enabled })}
@@ -141,37 +84,82 @@ function LocationCard({ loc, onChange }) {
         >
           {loc.enabled
             ? <ToggleRight size={20} style={{ color }} />
-            : <ToggleLeft size={20} style={{ color: 'var(--lumen-text-muted)' }} />
+            : <ToggleLeft  size={20} style={{ color: 'var(--lumen-text-muted)' }} />
           }
         </button>
       </div>
 
-      {/* Map */}
-      <div ref={mapRef} style={{ height: 160, width: '100%', cursor: 'crosshair' }} />
+      {/* Body */}
+      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--lumen-card)' }}>
 
-      {/* Address display */}
-      <div style={{ padding: '7px 12px', background: 'var(--lumen-card)', display: 'flex', alignItems: 'center', gap: 6 }}>
-        {geocoding
-          ? <Loader2 size={11} className="animate-spin" style={{ color: 'var(--lumen-text-muted)', flexShrink: 0 }} />
-          : <MapPin size={11} style={{ color: 'var(--lumen-text-muted)', flexShrink: 0 }} />
-        }
-        <span style={{ fontSize: 10, color: geocoding ? 'var(--lumen-text-muted)' : 'var(--lumen-text-secondary)', lineHeight: 1.4, flex: 1 }}>
-          {geocoding ? 'Obteniendo dirección...' : loc.address || 'Arrastra o haz clic en el mapa para fijar ubicación'}
-        </span>
+        {/* Current address */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <MapPin size={11} style={{ color: loc.address ? color : 'var(--lumen-text-muted)', marginTop: 2, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: loc.address ? 'var(--lumen-text-secondary)' : 'var(--lumen-text-muted)', lineHeight: 1.5, flex: 1 }}>
+            {loc.address || 'Sin ubicación configurada'}
+          </span>
+        </div>
+
+        {/* Capture button */}
+        <button
+          onClick={captureLocation}
+          disabled={status === 'loading'}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            padding: '8px 14px', borderRadius: 6, cursor: status === 'loading' ? 'default' : 'pointer',
+            fontSize: 11, fontWeight: 600, transition: 'all 0.15s',
+            background: status === 'success' ? 'rgba(16,185,129,0.12)'
+                      : status === 'error'   ? 'rgba(239,68,68,0.08)'
+                      : `${color}14`,
+            border: `1px solid ${
+              status === 'success' ? 'rgba(16,185,129,0.3)'
+            : status === 'error'   ? 'rgba(239,68,68,0.25)'
+            : color + '40'}`,
+            color: status === 'success' ? '#10b981'
+                 : status === 'error'   ? '#f87171'
+                 : color,
+          }}
+        >
+          {status === 'loading' && <Loader2 size={13} className="animate-spin" />}
+          {status === 'success' && <CheckCircle2 size={13} />}
+          {status === 'error'   && <AlertCircle size={13} />}
+          {status === 'idle'    && <Navigation size={13} />}
+
+          {status === 'loading' ? 'Obteniendo ubicación…'
+         : status === 'success' ? '¡Ubicación guardada!'
+         : status === 'error'   ? 'Error — Intentar de nuevo'
+         : loc.address          ? 'Actualizar ubicación actual'
+         :                        'Usar mi ubicación actual'}
+        </button>
+
+        {/* Error detail */}
+        {status === 'error' && errorMsg && (
+          <p style={{ fontSize: 10, color: '#f87171', lineHeight: 1.5, margin: 0 }}>
+            {errorMsg}
+          </p>
+        )}
+
+        {/* Coords hint */}
+        {loc.lat && loc.lng && (
+          <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', fontFamily: 'monospace', margin: 0 }}>
+            {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)}
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
 export default function LocationPicker({ locations, onChange }) {
-  const handleChange = useCallback((updated) => {
+  const handleChange = (updated) => {
     onChange(locations.map((l) => l.id === updated.id ? updated : l));
-  }, [locations, onChange]);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.55, marginBottom: 4 }}>
-        Haz clic en el mapa o arrastra el pin para fijar cada ubicación. El widget de promociones en Dashboard usará estas coordenadas para buscar negocios y ofertas cercanas.
+      <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', lineHeight: 1.6, marginBottom: 4 }}>
+        Presiona el botón en cada ubicación para capturar tu posición GPS actual.
+        El widget de promociones en Dashboard usará estas coordenadas para buscar negocios y ofertas cercanas.
       </p>
       {locations.map((loc) => (
         <LocationCard key={loc.id} loc={loc} onChange={handleChange} />
