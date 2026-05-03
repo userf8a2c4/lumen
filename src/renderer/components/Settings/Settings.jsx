@@ -345,7 +345,7 @@ function SpeechesEditor() {
     window.lumen.ac3.speeches.getAll().then(setSpeeches).catch(() => {});
   }, []);
 
-  const categories = [...new Set(speeches.map((s) => s.category))].sort();
+  const categories = [...new Set(speeches.filter(Boolean).map((s) => s.category))].sort();
 
   const toggleCat = (cat) => setExpandedCat((prev) => {
     const s = new Set(prev);
@@ -384,12 +384,19 @@ function SpeechesEditor() {
         content: newData.content.trim(),
         order_idx: speeches.length,
       });
-      setSpeeches((p) => [...p, saved]);
+      if (saved) {
+        setSpeeches((p) => [...p.filter(Boolean), saved]);
+        setExpandedCat((prev) => new Set([...prev, saved.category]));
+      } else {
+        // Fallback: reload from DB to keep state consistent
+        window.lumen.ac3.speeches.getAll().then((all) => setSpeeches(all || [])).catch(() => {});
+      }
       setAdding(false);
       setNewData({ category: '', title: '', content: '' });
-      // Auto-expand category
-      setExpandedCat((prev) => new Set([...prev, saved.category]));
-    } catch {}
+    } catch {
+      // On any error, reload speeches to avoid stale/null state
+      window.lumen.ac3.speeches.getAll().then((all) => setSpeeches(all || [])).catch(() => {});
+    }
   };
 
   return (

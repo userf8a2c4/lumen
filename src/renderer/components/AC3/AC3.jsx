@@ -302,14 +302,15 @@ function normalizeNode(node) {
   };
 }
 
-// ─── Speeches Panel — read-only, copy, teleprompter ──────────────────────────
+// ─── Speeches Panel — read-only, click to teleprompter ───────────────────────
 
 function SpeechesPanel({ speeches, onCollapse, dockPos, onDock, activeCaseId }) {
   const [expanded, setExpanded] = useState(() => new Set());
-  const [copying, setCopying]   = useState(null);
-  const [tele, setTele]         = useState(null); // speechId en modo teleprompter
+  const [copying, setCopying]   = useState(false);
+  const [tele, setTele]         = useState(null); // speech object en modo teleprompter
 
-  const categories = [...new Set(speeches.map((s) => s.category))].sort();
+  const safeSpeeches = speeches.filter(Boolean);
+  const categories = [...new Set(safeSpeeches.map((s) => s.category))].sort();
 
   const toggle = (cat) => setExpanded((prev) => {
     const s = new Set(prev);
@@ -317,7 +318,8 @@ function SpeechesPanel({ speeches, onCollapse, dockPos, onDock, activeCaseId }) 
     return s;
   });
 
-  const copy = async (sp) => {
+  const copy = async (sp, e) => {
+    if (e) e.stopPropagation();
     try { await navigator.clipboard.writeText(sp.content); } catch {}
     setCopying(sp.id);
     setTimeout(() => setCopying(null), 1500);
@@ -326,28 +328,71 @@ function SpeechesPanel({ speeches, onCollapse, dockPos, onDock, activeCaseId }) 
     }
   };
 
-  // Teleprompter overlay
+  // ── Teleprompter overlay ──────────────────────────────────────────────────
   if (tele) {
-    const sp = speeches.find((s) => s.id === tele);
     return (
       <div style={{
         flex: 1, minWidth: 0,
-        background: '#000', color: '#fff',
+        background: '#0a0a0a',
         display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
       }}>
-        <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => setTele(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-            ← Salir
+        {/* Header */}
+        <div style={{
+          padding: '8px 12px',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={() => setTele(null)}
+            style={{ background: 'rgba(255,255,255,0.07)', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 10, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 4 }}
+          >
+            ← Volver
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: '#555', textTransform: 'uppercase', marginBottom: 1 }}>{tele.category}</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tele.title}</p>
+          </div>
+          <button
+            onClick={(e) => copy(tele, e)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4,
+              border: 'none', cursor: 'pointer', fontSize: 10, fontWeight: 600, flexShrink: 0,
+              background: copying === tele.id ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.08)',
+              color: copying === tele.id ? '#4ade80' : '#aaa',
+              transition: 'all 0.15s',
+            }}
+          >
+            {copying === tele.id ? <><Check size={10} /> Copiado</> : <><Copy size={10} /> Copiar</>}
           </button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
-          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#666', textTransform: 'uppercase', marginBottom: 12 }}>{sp?.category}</p>
-          <p style={{ fontSize: 18, lineHeight: 1.8, color: '#fff', whiteSpace: 'pre-wrap' }}>{sp?.content}</p>
+
+        {/* Teleprompter body */}
+        <div style={{
+          flex: 1, overflowY: 'auto',
+          padding: '28px 20px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+        }}>
+          <div style={{ maxWidth: 520, width: '100%' }}>
+            <p style={{
+              fontSize: 17,
+              lineHeight: 2.1,
+              color: '#f0f0f0',
+              whiteSpace: 'pre-wrap',
+              fontWeight: 400,
+              letterSpacing: '0.01em',
+              textAlign: 'left',
+            }}>
+              {tele.content}
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
+  // ── Speech list ───────────────────────────────────────────────────────────
   return (
     <div style={{
       flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
@@ -367,12 +412,12 @@ function SpeechesPanel({ speeches, onCollapse, dockPos, onDock, activeCaseId }) 
         )}
       </div>
 
-      {speeches.length === 0 ? (
+      {safeSpeeches.length === 0 ? (
         <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', padding: '14px', lineHeight: 1.5, opacity: 0.6 }}>
           Sin guiones. Agrega en Configuración.
         </p>
       ) : categories.map((cat) => {
-        const items = speeches.filter((s) => s.category === cat);
+        const items = safeSpeeches.filter((s) => s.category === cat);
         const open = expanded.has(cat);
         return (
           <div key={cat} style={{ borderBottom: '1px solid var(--lumen-border)' }}>
@@ -392,25 +437,27 @@ function SpeechesPanel({ speeches, onCollapse, dockPos, onDock, activeCaseId }) 
             {open && (
               <div style={{ padding: '0 8px 6px' }}>
                 {items.map((sp) => (
-                  <div key={sp.id} style={{ marginBottom: 4, borderRadius: 5, border: '1px solid var(--lumen-border)', background: 'rgba(255,255,255,0.02)', padding: '6px 8px' }}>
-                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', marginBottom: 3, lineHeight: 1.3 }}>{sp.title}</p>
-                    <p style={{ fontSize: 10, color: 'var(--lumen-text-muted)', lineHeight: 1.45, marginBottom: 5 }} className="line-clamp-2">{sp.content}</p>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button
-                        onClick={() => copy(sp)}
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 9, padding: '3px 0', borderRadius: 3, cursor: 'pointer', border: 'none', background: copying === sp.id ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)', color: copying === sp.id ? '#4ade80' : 'var(--lumen-text-muted)', transition: 'all 0.15s' }}
-                      >
-                        {copying === sp.id ? <><Check size={9} /> Copiado</> : <><Copy size={9} /> Copiar</>}
-                      </button>
-                      <button
-                        onClick={() => setTele(sp.id)}
-                        title="Modo teleprompter"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 9, padding: '3px 6px', borderRadius: 3, cursor: 'pointer', border: 'none', background: 'rgba(255,255,255,0.05)', color: 'var(--lumen-text-muted)' }}
-                      >
-                        ▶
-                      </button>
+                  <button
+                    key={sp.id}
+                    onClick={() => setTele(sp)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      marginBottom: 4, borderRadius: 5,
+                      border: '1px solid var(--lumen-border)',
+                      background: 'rgba(255,255,255,0.02)',
+                      padding: '7px 9px',
+                      cursor: 'pointer',
+                      transition: 'background 0.12s, border-color 0.12s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(167,139,250,0.3)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = 'var(--lumen-border)'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--lumen-text)', lineHeight: 1.3, flex: 1 }}>{sp.title}</p>
+                      <span style={{ fontSize: 8, color: 'var(--lumen-text-muted)', flexShrink: 0, marginLeft: 6, opacity: 0.6 }}>▶ leer</span>
                     </div>
-                  </div>
+                    <p style={{ fontSize: 9.5, color: 'var(--lumen-text-muted)', lineHeight: 1.45 }} className="line-clamp-2">{sp.content}</p>
+                  </button>
                 ))}
               </div>
             )}
