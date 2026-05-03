@@ -423,31 +423,105 @@ function ManualModal({ onClose }) {
 
 // ─── Existing components (unchanged) ─────────────────────────────────────────
 
-function PromoTable({ promos, loading, error, onRefresh }) {
-  const [favs, setFavs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(PROMO_FAV_KEY) || '[]'); } catch { return []; }
+function PromoCard({ p }) {
+  const [fav, setFav] = useState(() => {
+    try { const favs = JSON.parse(localStorage.getItem(PROMO_FAV_KEY) || '[]'); return favs.includes(`${p.name}||${p.promo}`); } catch { return false; }
   });
 
-  const favKey = (p) => `${p.name}||${p.promo}`;
-  const isFav  = (p) => favs.includes(favKey(p));
-  const toggleFav = (p) => {
-    const k = favKey(p);
-    setFavs((prev) => {
-      const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k];
-      try { localStorage.setItem(PROMO_FAV_KEY, JSON.stringify(next)); } catch {}
+  const toggleFav = () => {
+    const k = `${p.name}||${p.promo}`;
+    setFav((prev) => {
+      const next = !prev;
+      try {
+        const favs = JSON.parse(localStorage.getItem(PROMO_FAV_KEY) || '[]');
+        const updated = next ? [...favs, k] : favs.filter((x) => x !== k);
+        localStorage.setItem(PROMO_FAV_KEY, JSON.stringify(updated));
+      } catch {}
       return next;
     });
   };
 
+  const openUrl = () => {
+    if (p.url) window.lumen.shell.openExternal(p.url).catch(() => {});
+  };
+
+  return (
+    <div style={{
+      border: `1px solid ${fav ? 'rgba(245,158,11,0.35)' : 'var(--lumen-border)'}`,
+      borderRadius: 8,
+      background: fav ? 'rgba(245,158,11,0.04)' : 'var(--lumen-card)',
+      padding: '12px 14px',
+      display: 'flex', flexDirection: 'column', gap: 7,
+      transition: 'border-color 0.15s',
+    }}>
+      {/* Header row: category badge + fav star */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+          padding: '2px 7px', borderRadius: 99,
+          background: 'rgba(245,158,11,0.12)', color: '#f59e0b',
+          border: '1px solid rgba(245,158,11,0.25)',
+        }}>{p.category || 'Restaurante'}</span>
+        <div style={{ flex: 1 }} />
+        <button onClick={toggleFav} title={fav ? 'Quitar favorito' : 'Guardar'}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: fav ? '#f59e0b' : 'var(--lumen-text-muted)', display: 'flex' }}>
+          <Star size={11} fill={fav ? '#f59e0b' : 'none'} />
+        </button>
+      </div>
+
+      {/* Restaurant name */}
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--lumen-text)', lineHeight: 1.2, margin: 0 }}>{p.name}</p>
+
+      {/* Promo description */}
+      <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, lineHeight: 1.4, margin: 0 }}>{p.promo}</p>
+
+      {/* Details */}
+      {p.details && (
+        <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', lineHeight: 1.45, margin: 0 }}>{p.details}</p>
+      )}
+
+      {/* Price + address row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {p.price && (
+          <span style={{
+            fontSize: 13, fontWeight: 800, color: '#10b981',
+            background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)',
+            padding: '2px 9px', borderRadius: 6,
+          }}>{p.price}</span>
+        )}
+        {p.address && (
+          <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)', display: 'flex', alignItems: 'center', gap: 3, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <MapPin size={9} style={{ flexShrink: 0 }} />{p.address}
+          </span>
+        )}
+      </div>
+
+      {/* Ver oferta button */}
+      {p.url && (
+        <button
+          onClick={openUrl}
+          style={{
+            marginTop: 2,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+            background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+            color: '#f59e0b', transition: 'background 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(245,158,11,0.18)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(245,158,11,0.1)'; }}
+        >
+          Ver oferta →
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PromoTable({ promos, loading }) {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 0', color: 'var(--lumen-text-muted)', fontSize: 11 }}>
       <RefreshCw size={12} className="animate-spin" style={{ color: '#f59e0b' }} />
-      Buscando promociones del día…
-    </div>
-  );
-  if (error) return (
-    <div style={{ padding: '9px 12px', borderRadius: 4, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', fontSize: 11 }}>
-      {error}
+      Buscando restaurantes y promociones cerca de ti…
     </div>
   );
   if (!promos || promos.length === 0) return (
@@ -456,49 +530,9 @@ function PromoTable({ promos, loading, error, onRefresh }) {
     </p>
   );
 
-  const pinned = promos.filter(isFav);
-  const others = promos.filter((p) => !isFav(p));
-  const ordered = [...pinned, ...others];
-
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--lumen-border)' }}>
-            {[['', 32], ['Negocio', null], ['Tipo', 90], ['Promoción', null], ['Detalles / Dirección', 200]].map(([h, w], i) => (
-              <th key={i} style={{ padding: '5px 8px', textAlign: 'left', color: 'var(--lumen-text-muted)', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', ...(w ? { width: w } : {}) }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {ordered.map((p, i) => {
-            const fav = isFav(p);
-            return (
-              <tr key={i}
-                style={{ borderBottom: '1px solid var(--lumen-border)', background: fav ? 'rgba(245,158,11,0.05)' : 'transparent', transition: 'background 0.1s' }}
-                onMouseEnter={(e) => { if (!fav) e.currentTarget.style.background = 'var(--lumen-card-hover)'; }}
-                onMouseLeave={(e) => { if (!fav) e.currentTarget.style.background = fav ? 'rgba(245,158,11,0.05)' : 'transparent'; }}
-              >
-                <td style={{ padding: '6px 8px', verticalAlign: 'top' }}>
-                  <button onClick={() => toggleFav(p)} title={fav ? 'Quitar favorito' : 'Fijar favorito'}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: fav ? '#f59e0b' : 'var(--lumen-text-muted)', display: 'flex' }}>
-                    <Star size={11} fill={fav ? '#f59e0b' : 'none'} />
-                  </button>
-                </td>
-                <td style={{ padding: '6px 8px', verticalAlign: 'top', fontWeight: 600, color: 'var(--lumen-text)' }}>{p.name}</td>
-                <td style={{ padding: '6px 8px', verticalAlign: 'top', color: 'var(--lumen-text-secondary)' }}>{p.category}</td>
-                <td style={{ padding: '6px 8px', verticalAlign: 'top', color: '#f59e0b', fontWeight: 500 }}>{p.promo}</td>
-                <td style={{ padding: '6px 8px', verticalAlign: 'top', color: 'var(--lumen-text-muted)', maxWidth: 200 }}>{p.details || p.address || '—'}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {pinned.length > 0 && (
-        <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', marginTop: 6 }}>
-          ★ {pinned.length} favorito{pinned.length !== 1 ? 's' : ''} fijado{pinned.length !== 1 ? 's' : ''}
-        </p>
-      )}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+      {promos.map((p, i) => <PromoCard key={i} p={p} />)}
     </div>
   );
 }

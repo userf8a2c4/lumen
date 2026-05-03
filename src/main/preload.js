@@ -60,6 +60,9 @@ contextBridge.exposeInMainWorld('lumen', {
     fetch: () => ipcRenderer.invoke('promos:fetch'),
     fetchForLocation: (loc) => ipcRenderer.invoke('promos:fetchForLocation', loc),
   },
+  shell: {
+    openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  },
   logic: {
     getAll:       ()         => ipcRenderer.invoke('logic:getAll'),
     getById:      (id)       => ipcRenderer.invoke('logic:getById', id),

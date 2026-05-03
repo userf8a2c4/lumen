@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, Menu, protocol, session } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, Menu, protocol, session, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const db = require('./database');
@@ -558,28 +558,147 @@ function registerHandlers() {
   });
   ipcMain.handle('settings:setLocations', (_e, locs) => db.setSetting('promo_locations', JSON.stringify(locs)));
 
-  // Promos — fetch for a specific location
+  // ── Promos pipeline ─────────────────────────────────────────────────────────
+
+  // Step 1: real restaurant list from OpenStreetMap Overpass API (no API key needed)
+  async function fetchRestaurantsNearby(lat, lng, radiusMeters = 1500) {
+    const query = `[out:json][timeout:15];
+(
+  node["amenity"~"^(restaurant|fast_food|cafe|bakery|bar|food_court|ice_cream)$"]["name"](around:${radiusMeters},${lat},${lng});
+  way["amenity"~"^(restaurant|fast_food|cafe|bakery|bar|food_court|ice_cream)$"]["name"](around:${radiusMeters},${lat},${lng});
+);
+out body center;`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'LUMEN-App/1.0' },
+      body: `data=${encodeURIComponent(query)}`,
+    });
+    if (!res.ok) throw new Error(`Overpass ${res.status}`);
+    const data = await res.json();
+    return (data.elements || []).map((el) => {
+      const t = el.tags || {};
+      return {
+        name:    t.name,
+        website: t.website || t['contact:website'] || null,
+        cuisine: t.cuisine || t.amenity || null,
+        address: [t['addr:street'], t['addr:housenumber'], t['addr:city'] || t['addr:municipality']].filter(Boolean).join(', '),
+        lat: el.lat ?? el.center?.lat,
+        lng: el.lon ?? el.center?.lon,
+      };
+    }).filter((r) => r.name);
+  }
+
+  // Step 2a: scrape the restaurant's own website and ask Gemini for promos
+  async function promoFromWebsite(name, website, genAI, modelId) {
+    try {
+      const scraped = await Promise.race([
+        scrapeUrl(website),
+        new Promise((_, r) => setTimeout(() => r(new Error('scrape timeout')), 8000)),
+      ]);
+      if (!scraped || !scraped.content || scraped.content.length < 80) return null;
+      const model = genAI.getGenerativeModel({ model: modelId });
+      const prompt =
+        `Restaurante: "${name}". Contenido de su web:\n${scraped.content.slice(0, 2500)}\n\n` +
+        `¿Tiene alguna promoción, combo, descuento o menú del día activo? ` +
+        `Responde SOLO con JSON sin markdown:\n` +
+        `{"hasPromo":true,"promo":"descripción breve","details":"condiciones","price":"precio si hay"}\n` +
+        `Si no hay promos responde exactamente: {"hasPromo":false}`;
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      const match = text.match(/\{[\s\S]*?\}/);
+      if (!match) return null;
+      const parsed = JSON.parse(match[0]);
+      if (!parsed.hasPromo) return null;
+      return { promo: parsed.promo || '', details: parsed.details || '', price: parsed.price || '', url: website };
+    } catch { return null; }
+  }
+
+  // Step 2b: Gemini + Google Search for restaurants without website
+  async function promoFromSearch(name, locationDesc, genAI, modelId) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelId, tools: [{ googleSearch: {} }] });
+      const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const prompt =
+        `Hoy es ${today}. Busca en internet: ¿el restaurante "${name}" en ${locationDesc} tiene alguna promoción, combo, descuento o menú del día activo hoy? ` +
+        `Si encuentras algo concreto, responde SOLO con JSON sin markdown:\n` +
+        `{"hasPromo":true,"promo":"descripción breve","details":"condiciones","price":"precio si aplica","url":"URL del sitio oficial o donde viste la promo"}\n` +
+        `Si no encuentras nada concreto responde exactamente: {"hasPromo":false}`;
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      const match = text.match(/\{[\s\S]*?\}/);
+      if (!match) return null;
+      const parsed = JSON.parse(match[0]);
+      if (!parsed.hasPromo) return null;
+      return { promo: parsed.promo || '', details: parsed.details || '', price: parsed.price || '', url: parsed.url || null };
+    } catch { return null; }
+  }
+
+  const CUISINE_LABELS = {
+    pizza: 'Pizza', burger: 'Hamburguesas', mexican: 'Mexicana', sushi: 'Sushi',
+    italian: 'Italiana', chicken: 'Pollo', sandwich: 'Sándwiches', seafood: 'Mariscos',
+    coffee: 'Café', ice_cream: 'Helados', bakery: 'Panadería', fast_food: 'Comida rápida',
+    cafe: 'Café', tacos: 'Tacos', tortas: 'Tortas', bbq: 'BBQ', chinese: 'China',
+    american: 'Americana', bar: 'Bar', restaurant: 'Restaurante',
+  };
+
   async function fetchPromosForLocation(loc) {
     const apiKey = getApiKey();
     if (!apiKey) throw new Error('Sin API Key');
     const modelId = db.getSetting('model') || 'gemini-2.5-flash';
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelId, tools: [{ googleSearch: {} }] });
-    const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const locationDesc = loc.address
-      ? `${loc.address}`
-      : 'Toluca de Lerdo, Estado de México, México';
-    const prompt =
-      `Hoy es ${today}. Busca promociones de comida, restaurantes y negocios de alimentos cerca de: "${locationDesc}". ` +
-      `Incluye combos, descuentos, 2x1, menú del día, ofertas especiales, etc. ` +
-      `Responde ÚNICAMENTE con un JSON válido, sin texto extra, sin markdown, con este formato exacto: ` +
-      `[{"name":"Nombre negocio","category":"Tipo","promo":"Descripción promo","details":"Condiciones/detalles","address":"Dirección"}]. ` +
-      `Máximo 8 resultados. Si no encuentras info real, devuelve [].`;
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return [];
-    return JSON.parse(jsonMatch[0]);
+    const genAI   = new GoogleGenerativeAI(apiKey);
+
+    const locationDesc = loc.address || (loc.lat ? `${loc.lat}, ${loc.lng}` : 'México');
+
+    // Step 1: get real restaurants if we have GPS coords
+    let restaurants = [];
+    if (loc.lat && loc.lng) {
+      try { restaurants = await fetchRestaurantsNearby(loc.lat, loc.lng); }
+      catch (e) { console.error('[promos] Overpass failed:', e.message); }
+    }
+
+    // Sort: websites first (likely to have scrapeable promos)
+    restaurants.sort((a, b) => (b.website ? 1 : 0) - (a.website ? 1 : 0));
+    const top = restaurants.slice(0, 6);
+
+    if (top.length === 0) {
+      // Fallback: generic area search when no OSM data
+      const model = genAI.getGenerativeModel({ model: modelId, tools: [{ googleSearch: {} }] });
+      const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const prompt =
+        `Hoy es ${today}. Busca promociones de restaurantes y comida cerca de: "${locationDesc}". ` +
+        `Responde SOLO con JSON sin markdown: ` +
+        `[{"name":"nombre","category":"tipo","promo":"descripción","details":"condiciones","price":"precio","url":"URL si existe","address":"dirección"}]. ` +
+        `Máximo 6 resultados reales. Si no encuentras nada real, devuelve [].`;
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      const match = text.match(/\[[\s\S]*\]/);
+      if (!match) return [];
+      try { return JSON.parse(match[0]); } catch { return []; }
+    }
+
+    // Step 2: process restaurants in parallel
+    const settled = await Promise.allSettled(
+      top.map(async (r) => {
+        let promoData = null;
+        if (r.website) promoData = await promoFromWebsite(r.name, r.website, genAI, modelId);
+        if (!promoData)  promoData = await promoFromSearch(r.name, locationDesc, genAI, modelId);
+        if (!promoData)  return null;
+        const raw = (r.cuisine || 'restaurant').split(';')[0].trim().toLowerCase();
+        return {
+          name:     r.name,
+          category: CUISINE_LABELS[raw] || raw.charAt(0).toUpperCase() + raw.slice(1),
+          promo:    promoData.promo,
+          details:  promoData.details,
+          price:    promoData.price,
+          url:      promoData.url || null,
+          address:  r.address || locationDesc,
+        };
+      })
+    );
+
+    return settled
+      .filter((s) => s.status === 'fulfilled' && s.value !== null)
+      .map((s) => s.value);
   }
 
   ipcMain.handle('promos:fetchForLocation', async (_e, loc) => {
@@ -587,13 +706,12 @@ function registerHandlers() {
     catch (e) { console.error('promos:fetchForLocation error', e); return []; }
   });
 
-  // Legacy fetch (backward compat — uses first enabled location or default)
+  // Legacy compat
   ipcMain.handle('promos:fetch', async () => {
     try {
       const raw = db.getSetting('promo_locations');
       const locs = raw ? JSON.parse(raw) : DEFAULT_LOCATIONS;
-      const enabled = locs.filter((l) => l.enabled);
-      const loc = enabled[0] || { address: 'Toluca de Lerdo, Estado de México, México' };
+      const loc  = (locs.filter((l) => l.enabled && l.lat)[0]) || {};
       return await fetchPromosForLocation(loc);
     } catch (e) { console.error('promos:fetch error', e); return []; }
   });
@@ -989,6 +1107,7 @@ Devuelve el JSON de la propuesta.`;
   // App
   ipcMain.handle('app:getVersion', () => app.getVersion());
   ipcMain.handle('app:quit', () => app.quit());
+  ipcMain.handle('shell:openExternal', (_e, url) => shell.openExternal(url));
 }
 
 // --- App lifecycle ---
