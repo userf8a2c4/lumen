@@ -1,7 +1,7 @@
 {
   "name": "lumen-app",
-  "version": "0.1.16",
-  "description": "LUMEN — Motor de Conocimiento Personal (Case Tracking Edition)",
+  "version": "0.1.17",
+  "description": "LUMEN — Motor de Conocimiento Personal (Chiquisaurias Edition)",
   "main": "src/main/main.js",
   "author": "LUMEN Team",
   "license": "MIT",

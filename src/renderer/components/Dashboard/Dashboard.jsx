@@ -17,6 +17,18 @@ const LOC_LABELS = { home: 'Casa', work: 'Trabajo', other: 'Otro' };
 
 const CHANGELOG = [
   {
+    version: '0.1.17',
+    name: 'Chiquisaurias Edition',
+    date: 'May 2026',
+    accent: '#a78bfa',
+    highlights: [
+      { icon: FolderOpen,   text: 'Nuevo módulo Expedientes en el menú lateral — historial completo de cada caso con búsqueda y filtros.' },
+      { icon: GitBranch,    text: 'Detalle de expediente: ruta de decisión, recursos usados, notas vinculadas y transcript con LU.' },
+      { icon: Sparkles,     text: 'Dashboard: tarjeta Novedades con changelog interactivo por versión.' },
+      { icon: BookMarked,   text: 'Dashboard: Manual de usuario completo con 8 secciones navegables paso a paso.' },
+    ],
+  },
+  {
     version: '0.1.16',
     name: 'Case Tracking Edition',
     date: 'May 2026',
@@ -749,7 +761,7 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
           color="#f59e0b"
           title="Novedades"
           subtitle="Cambios recientes, nuevas funciones y correcciones de esta versión."
-          badge="v0.1.16"
+          badge="v0.1.17"
           onClick={() => setShowChangelog(true)}
         />
         <InfoCard
