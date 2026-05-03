@@ -59,15 +59,16 @@ function fmtAgo(date) {
 
 const CHANGELOG = [
   {
-    version: '0.1.17',
+    version: '0.1.18',
     name: 'Chiquisaurias Edition',
     date: 'May 2026',
     accent: '#a78bfa',
     highlights: [
-      { icon: FolderOpen,   text: 'Nuevo módulo Expedientes en el menú lateral — historial completo de cada caso con búsqueda y filtros.' },
-      { icon: GitBranch,    text: 'Detalle de expediente: ruta de decisión, recursos usados, notas vinculadas y transcript con LU.' },
-      { icon: Sparkles,     text: 'Dashboard: tarjeta Novedades con changelog interactivo por versión.' },
-      { icon: BookMarked,   text: 'Dashboard: Manual de usuario completo con 8 secciones navegables paso a paso.' },
+      { icon: Navigation,   text: 'Promociones se escanean automáticamente al iniciar LUMEN y cada 15 minutos sin tocar nada.' },
+      { icon: MapPin,       text: 'Usa GPS en vivo en cada escaneo. Si no hay señal, usa la última ubicación guardada.' },
+      { icon: RefreshCw,    text: 'El widget muestra la dirección actual y el tiempo desde la última actualización.' },
+      { icon: FolderOpen,   text: 'Nuevo módulo Expedientes: historial completo de casos con búsqueda y detalle.' },
+      { icon: Sparkles,     text: 'Dashboard: Novedades y Manual de usuario accesibles desde el inicio.' },
     ],
   },
   {
@@ -840,7 +841,7 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
           color="#f59e0b"
           title="Novedades"
           subtitle="Cambios recientes, nuevas funciones y correcciones de esta versión."
-          badge="v0.1.17"
+          badge="v0.1.18"
           onClick={() => setShowChangelog(true)}
         />
         <InfoCard
