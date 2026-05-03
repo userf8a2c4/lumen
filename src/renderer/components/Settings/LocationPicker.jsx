@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Loader2, ToggleLeft, ToggleRight, Navigation, CheckCircle2, AlertCircle } from 'lucide-react';
+import { MapPin, Loader2, ToggleLeft, ToggleRight, Navigation, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
 
 const ICON_COLORS = { home: '#10b981', work: '#60a5fa', other: '#f59e0b' };
 const ICON_LABELS = { home: 'Casa', work: 'Trabajo', other: 'Otro' };
@@ -25,11 +25,21 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
+function isValidCoord(val, min, max) {
+  const n = parseFloat(val);
+  return !isNaN(n) && n >= min && n <= max;
+}
+
 function LocationCard({ loc, onChange }) {
-  const [status, setStatus] = useState('idle'); // idle | loading | success | error
-  const [errorMsg, setErrorMsg] = useState('');
+  const [status,     setStatus]     = useState('idle'); // idle | loading | success | error
+  const [errorMsg,   setErrorMsg]   = useState('');
+  const [manualLat,  setManualLat]  = useState('');
+  const [manualLng,  setManualLng]  = useState('');
+  const [manualStatus, setManualStatus] = useState('idle'); // idle | loading | success | error
+  const [showManual, setShowManual] = useState(false);
   const color = ICON_COLORS[loc.id];
 
+  // ── GPS auto-capture ──────────────────────────────────────────────
   const captureLocation = () => {
     if (!navigator.geolocation) {
       setStatus('error');
@@ -49,14 +59,33 @@ function LocationCard({ loc, onChange }) {
       (err) => {
         setStatus('error');
         setErrorMsg(
-          err.code === 1 ? 'Permiso de ubicación denegado. Permite el acceso en la configuración de Windows.' :
-          err.code === 2 ? 'No se pudo obtener la ubicación. Verifica que el GPS esté activo.' :
-          'Tiempo de espera agotado. Intenta de nuevo.'
+          err.code === 1 ? 'Permiso denegado. Permite acceso a ubicación en Windows.' :
+          err.code === 2 ? 'No se pudo obtener ubicación. Verifica que el GPS esté activo.' :
+                           'Tiempo de espera agotado. Intenta de nuevo.'
         );
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
+
+  // ── Manual coordinates save ───────────────────────────────────────
+  const saveManual = async () => {
+    if (!isValidCoord(manualLat, -90, 90) || !isValidCoord(manualLng, -180, 180)) {
+      setManualStatus('error');
+      return;
+    }
+    const lat = parseFloat(parseFloat(manualLat).toFixed(6));
+    const lng = parseFloat(parseFloat(manualLng).toFixed(6));
+    setManualStatus('loading');
+    const address = await reverseGeocode(lat, lng);
+    onChange({ ...loc, lat, lng, address, enabled: true });
+    setManualLat('');
+    setManualLng('');
+    setManualStatus('success');
+    setTimeout(() => { setManualStatus('idle'); setShowManual(false); }, 1800);
+  };
+
+  const manualValid = isValidCoord(manualLat, -90, 90) && isValidCoord(manualLng, -180, 180);
 
   return (
     <div style={{
@@ -84,8 +113,7 @@ function LocationCard({ loc, onChange }) {
         >
           {loc.enabled
             ? <ToggleRight size={20} style={{ color }} />
-            : <ToggleLeft  size={20} style={{ color: 'var(--lumen-text-muted)' }} />
-          }
+            : <ToggleLeft  size={20} style={{ color: 'var(--lumen-text-muted)' }} />}
         </button>
       </div>
 
@@ -98,9 +126,14 @@ function LocationCard({ loc, onChange }) {
           <span style={{ fontSize: 11, color: loc.address ? 'var(--lumen-text-secondary)' : 'var(--lumen-text-muted)', lineHeight: 1.5, flex: 1 }}>
             {loc.address || 'Sin ubicación configurada'}
           </span>
+          {loc.lat && loc.lng && (
+            <span style={{ fontSize: 9, color: 'var(--lumen-text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>
+              {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
+            </span>
+          )}
         </div>
 
-        {/* Capture button */}
+        {/* GPS capture button */}
         <button
           onClick={captureLocation}
           disabled={status === 'loading'}
@@ -111,39 +144,119 @@ function LocationCard({ loc, onChange }) {
             background: status === 'success' ? 'rgba(16,185,129,0.12)'
                       : status === 'error'   ? 'rgba(239,68,68,0.08)'
                       : `${color}14`,
-            border: `1px solid ${
-              status === 'success' ? 'rgba(16,185,129,0.3)'
-            : status === 'error'   ? 'rgba(239,68,68,0.25)'
-            : color + '40'}`,
-            color: status === 'success' ? '#10b981'
-                 : status === 'error'   ? '#f87171'
-                 : color,
+            border: `1px solid ${status === 'success' ? 'rgba(16,185,129,0.3)' : status === 'error' ? 'rgba(239,68,68,0.25)' : color + '40'}`,
+            color: status === 'success' ? '#10b981' : status === 'error' ? '#f87171' : color,
           }}
         >
           {status === 'loading' && <Loader2 size={13} className="animate-spin" />}
           {status === 'success' && <CheckCircle2 size={13} />}
           {status === 'error'   && <AlertCircle size={13} />}
           {status === 'idle'    && <Navigation size={13} />}
-
           {status === 'loading' ? 'Obteniendo ubicación…'
          : status === 'success' ? '¡Ubicación guardada!'
          : status === 'error'   ? 'Error — Intentar de nuevo'
-         : loc.address          ? 'Actualizar ubicación actual'
+         : loc.address          ? 'Actualizar con GPS actual'
          :                        'Usar mi ubicación actual'}
         </button>
 
-        {/* Error detail */}
+        {/* GPS error detail */}
         {status === 'error' && errorMsg && (
-          <p style={{ fontSize: 10, color: '#f87171', lineHeight: 1.5, margin: 0 }}>
-            {errorMsg}
-          </p>
+          <p style={{ fontSize: 10, color: '#f87171', lineHeight: 1.5, margin: 0 }}>{errorMsg}</p>
         )}
 
-        {/* Coords hint */}
-        {loc.lat && loc.lng && (
-          <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', fontFamily: 'monospace', margin: 0 }}>
-            {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)}
-          </p>
+        {/* Toggle manual entry */}
+        <button
+          onClick={() => { setShowManual((v) => !v); setManualStatus('idle'); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            fontSize: 10, color: 'var(--lumen-text-muted)',
+            textDecoration: 'underline', textDecorationStyle: 'dotted',
+            alignSelf: 'flex-start',
+          }}
+        >
+          <KeyRound size={10} />
+          {showManual ? 'Ocultar coordenadas manuales' : 'Ingresar coordenadas manualmente'}
+        </button>
+
+        {/* Manual coords form */}
+        {showManual && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--lumen-border)' }}>
+            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--lumen-text-muted)', margin: 0 }}>
+              Coordenadas GPS
+            </p>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              {/* Latitude */}
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 9, color: 'var(--lumen-text-muted)', display: 'block', marginBottom: 4 }}>
+                  Latitud <span style={{ opacity: 0.6 }}>(-90 a 90)</span>
+                </label>
+                <input
+                  type="number"
+                  value={manualLat}
+                  onChange={(e) => { setManualLat(e.target.value); setManualStatus('idle'); }}
+                  placeholder="ej. 19.4326"
+                  step="any"
+                  style={{
+                    width: '100%', padding: '6px 8px', boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.05)', border: `1px solid ${manualLat && !isValidCoord(manualLat, -90, 90) ? '#f87171' : 'var(--lumen-border)'}`,
+                    borderRadius: 5, fontSize: 11, color: 'var(--lumen-text)',
+                    outline: 'none', fontFamily: 'monospace',
+                  }}
+                />
+              </div>
+              {/* Longitude */}
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 9, color: 'var(--lumen-text-muted)', display: 'block', marginBottom: 4 }}>
+                  Longitud <span style={{ opacity: 0.6 }}>(-180 a 180)</span>
+                </label>
+                <input
+                  type="number"
+                  value={manualLng}
+                  onChange={(e) => { setManualLng(e.target.value); setManualStatus('idle'); }}
+                  placeholder="ej. -99.1332"
+                  step="any"
+                  style={{
+                    width: '100%', padding: '6px 8px', boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.05)', border: `1px solid ${manualLng && !isValidCoord(manualLng, -180, 180) ? '#f87171' : 'var(--lumen-border)'}`,
+                    borderRadius: 5, fontSize: 11, color: 'var(--lumen-text)',
+                    outline: 'none', fontFamily: 'monospace',
+                  }}
+                />
+              </div>
+            </div>
+
+            <p style={{ fontSize: 9, color: 'var(--lumen-text-muted)', margin: 0, lineHeight: 1.5 }}>
+              Puedes obtener coordenadas desde Google Maps: clic derecho en el punto → copia las coordenadas.
+            </p>
+
+            {/* Save button */}
+            <button
+              onClick={saveManual}
+              disabled={!manualValid || manualStatus === 'loading'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '7px 14px', borderRadius: 5, fontSize: 11, fontWeight: 600,
+                cursor: manualValid && manualStatus !== 'loading' ? 'pointer' : 'default',
+                transition: 'all 0.15s',
+                background: manualStatus === 'success' ? 'rgba(16,185,129,0.12)'
+                          : manualStatus === 'error'   ? 'rgba(239,68,68,0.08)'
+                          : manualValid                ? `${color}14`
+                          :                              'rgba(255,255,255,0.03)',
+                border: `1px solid ${manualStatus === 'success' ? 'rgba(16,185,129,0.3)' : manualStatus === 'error' ? 'rgba(239,68,68,0.25)' : manualValid ? color + '40' : 'var(--lumen-border)'}`,
+                color: manualStatus === 'success' ? '#10b981' : manualStatus === 'error' ? '#f87171' : manualValid ? color : 'var(--lumen-text-muted)',
+              }}
+            >
+              {manualStatus === 'loading' && <Loader2 size={12} className="animate-spin" />}
+              {manualStatus === 'success' && <CheckCircle2 size={12} />}
+              {manualStatus === 'error'   && <AlertCircle size={12} />}
+              {manualStatus === 'loading' ? 'Guardando…'
+             : manualStatus === 'success' ? '¡Guardado!'
+             : manualStatus === 'error'   ? 'Coordenadas inválidas'
+             :                              'Guardar coordenadas'}
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -158,7 +271,7 @@ export default function LocationPicker({ locations, onChange }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <p style={{ fontSize: 11, color: 'var(--lumen-text-muted)', lineHeight: 1.6, marginBottom: 4 }}>
-        Presiona el botón en cada ubicación para capturar tu posición GPS actual.
+        Usa el GPS para capturar tu posición actual, o ingresa coordenadas manualmente.
         El widget de promociones en Dashboard usará estas coordenadas para buscar negocios y ofertas cercanas.
       </p>
       {locations.map((loc) => (
