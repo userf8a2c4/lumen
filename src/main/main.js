@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, Menu, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, Menu, protocol, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const db = require('./database');
@@ -459,6 +459,11 @@ function createWindow() {
       nodeIntegration: false,
       webSecurity: false, // allow loading OSM tiles and external resources
     },
+  });
+
+  // Auto-grant geolocation permission so the GPS widget works without prompts
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'geolocation');
   });
 
   mainWindow.once('ready-to-show', () => {

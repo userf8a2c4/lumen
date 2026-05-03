@@ -1,17 +1,59 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FlaskConical, Library, StickyNote, GitBranch,
   Keyboard, Search, Terminal, Clock, Briefcase,
   BookOpen, Users, CheckCircle2, Utensils, RefreshCw,
   Star, MapPin, Settings as SettingsIcon, Sparkles, X,
   Cpu, FolderOpen, MessageSquare, Layers, AlignLeft,
-  ChevronRight, BookMarked, HelpCircle, Info,
+  ChevronRight, BookMarked, Navigation, WifiOff,
 } from 'lucide-react';
 import LumenLogo from '../LumenLogo';
 
-const PROMO_FAV_KEY = 'lumen_promo_favorites';
-const LOC_COLORS = { home: '#10b981', work: '#60a5fa', other: '#f59e0b' };
-const LOC_LABELS = { home: 'Casa', work: 'Trabajo', other: 'Otro' };
+const PROMO_FAV_KEY   = 'lumen_promo_favorites';
+const PROMO_CACHE_KEY = 'lumen_promo_cache';
+const SCAN_INTERVAL   = 15 * 60 * 1000; // 15 minutes
+
+// ─── GPS + reverse geocode helpers ───────────────────────────────────────────
+
+function getCurrentPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('GPS no disponible')); return; }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true, timeout: 10000, maximumAge: 60000,
+    });
+  });
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=es`,
+      { headers: { 'User-Agent': 'LUMEN-App/1.0' } }
+    );
+    const data = await res.json();
+    const a = data.address || {};
+    const parts = [
+      a.road || a.pedestrian || a.footway,
+      a.house_number,
+      a.suburb || a.neighbourhood,
+      a.city || a.town || a.village || a.municipality,
+      a.state,
+    ].filter(Boolean);
+    return parts.join(', ') || data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch {
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
+function fmtAgo(date) {
+  if (!date) return '';
+  const mins = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (mins < 1)  return 'ahora mismo';
+  if (mins === 1) return 'hace 1 min';
+  if (mins < 60)  return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  return hrs === 1 ? 'hace 1 hora' : `hace ${hrs} horas`;
+}
 
 // ─── Changelog data ───────────────────────────────────────────────────────────
 
@@ -461,97 +503,136 @@ function PromoTable({ promos, loading, error, onRefresh }) {
 }
 
 function PromosWidget({ onNavigateSettings }) {
-  const [locations, setLocations]   = useState([]);
-  const [activeId,  setActiveId]    = useState(null);
-  const [cache,     setCache]       = useState({});
+  const [promos,      setPromos]      = useState(() => {
+    try { return JSON.parse(localStorage.getItem(PROMO_CACHE_KEY) || '[]'); } catch { return []; }
+  });
+  const [loading,     setLoading]     = useState(false);
+  const [address,     setAddress]     = useState('');
+  const [error,       setError]       = useState('');
+  const [lastUpdate,  setLastUpdate]  = useState(null);
+  const [agoLabel,    setAgoLabel]    = useState('');
+  const scanningRef = useRef(false);
 
-  useEffect(() => {
-    window.lumen.settings.getLocations()
-      .then((locs) => {
-        const enabled = (locs || []).filter((l) => l.enabled);
-        setLocations(enabled);
-        if (enabled.length > 0) setActiveId(enabled[0].id);
-      })
-      .catch(() => {});
-  }, []);
+  // ── Core scan function ────────────────────────────────────────────
+  const scan = useCallback(async () => {
+    if (scanningRef.current) return;   // prevent overlapping scans
+    scanningRef.current = true;
+    setLoading(true);
+    setError('');
 
-  const fetchForLoc = useCallback(async (loc) => {
-    setCache((c) => ({ ...c, [loc.id]: { ...(c[loc.id] || {}), loading: true, error: '' } }));
+    let loc = null;
+
+    // 1. Try live GPS first
+    try {
+      const pos = await getCurrentPosition();
+      const { latitude: lat, longitude: lng } = pos.coords;
+      const addr = await reverseGeocode(lat, lng);
+      loc = { lat, lng, address: addr };
+      setAddress(addr);
+    } catch {
+      // 2. Fallback: last saved location in Settings
+      try {
+        const locs = await window.lumen.settings.getLocations();
+        const saved = (locs || []).filter((l) => l.enabled && l.lat);
+        if (saved.length > 0) {
+          loc = saved[0];
+          setAddress(loc.address || `${loc.lat?.toFixed(4)}, ${loc.lng?.toFixed(4)}`);
+        }
+      } catch {}
+    }
+
+    if (!loc) {
+      setError('No se pudo obtener la ubicación. Activa el GPS o configura una en Configuración.');
+      setLoading(false);
+      scanningRef.current = false;
+      return;
+    }
+
+    // 3. Fetch promos for the location
     try {
       const data = await window.lumen.promos.fetchForLocation(loc);
-      setCache((c) => ({ ...c, [loc.id]: { promos: data || [], loading: false, error: '' } }));
+      const result = data || [];
+      setPromos(result);
+      try { localStorage.setItem(PROMO_CACHE_KEY, JSON.stringify(result)); } catch {}
+      setLastUpdate(new Date());
+      setError('');
     } catch (e) {
-      setCache((c) => ({ ...c, [loc.id]: { promos: [], loading: false, error: e?.message || 'Error' } }));
+      setError(e?.message || 'Error al buscar promociones.');
     }
+
+    setLoading(false);
+    scanningRef.current = false;
   }, []);
 
+  // ── Auto-scan on mount + every 15 min ────────────────────────────
   useEffect(() => {
-    if (!activeId) return;
-    const loc = locations.find((l) => l.id === activeId);
-    if (!loc) return;
-    if (!cache[activeId]) fetchForLoc(loc);
-  }, [activeId, locations]);
+    scan();
+    const interval = setInterval(scan, SCAN_INTERVAL);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line
 
-  const activeLoc  = locations.find((l) => l.id === activeId);
-  const activeData = cache[activeId] || {};
-
-  if (locations.length === 0) return null;
+  // ── "Hace X min" label updates every minute ───────────────────────
+  useEffect(() => {
+    const tick = () => setAgoLabel(lastUpdate ? fmtAgo(lastUpdate) : '');
+    tick();
+    const t = setInterval(tick, 60000);
+    return () => clearInterval(t);
+  }, [lastUpdate]);
 
   return (
     <div className="bento-card bento-span-full mb-4">
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <Utensils size={13} style={{ color: '#f59e0b' }} />
         <h3 style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--lumen-text-secondary)', margin: 0 }}>
           Promociones cerca
         </h3>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {!activeData.loading && (
-            <button onClick={() => activeLoc && fetchForLoc(activeLoc)} title="Actualizar"
+
+        {/* Location + timestamp */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginLeft: 6 }}>
+          {loading
+            ? <RefreshCw size={10} className="animate-spin" style={{ color: '#f59e0b' }} />
+            : <Navigation size={10} style={{ color: address ? '#10b981' : 'var(--lumen-text-muted)' }} />
+          }
+          {address && !loading && (
+            <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {address.split(',').slice(0, 2).join(',')}
+            </span>
+          )}
+          {loading && (
+            <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)' }}>Escaneando…</span>
+          )}
+        </div>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Last update label */}
+          {agoLabel && !loading && (
+            <span style={{ fontSize: 9, color: 'var(--lumen-text-muted)', fontFamily: 'monospace' }}>
+              {agoLabel}
+            </span>
+          )}
+          {/* Manual refresh */}
+          {!loading && (
+            <button onClick={scan} title="Escanear ahora"
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, color: 'var(--lumen-text-muted)', display: 'flex' }}>
               <RefreshCw size={11} />
             </button>
           )}
-          <button onClick={() => onNavigateSettings?.('settings')} title="Configurar ubicaciones"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, color: 'var(--lumen-text-muted)', display: 'flex' }}>
-            <SettingsIcon size={11} />
-          </button>
         </div>
       </div>
 
-      {locations.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-          {locations.map((loc) => {
-            const isActive = loc.id === activeId;
-            const color = LOC_COLORS[loc.id] || '#f59e0b';
-            return (
-              <button key={loc.id} onClick={() => setActiveId(loc.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                  cursor: 'pointer', border: `1px solid ${isActive ? color : 'var(--lumen-border)'}`,
-                  background: isActive ? `${color}18` : 'transparent',
-                  color: isActive ? color : 'var(--lumen-text-muted)',
-                  transition: 'all 0.15s',
-                }}>
-                <MapPin size={10} />
-                {LOC_LABELS[loc.id] || loc.label}
-                {loc.address && <span style={{ fontSize: 9, opacity: 0.6, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.address.split(',')[0]}</span>}
-              </button>
-            );
-          })}
+      {/* Error state */}
+      {error && !loading && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 6, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', marginBottom: 10 }}>
+          <WifiOff size={12} style={{ color: '#f87171', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: '#f87171', lineHeight: 1.4 }}>{error}</span>
+          <button onClick={() => onNavigateSettings?.('settings')} style={{ marginLeft: 'auto', fontSize: 10, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
+            Configurar
+          </button>
         </div>
       )}
 
-      {locations.length === 1 && activeLoc && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10 }}>
-          <MapPin size={10} style={{ color: LOC_COLORS[activeLoc.id] || '#f59e0b' }} />
-          <span style={{ fontSize: 10, color: 'var(--lumen-text-muted)' }}>
-            {activeLoc.address || LOC_LABELS[activeLoc.id] || activeLoc.label}
-          </span>
-        </div>
-      )}
-
-      <PromoTable promos={activeData.promos} loading={activeData.loading} error={activeData.error} />
+      <PromoTable promos={promos} loading={loading && promos.length === 0} error={''} />
     </div>
   );
 }
@@ -644,7 +725,6 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
   const [turn, setTurn]       = useState(null);
   const [todayCases, setTodayCases] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showPromos, setShowPromos] = useState(true);
   const [showChangelog, setShowChangelog] = useState(false);
   const [showManual, setShowManual]     = useState(false);
 
@@ -663,7 +743,6 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
       .then((r) => setTodayCases((r || []).length))
       .catch(() => {});
 
-    window.lumen.settings.getShowPromos().then((v) => setShowPromos(v !== false)).catch(() => {});
   }, []);
 
   const greet = () => {
@@ -775,7 +854,7 @@ export default function Dashboard({ navigateTo, userName = 'Lucila' }) {
       </div>
 
       {/* Promotions widget */}
-      {showPromos && <PromosWidget onNavigateSettings={navigateTo} />}
+      <PromosWidget onNavigateSettings={navigateTo} />
 
       {/* Keyboard shortcuts */}
       <div className="bento-card bento-span-full mt-0 mb-4">
